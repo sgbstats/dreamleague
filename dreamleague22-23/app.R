@@ -139,7 +139,14 @@ server <- function(input, output) {
     
     teams3 %>% select(-team) %>% 
       rename_with(str_to_title)
-  })
+  },
+  options = list(
+    autoWidth = TRUE,
+    columnDefs = list(list(width = '100px', targets = c(1,2)),
+                      list(width = '50px', targets = c(0,3)),
+                      list(width = '30px', targets = c(4,5))),
+    scrollX=T)
+  )
   
   output$teamtext=renderUI({
     text1=paste("<b>League position:", which(league$team==input$team), "</b>")
@@ -163,7 +170,8 @@ server <- function(input, output) {
   }, deleteFile = F)
   
   output$playerstaken=renderDataTable({
-    teams2 %>% dplyr::select(team, player,club, position)%>% 
+    teams2 %>% filter(is.na(sold)) %>% 
+      dplyr::select(team, player,club, position) %>% 
       rename_with(str_to_title)
   })
 }
