@@ -37,7 +37,9 @@ managers=dl %>% dplyr::select(10:11) %>%
   na.omit() %>% 
   rename(manager=1,
          team=2) %>% 
-  filter(team!="TEAM")
+  filter(team!="TEAM") %>% 
+  mutate(manager=as.character(manager),
+         team=as.character(team))
 
 teams2=teams
 for(i in 1:nrow(teams))
