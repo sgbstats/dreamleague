@@ -11,7 +11,7 @@ library(htmlwidgets)
 library(shinydashboard)
 library(dplyr)
 library(googlesheets4)
-library(golem)
+# library(golem)
 
 
 `%notin%`=Negate(`%in%`)

@@ -5,6 +5,7 @@ library(XML)
 library(googlesheets4)
 `%notin%`=Negate(`%in%`)
 
+
 dl=readxl::read_excel("data/DreamLeague23-24.xlsx", na=c("SOLD"), sheet = "Stats")
 
 teams=dl %>% dplyr::select(2:8) %>% 
@@ -219,5 +220,10 @@ team_score=rbind.data.frame(outfield %>% select(-player_id), gk %>% select(-team
   mutate(cost2=as.numeric(cost)) %>% 
   arrange(team, position, -cost2, bought2) %>% 
   select(-cost2)
+
+# gs4_deauth()
+gs4_auth(
+  email = T
+)
 
 sheet_write(team_score, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="scores")
