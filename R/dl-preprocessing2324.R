@@ -80,6 +80,11 @@ for(i in 1:nrow(outfield))
   print(outfield$player[i])
   tryCatch({
     tables=readHTMLTable(link)
+    
+    if(outfield$player_id[i]==75804)
+    {
+      tables$tpg$V7[5]="1"
+    }
     appgoals=(tables$tpg) %>% filter(V1 %in% c("Premier League", 
                                                "EFL Cup", "English League Cup",
                                                "Europa League", 
@@ -150,7 +155,7 @@ scraplinks2 <- function(url){
 }
 
 # x=scraplinks2(url)
-lg="Premier League|EFL Cup|Europa League|Community Shield|Champions League|European Super League|FA Cup|English FA Cup|Europa Conference League|Championship|Championship Play-Off|League One|League One Play-Off|League Two|League Two Play-Off|English League Cup"
+lg="Premier League|EFL Cup|Europa League|Community Shield|Champions League|European Super Cup|FA Cup|English FA Cup|Europa Conference League|Championship|Championship Play-Off|League One|League One Play-Off|League Two|League Two Play-Off|English League Cup"
 # x2=x  %>% mutate(comp=str_extract(link, lg),
 #                  date=str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),
 #                  score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")) %>% 
@@ -189,7 +194,7 @@ for(i in 1:nrow(gk))
                          "EFL Cup", "English League Cup",
                          "Europa League", 
                          "Community Shield",
-                         "Champions League", "European Super League",
+                         "Champions League", "European Super Cup",
                          "FA Cup", "English FA Cup",
                          "Europa Conference League",
                          "Championship", "Championship Play-Off",
