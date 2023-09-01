@@ -183,7 +183,8 @@ for(i in 1:nrow(gk))
     x=sl%>% group_by(row_number()) %>% 
       mutate(comp=str_extract(link, lg),
              date=as.Date(str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),"%Y-%m-%d"),
-             score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")) %>% 
+             score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
+             App=1) %>% 
       # group_by(row_number()) %>% 
       mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
              opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
@@ -205,7 +206,7 @@ for(i in 1:nrow(gk))
              !is.na(H)
       ) %>%
       summarise(Goals=sum(concede, na.rm=T),
-                App=max(row_number()))
+                App=sum(App, na.rm=T))
     gk$SBgoals[i]= x[1,1]
     gk$SBapp[i]= x[1,2]
     
