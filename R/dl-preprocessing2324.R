@@ -3,10 +3,19 @@ library(readxl)
 library(RCurl)
 library(XML)
 library(googlesheets4)
+library(fuzzyjoin)
 `%notin%`=Negate(`%in%`)
-
+# setwd("C:/R/git/dreamleague")
 
 dl=readxl::read_excel("data/DreamLeague23-24.xlsx", na=c("SOLD"), sheet = "Stats")
+gs4_auth(
+  email = T
+)
+# dl=googlesheets4::read_sheet(ss="https://docs.google.com/spreadsheets/d/1hn2sqtUYCrMUCa9qW54MDxfZxpttG_KBuLHLpBzq_0M/edit?usp=sharing",
+#                              na=c("SOLD","", NULL),
+#                              col_names = F) %>% 
+#   mutate(dummy=NA_character_) %>% 
+#   relocate(dummy, .before = `...1`)
 
 teams=dl %>% dplyr::select(2:8) %>% 
   rename(position=1,
@@ -37,7 +46,7 @@ for(i in 1:nrow(teams))
 }
 
 # sb_id=read.csv("data/sb_id.csv") 
-load("data/ids.RDa")
+load("C:/R/git/dreamleague/data/ids.RDa")
 
 
 
@@ -50,23 +59,35 @@ teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER",
 
 
 outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
-  fuzzyjoin::stringdist_join(player_id %>% select(player, player_id), by="player", mode="left", method="jw", max_dist=0.15, distance_col="dist") %>% 
+  fuzzyjoin::stringdist_join(player_id %>% select(player, player_id,team) %>% 
+                               filter(player_id %notin% c(70735, 182525)),
+                             by="player", mode="left", method="jw", distance_col="dist") %>% 
   group_by(player.x) %>%
   slice_min(order_by=dist, n=1) %>% 
+  ungroup() %>% 
+  rename(team=team.x) %>%
+  select(-team.y) %>% 
   mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2023", sep=""),
                                    grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2024", sep=""),
                                    T~"01-Jul-2023"), "%d-%b-%Y"),
          sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2023", sep=""),
                                  grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2024", sep=""),
                                  T~"30-Jun-2024"), "%d-%b-%Y"))
-mismatch=outfield0 %>% filter(dist!=0|is.na(dist))
+
+mismatch=outfield0 %>% filter(dist!=0|is.na(dist)) %>% 
+  select(team, player.x, club, player.y, dist, player_id)
+
+duplicates=outfield0 %>% count(player.y) %>% filter(n>1)
 
 outfield=outfield0 %>% 
+  group_by(player_id) %>% 
+  slice_min(team, n=1, with_ties = F) %>%
   mutate(SBgoals=0,
          SBapp=0) %>% 
   select(-player.y, -dist) %>% 
   rename("player"="player.x")
 
+weekly=tribble(~"player_id", ~"Date", ~"Goals", ~"App", ~"team")
 
 for(i in 1:nrow(outfield))
   # for(i in 1:10)
@@ -78,12 +99,17 @@ for(i in 1:nrow(outfield))
   link=RCurl::getURL(url)  
   
   print(outfield$player[i])
-  tryCatch({
+   tryCatch({
     tables=readHTMLTable(link)
     
     if(outfield$player_id[i]==75804)
     {
       tables$tpg$V7[5]="1"
+    }
+    
+    if(outfield$player_id[i]==52657)
+    {
+      tables$tpg$V7=""
     }
     appgoals=(tables$tpg) %>% filter(V1 %in% c("Premier League", 
                                                "EFL Cup", "English League Cup",
@@ -99,14 +125,22 @@ for(i in 1:nrow(outfield))
       filter(Date>outfield$bought2[i],
              Date<outfield$sold2[i]) %>% 
       mutate(Goals=as.numeric(V7),
-             App=1) %>% 
+             App=1,
+             Goals=if_else(is.na(Goals), 0, Goals),
+             player_id=outfield$player_id[i],
+             team=outfield$team[i]) 
+    
+    
+    appgoals2=appgoals%>% 
       summarise(App=sum(App, na.rm=T),
                 Goals=sum(Goals, na.rm=T))
     
     
-    outfield$SBgoals[i]=appgoals[1,2]
+    outfield$SBgoals[i]=appgoals2[1,2]
     
-    outfield$SBapp[i]=appgoals[1,1]
+    outfield$SBapp[i]=appgoals2[1,1]
+    
+    weekly=rbind(weekly, appgoals %>% select(player_id, Date, Goals, App, team))
     
     print(outfield$SBgoals[i])
   },
@@ -138,6 +172,8 @@ gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %
   mutate(SBgoals=0, SBapp=0) %>% 
   ungroup()
 
+weekly_gk=tribble(~"team_id", ~"Date", ~"Goals", ~"App")
+
 scraplinks2 <- function(url){
   # Create an html document from the url
   webpage <- xml2::read_html(url)
@@ -154,17 +190,8 @@ scraplinks2 <- function(url){
   return(tibble(link = link_))
 }
 
-# x=scraplinks2(url)
+
 lg="Premier League|EFL Cup|Europa League|Community Shield|Champions League|European Super Cup|FA Cup|English FA Cup|Europa Conference League|Championship|Championship Play-Off|League One|League One Play-Off|League Two|League Two Play-Off|English League Cup"
-# x2=x  %>% mutate(comp=str_extract(link, lg),
-#                  date=str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),
-#                  score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")) %>% 
-#   group_by(row_number()) %>% 
-#   mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
-#          opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
-#   ungroup() %>% 
-#   separate(score, into = c("H", "A"), sep="-") %>% 
-#   mutate(concede=-as.numeric(str_trim(if_else(teampos>opppos, H, A))))
 
 
 for(i in 1:nrow(gk))
@@ -204,13 +231,19 @@ for(i in 1:nrow(gk))
       filter(date>gk$bought2[i],
              date<gk$sold2[i],
              !is.na(H)
-      ) %>%
+      )
+    
+    
+    x2=x%>%
       summarise(Goals=sum(concede, na.rm=T),
                 App=sum(App, na.rm=T))
-    gk$SBgoals[i]= x[1,1]
-    gk$SBapp[i]= x[1,2]
+    gk$SBgoals[i]= x2[1,1]
+    gk$SBapp[i]= x2[1,2]
     
-    
+    weekly_gk=rbind(weekly_gk, x %>% rename(Goals=concede,
+                                            Date=date) %>%
+                      select(Date, Goals, App) %>% 
+                      mutate(team_id=gk$team_id[i]))
     
     
   },
@@ -228,8 +261,25 @@ team_score=rbind.data.frame(outfield %>% select(-player_id), gk %>% select(-team
   select(-cost2)
 
 # gs4_deauth()
-gs4_auth(
-  email = T
-)
+
 
 sheet_write(team_score, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="scores")
+
+weekly2=weekly %>% merge(outfield %>% select(-SBgoals, -SBapp), by=c("player_id", "team"))
+weekly_gk2=weekly_gk %>% merge(gk %>% select(-SBgoals, -SBapp), by="team_id")
+
+seq.Date(as.Date("2023-07-26"), by=7, length.out = 52)
+
+team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
+  ungroup() %>% 
+  mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+  mutate(cost2=as.numeric(cost)) %>% 
+  mutate(week=floor_date(Date,"weeks",week_start = 1)) %>% 
+  group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
+  summarise(SBgoals=sum(Goals, na.rm=T),
+            App=sum(App, na.rm=T)) %>% 
+  arrange(team, position, -cost2, bought2, week) %>% 
+  select(-cost2) 
+
+
+sheet_write(team_score_weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly")

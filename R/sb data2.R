@@ -36,15 +36,18 @@ team_id=scraplinks("https://www.soccerbase.com/teams/home.sd") %>%
                         team=="Bristol C"~"Bristol City",
                         team=="Bristol R"~"Bristol Rovers",
                         team=="MK Dons"~"Milton Keynes Dons",
-                        team=="West Brom"~"West Bromich Albion",
-                        team=="Sheff Utd"~"Sheffield Uinted",
+                        team=="West Brom"~"West Bromwich Albion",
+                        team=="Sheff Utd"~"Sheffield United",
                         team=="Sheff Wed"~"Sheffield Wednesday",
-                        team=="Cambridge U"~"Cambrisge",
+                        team=="Cambridge U"~"Cambridge",
                         team=="Nottm Forest"~"Nottingham Forest",
+                        team=="Notts Co"~"Notts County",
+                        team=="Newport Co"~"Newport County",
+                        
                    T~team))
  
 t=0
-player_id=tribble(~player, ~player_id,~team,~team_id)
+player_id0=tribble(~player, ~player_id,~team,~team_id)
 for(i in 1:nrow(team_id))
 {
   skip_to_next <- FALSE
@@ -68,18 +71,25 @@ for(i in 1:nrow(team_id))
   error = function(e) { skip_to_next <<- TRUE})
   
   if(skip_to_next) { next } 
-  player_id=player_id %>% rbind.data.frame(players %>% mutate( team=team_id$team[i],team_id=team_id$team_id[i]))
+  player_id0=player_id0 %>% rbind.data.frame(players %>% mutate( team=team_id$team[i],team_id=team_id$team_id[i]))
   
   
 }
 
-player_id=player_id %>% mutate(player=case_when(player=="Ali Ibrahim Al-Hamadi"~"Ali Al-Hamadi",
+player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Al-Hamadi"~"Ali Al-Hamadi",
                                                 player=="Dan Agyei"~"Daniel Agyei",
                                                 player=="Joshua Sargent"~"Josh Sargent",
                                                 player=="Mo Eisa"~"Mohamed Eisa",
                                                 player=="Iyenoma Destiny Udogie"~"Destiny Udogie",
                                                 T~player))%>% 
-  mutate(player=str_to_upper(player))
+  mutate(player=str_to_upper(player)) %>% 
+  mutate(team=str_to_upper(team)) %>% 
+  rbind(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
+                "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
+                "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
+                "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
+                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772))
+
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
 
