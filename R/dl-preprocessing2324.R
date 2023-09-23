@@ -279,6 +279,7 @@ team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>
   summarise(SBgoals=sum(Goals, na.rm=T),
             App=sum(App, na.rm=T)) %>% 
   arrange(team, position, -cost2, bought2, week) %>% 
+  ungroup() %>% 
   select(-cost2) 
 
 
