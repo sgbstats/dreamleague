@@ -80,8 +80,9 @@ mismatch=outfield0 %>% filter(dist!=0|is.na(dist)) %>%
 duplicates=outfield0 %>% count(player.y) %>% filter(n>1)
 
 outfield=outfield0 %>% 
-  group_by(player_id) %>% 
+  group_by(player_id, team) %>% 
   slice_min(team, n=1, with_ties = F) %>%
+  ungroup() %>% 
   mutate(SBgoals=0,
          SBapp=0) %>% 
   select(-player.y, -dist) %>% 
@@ -99,7 +100,7 @@ for(i in 1:nrow(outfield))
   link=RCurl::getURL(url)  
   
   print(outfield$player[i])
-   tryCatch({
+  tryCatch({
     tables=readHTMLTable(link)
     
     if(outfield$player_id[i]==75804)
@@ -253,7 +254,9 @@ for(i in 1:nrow(gk))
   
 }
 
-team_score=rbind.data.frame(outfield %>% select(-player_id), gk %>% select(-team_id)) %>% 
+team_score=rbind(outfield%>% ungroup() %>% dplyr::select(-player_id) , gk %>% dplyr::select(-team_id) %>% 
+                   mutate(SBgoals=as.numeric(SBgoals),
+                          SBapp=as.numeric(SBapp))) %>% 
   ungroup() %>% 
   mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
   mutate(cost2=as.numeric(cost)) %>% 
@@ -279,8 +282,7 @@ team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>
   summarise(SBgoals=sum(Goals, na.rm=T),
             App=sum(App, na.rm=T)) %>% 
   arrange(team, position, -cost2, bought2, week) %>% 
-  ungroup() %>% 
-  select(-cost2) 
+  ungroup()  
 
 
 sheet_write(team_score_weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly")

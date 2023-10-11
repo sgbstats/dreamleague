@@ -79,7 +79,9 @@ ui <- dashboardPage(
       menuItem("Weekly scores", tabName = "weekly", icon = icon("calendar"),
                startExpanded = F,
                menuSubItem("Weekly Goals", tabName = "weekly2", icon = icon("futbol")),
-               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")))
+               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table"))),
+      menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope"))
+      #menuItem("Report an issue", tabName = "issues", icon = icon("circle-exclamation"))
     )
   ),
   
@@ -130,7 +132,15 @@ ui <- dashboardPage(
                   dataTableOutput("team_weekly")
                 )
               )
-      ) 
+      ) ,
+      tabItem(tabName = "diagnostics", fluid=T,
+              mainPanel(
+                dataTableOutput("diagnostics")
+              )),
+      tabItem(tabName = "issues", fluid=T,
+              mainPanel(
+                
+              ))
       
     )
   )
@@ -259,6 +269,15 @@ server <- function(input, output) {
     dl %>% filter(is.na(sold)) %>% 
       dplyr::select(team, player,club, position) %>% 
       rename_with(str_to_title)
+  })
+  
+  output$diagnostics=renderDataTable({
+    dl %>% filter(is.na(sold)) %>% 
+      dplyr::select(team, player,club, position) %>% 
+      mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+      count(team, position) %>% 
+      pivot_wider(names_from = "position", values_from = "n") %>% 
+      filter(GOALKEEPER!=1|DEFENDER!=2|MIDFIELDER!=3|FORWARD!=5)
   })
 }
 

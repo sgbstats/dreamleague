@@ -88,7 +88,8 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Al-Hamadi"
                 "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
                 "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
                 "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
-                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772))
+                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>% 
+  filter(player_id!=77032|team_id!=649)
 
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
