@@ -88,10 +88,21 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Al-Hamadi"
                 "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
                 "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
                 "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
-                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>% 
-  filter(player_id!=77032|team_id!=649)
+                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
+  group_by(player_id) %>% 
+  slice_min(team, with_ties = F)
 
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
+legacy=player_id
+save(legacy, file = paste("data/legacy/ids", Sys.Date(),".RDa",sep=""))
+
+mostrecent=max(list.files(path = "data/legacy/", pattern = NULL, all.files = FALSE,
+           full.names = FALSE, recursive = FALSE,
+           ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE))
+
+load(paste("data/legacy/", mostrecent, sep=""))
+
+player_id=player_id %>% rbind.data.frame(legacy) %>% group_by(player_id) %>% slice_min(team, with_ties = F)
 
 save(team_id, player_id, file = "data/ids.RDa")
