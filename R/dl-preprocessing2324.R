@@ -6,7 +6,7 @@ library(googlesheets4)
 library(fuzzyjoin)
 `%notin%`=Negate(`%in%`)
 # setwd("C:/R/git/dreamleague")
-
+tictoc::tic()
 dl=readxl::read_excel("data/DreamLeague23-24.xlsx", na=c("SOLD"), sheet = "Stats")
 gs4_auth(
   email = T
@@ -286,3 +286,4 @@ team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>
 
 
 sheet_write(team_score_weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly")
+tictoc::toc()
