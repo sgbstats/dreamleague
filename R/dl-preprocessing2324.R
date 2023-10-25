@@ -86,7 +86,8 @@ outfield=outfield0 %>%
   mutate(SBgoals=0,
          SBapp=0) %>% 
   select(-player.y, -dist) %>% 
-  rename("player"="player.x")
+  rename("player"="player.x") %>% 
+  arrange(player)
 
 weekly=tribble(~"player_id", ~"Date", ~"Goals", ~"App", ~"team")
 
