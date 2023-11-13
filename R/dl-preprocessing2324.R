@@ -156,7 +156,9 @@ for(i in 1:nrow(outfield))
   
 }
 # 
-# test=outfield %>% filter(goals!=SBgoals, !is.na(id))
+test=outfield %>% filter(goals!=SBgoals, !is.na(id)) %>% 
+  select(position, player, goals, SBgoals, player_id) %>% 
+  rename("BCgoals"="goals")
 # load("Data/team_id.RDa")
 
 gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
@@ -235,12 +237,17 @@ for(i in 1:nrow(gk))
              !is.na(H)
       )
     
-    
+    if(gk$club[i]=="NEWCASTLE")
+    {
+      x$concede[10]=-1
+    }  
     x2=x%>%
       summarise(Goals=sum(concede, na.rm=T),
                 App=sum(App, na.rm=T))
     gk$SBgoals[i]= x2[1,1]
     gk$SBapp[i]= x2[1,2]
+    
+
     
     weekly_gk=rbind(weekly_gk, x %>% rename(Goals=concede,
                                             Date=date) %>%
@@ -254,6 +261,11 @@ for(i in 1:nrow(gk))
   if(skip_to_next) { next } 
   
 }
+gk$SBgoals=as.numeric(gk$SBgoals)
+
+testgk=gk %>% filter(goals!=SBgoals, !is.na(id)) %>% 
+  select(position, club, goals, SBgoals, team_id) %>% 
+  rename("BCgoals"="goals")
 
 team_score=rbind(outfield%>% ungroup() %>% dplyr::select(-player_id) , gk %>% dplyr::select(-team_id) %>% 
                    mutate(SBgoals=as.numeric(SBgoals),
@@ -272,7 +284,7 @@ sheet_write(team_score, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0Snq
 weekly2=weekly %>% merge(outfield %>% select(-SBgoals, -SBapp), by=c("player_id", "team"))
 weekly_gk2=weekly_gk %>% merge(gk %>% select(-SBgoals, -SBapp), by="team_id")
 
-seq.Date(as.Date("2023-07-26"), by=7, length.out = 52)
+#seq.Date(as.Date("2023-07-26"), by=7, length.out = 52)
 
 team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
   ungroup() %>% 
