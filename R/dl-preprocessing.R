@@ -93,7 +93,7 @@ for(i in 1:nrow(outfield))
 }
 
 test=outfield %>% filter(goals!=SBgoals, !is.na(id))
-load("Data/team_id.RDa")
+load("data/team_id.RDa")
 
 gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
   merge(team_id %>% select(team, id) %>% 

@@ -46,14 +46,15 @@ for(i in 1:nrow(teams))
 }
 
 # sb_id=read.csv("data/sb_id.csv") 
-load("C:/R/git/dreamleague/data/ids.RDa")
+load("data/ids.RDa")
 
 
 
 teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
   mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
          bought=format(as.Date(bought), "%d-%b"),
-         sold=format(as.Date(sold), "%d-%b")) 
+         sold=format(as.Date(sold), "%d-%b"),
+         club=if_else(club=="OXFORD UTD", "OXFORD", club)) 
 
 # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
 
@@ -216,7 +217,10 @@ for(i in 1:nrow(gk))
              date=as.Date(str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),"%Y-%m-%d"),
              score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
              App=1) %>% 
-      # group_by(row_number()) %>% 
+      mutate(link=gsub("Bristol C", "Bristolc", link),
+             link=gsub("Paris St-G.", "Psg", link),
+             link=gsub("QPR", "Qpr", link),
+             link=gsub("Sheff Wed", "Sheffw", link)) %>% 
       mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
              opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
       ungroup() %>% 
@@ -237,10 +241,10 @@ for(i in 1:nrow(gk))
              !is.na(H)
       )
     
-    if(gk$club[i]=="NEWCASTLE")
-    {
-      x$concede[10]=-1
-    }  
+    # if(gk$club[i]=="NEWCASTLE")
+    # {
+    #   x$concede[10]=-1
+    # }  
     x2=x%>%
       summarise(Goals=sum(concede, na.rm=T),
                 App=sum(App, na.rm=T))
