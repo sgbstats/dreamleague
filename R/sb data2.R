@@ -76,7 +76,7 @@ for(i in 1:nrow(team_id))
   
 }
 
-player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Al-Hamadi"~"Ali Al-Hamadi",
+player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Hamadi"~"Ali Al Hamadi",
                                                 player=="Dan Agyei"~"Daniel Agyei",
                                                 player=="Joshua Sargent"~"Josh Sargent",
                                                 player=="Mo Eisa"~"Mohamed Eisa",

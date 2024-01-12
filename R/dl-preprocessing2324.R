@@ -54,7 +54,11 @@ teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER",
   mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
          bought=format(as.Date(bought), "%d-%b"),
          sold=format(as.Date(sold), "%d-%b"),
-         club=if_else(club=="OXFORD UTD", "OXFORD", club)) 
+         club=if_else(club=="OXFORD UTD", "OXFORD", club),
+         player=case_when(player=="DANIEL ORSI"~ "DANILO ORSI-DADAMO", 
+                          player=="BEN BRERETON DIAZ"~"BEN BRERETON",
+                          player=="HEUNG MIN SON"~"SON HEUNG-MIN",
+                          T~player)) 
 
 # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
 
