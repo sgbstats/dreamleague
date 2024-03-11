@@ -58,6 +58,8 @@ teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER",
          player=case_when(player=="DANIEL ORSI"~ "DANILO ORSI-DADAMO", 
                           player=="BEN BRERETON DIAZ"~"BEN BRERETON",
                           player=="HEUNG MIN SON"~"SON HEUNG-MIN",
+                          player=="DAN JAMES"~"DANIEL JAMES",
+                          player=="HWANG HEE CHAN"~"HEE-CHAN HWANG HEE-CHAN",
                           T~player)) 
 
 # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
@@ -85,7 +87,7 @@ mismatch=outfield0 %>% filter(dist!=0|is.na(dist)) %>%
 duplicates=outfield0 %>% count(player.y) %>% filter(n>1)
 
 outfield=outfield0 %>% 
-  group_by(player_id, team) %>% 
+  group_by(player_id, team, bought2) %>% 
   slice_min(team, n=1, with_ties = F) %>%
   ungroup() %>% 
   mutate(SBgoals=0,
