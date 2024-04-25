@@ -63,11 +63,12 @@ teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER",
                           T~player)) 
 
 # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
-
+player_id2=player_id %>% select(player, player_id,team) %>% 
+  filter(player_id %notin% c(70735, 182525)) %>% 
+  rbind.data.frame(data.frame("player"=c("MIKEY JOHNSTON"), "player_id"=c(93317), "team"=c("WEST BROMWICH ALBION"))) 
 
 outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
-  fuzzyjoin::stringdist_join(player_id %>% select(player, player_id,team) %>% 
-                               filter(player_id %notin% c(70735, 182525)),
+  fuzzyjoin::stringdist_join(player_id2,
                              by="player", mode="left", method="jw", distance_col="dist") %>% 
   group_by(player.x) %>%
   slice_min(order_by=dist, n=1) %>% 
@@ -170,6 +171,7 @@ test=outfield %>% filter(goals!=SBgoals, !is.na(id)) %>%
 
 gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
   merge(team_id %>% select(team, team_id) %>% 
+          mutate(team=if_else(team=="WEST BROMWICH ALBION", "WEST BROM", team)) %>% 
           group_by(team) %>% 
           slice_min(team_id, with_ties = F) %>%
           ungroup()  %>% 
@@ -224,6 +226,8 @@ for(i in 1:nrow(gk))
              score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
              App=1) %>% 
       mutate(link=gsub("Bristol C", "Bristolc", link),
+             link=gsub("Bristol R", "Bristolr", link),
+             link=gsub("Cambridge U", "Cambridgeu", link),
              link=gsub("Paris St-G.", "Psg", link),
              link=gsub("QPR", "Qpr", link),
              link=gsub("Sheff Wed", "Sheffw", link)) %>% 
@@ -246,6 +250,7 @@ for(i in 1:nrow(gk))
              date<gk$sold2[i],
              !is.na(H)
       )
+    
     
     # if(gk$club[i]=="NEWCASTLE")
     # {
@@ -300,7 +305,7 @@ team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>
   ungroup() %>% 
   mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
   mutate(cost2=as.numeric(cost)) %>% 
-  mutate(week=floor_date(Date,"weeks",week_start = 1)) %>% 
+  mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
   group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
   summarise(SBgoals=sum(Goals, na.rm=T),
             App=sum(App, na.rm=T)) %>% 
