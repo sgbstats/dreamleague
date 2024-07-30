@@ -84,11 +84,11 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
                                                 T~player))%>% 
   mutate(player=str_to_upper(player)) %>% 
   mutate(team=str_to_upper(team)) %>% 
-  rbind(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
-                "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
-                "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
-                "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
-                "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
+  # rbind(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
+  #               "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
+  #               "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
+  #               "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
+  #               "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
   group_by(player_id) %>% 
   slice_min(team, with_ties = F) %>% 
   filter(player_id!=107014)

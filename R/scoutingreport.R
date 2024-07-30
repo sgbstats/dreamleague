@@ -16,7 +16,7 @@ player_id2=player_id %>%
          SBapp=0)
 weeklyreport=tribble(~"player_id", ~"Date", ~"Goals", ~"App", ~"team")
 
-for(i in 2667:nrow(player_id2))
+for(i in 1:nrow(player_id2))
   # for(i in 1:100)
 {
   skip_to_next <- FALSE
@@ -95,4 +95,4 @@ player_id_scout=player_id2%>%
 
 tictoc::toc()
 
-save(player_id_scout, weeklyleaguedata, file = "data/scouting/scoutingdata.RDa")
+save(player_id_scout,  file = "data/scouting/scoutingdata.RDa")
