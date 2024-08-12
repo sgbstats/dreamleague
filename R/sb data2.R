@@ -43,6 +43,7 @@ team_id=scraplinks("https://www.soccerbase.com/teams/home.sd") %>%
                         team=="Nottm Forest"~"Nottingham Forest",
                         team=="Notts Co"~"Notts County",
                         team=="Newport Co"~"Newport County",
+                        team=="Norwich"~"Norwich City",
                         
                    T~team))
  
@@ -52,7 +53,7 @@ for(i in 1:nrow(team_id))
 {
   skip_to_next <- FALSE
   
-  print(team_id$team[i])
+  cat(paste0(team_id$team[i], "\n"))
   tryCatch({
     url=paste("https://www.soccerbase.com/teams/team.sd?team_id=",team_id$team_id[i],sep="")
     players0=scraplinks(url = url) %>% 
@@ -91,12 +92,15 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
   #               "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
   group_by(player_id) %>% 
   slice_min(team, with_ties = F) %>% 
-  filter(player_id!=107014)
+  filter(player_id!=107014) %>% 
+  rbind.data.frame(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
+                           "TOMMY CONWAY", NA_integer_, 134873, "BRISTOL CITY", 376,
+                           "GABRIEL SARA", NA_integer_, 146267, "GALATASTARY", 1125,
+                           "VICTOR OSHIMEN", NA_integer_, 100403, "NAPOLI", 1801))
 
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
-legacy=player_id
-save(legacy, file = paste("data/legacy/ids", Sys.Date(),".RDa",sep=""))
+
 
 mostrecent=max(list.files(path = "data/legacy/", pattern = NULL, all.files = FALSE,
            full.names = FALSE, recursive = FALSE,
@@ -107,4 +111,6 @@ load(paste("data/legacy/", mostrecent, sep=""))
 player_id=player_id %>% rbind.data.frame(legacy) %>% group_by(player_id) %>% slice_min(team, with_ties = F)%>% 
   filter(player_id!=107014)
 
+legacy=player_id
+save(legacy, file = paste("data/legacy/ids", Sys.Date(),".RDa",sep=""))
 save(team_id, player_id, file = "data/ids.RDa")
