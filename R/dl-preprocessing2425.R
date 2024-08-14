@@ -7,6 +7,7 @@ library(fuzzyjoin)
 library(crayon)
 `%notin%`=Negate(`%in%`)
 # setwd("C:/R/git/dreamleague")
+source("R/comps.R")
 tictoc::tic()
 dl=readxl::read_excel("data/DreamLeague24-25.xlsx", na=c("SOLD"), sheet = "Stats")
 gs4_auth(
@@ -112,16 +113,7 @@ for(i in 1:nrow(outfield))
   cat(paste0(outfield$player[i],"\n"))
   tryCatch({
     tables=readHTMLTable(link)
-    appgoals=(tables$tpg) %>% filter(V1 %in% c("English premier", 
-                                               "EFL Cup", "English League Cup",
-                                               "Europa League", 
-                                               "Community Shield",
-                                               "Champions League",
-                                               "FA Cup", "English FA Cup",
-                                               "Europa Conference League",
-                                               "Football League Championship", "Football League Championship Play-Off",
-                                               "Football League One", "Football League One Play-Off",
-                                               "Football League Two", "Football League Two Play-Off" )) %>% 
+    appgoals=(tables$tpg) %>% filter(V1 %in% comps) %>% 
       mutate(Date=as.Date(substr(V2,4,13), "%d%b %Y")) %>% 
       filter(Date>outfield$bought2[i],
              Date<outfield$sold2[i]) %>% 
@@ -229,16 +221,7 @@ for(i in 1:nrow(gk))
       mutate(score=gsub(" ", "", score)) %>% 
       separate(score, into = c("H", "A"), sep="-") %>% 
       mutate(concede=-as.numeric(str_trim(if_else(teampos>opppos, H, A))))%>%
-      filter(comp %in% c("English Premier", 
-                         "EFL Cup", "English League Cup",
-                         "Europa League", 
-                         "Community Shield",
-                         "Champions League", "European Super Cup",
-                         "FA Cup", "English FA Cup",
-                         "Europa Conference League",
-                         "Championship", "Championship Play-Off","Football League Championship",
-                         "League One","Football League One", "League One Play-Off",
-                         "League Two","Football League Two", "League Two Play-Off" )) %>% 
+      filter(comp %in% comps ) %>% 
       filter(date>gk$bought2[i],
              date<gk$sold2[i],
              !is.na(H)

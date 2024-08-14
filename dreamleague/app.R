@@ -32,9 +32,10 @@ weekly=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4h
                                  sheet = "weekly",
                                  na=c("SOLD",""),
                                  col_names = T) %>% 
-  mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")))
+  mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
+         week=as.Date(week))
 
-weeks=seq.Date(as.Date("2023-08-5"), by=7, length.out = 52)
+weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]
 weekschar=format(weeks2, format="%d-%b")
 # weekmatch=cbind.data.frame(weekschar, weeks2)
@@ -45,7 +46,7 @@ managers=tribble(~manager, ~team,
                  "ROB PICKETT",	"ROBS ROVERS",
                  "JOE HARPER",	"CASEMIGOS",
                  "SEAN HELSBY",	"SHEFSPANYOL",
-                 "MIKE ASTLEY","SPORTING HOOF",
+                 "MIKE ASTLEY","SPORTING HOPE",
                  "MARK WHITTLE",	"RASH IN THE ATTIC",
                  "RICHARD KILPATRICK",	"ERIMUS",
                  "CHRIS DUFFY",	"NUTMEG UTD",
@@ -75,15 +76,13 @@ ui <- dashboardPage(
   dashboardHeader(title = "DreamLeague"),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("League", tabName = "league", icon = icon("table")),
-      menuItem("Teams", tabName = "teams", icon = icon("shirt")),
-      menuItem("Players taken", tabName = "players", icon = icon("user-xmark")),
-      menuItem("Weekly scores", tabName = "weekly", icon = icon("calendar"),
-               startExpanded = F,
+      menuItem("Didsbury",tabName="didsbury",startExpanded = F, icon=icon("d"),
+               menuSubItem("League", tabName = "league", icon = icon("table")),
+               menuSubItem("Teams", tabName = "teams", icon = icon("shirt")),
+               menuSubItem("Players taken", tabName = "players", icon = icon("user-xmark")),
+               #menuSubItem("Weekly scores", tabName = "weekly", icon = icon("calendar")),
                menuSubItem("Weekly Goals", tabName = "weekly2", icon = icon("futbol")),
-               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table"))),
-      menuItem("History", tabname="history", icon=icon("clock-rotate-left"),
-               startExpanded = F,
+               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")),
                menuSubItem("Team History", tabName = "team_history", icon = icon("futbol")),
                menuSubItem("League History", tabName = "league_history", icon = icon("table")),
                menuSubItem("Horserace", tabName = "horserace", icon=icon("horse"))
@@ -202,15 +201,15 @@ server <- function(input, output) {
   output$table_weekly=renderUI({
     
     league2=managers %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week ==input$week_league) %>%
               group_by(team) %>% 
               summarise(total=sum(SBgoals)), by="team", all = T) %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week ==input$week_league)%>% 
               filter(position != "GOALKEEPER") %>% group_by(team) %>% 
               summarise(gf=sum(SBgoals)), by="team", all=T) %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week ==input$week_league) %>% 
               filter(position == "GOALKEEPER") %>% group_by(team) %>% 
               summarise(ga=-sum(SBgoals)), by="team", all=T) %>%
@@ -232,15 +231,15 @@ server <- function(input, output) {
   output$table_history=renderUI({
     
     league3=managers %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week <=input$week_league2) %>%
               group_by(team) %>% 
               summarise(total=sum(SBgoals)), by="team", all = T) %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week <=input$week_league2) %>% 
               filter(position != "GOALKEEPER") %>% group_by(team) %>% 
               summarise(gf=sum(SBgoals)), by="team", all=T) %>% 
-      merge(weekly %>%mutate(week2=format(week, format="%d-%b")) %>% 
+      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
               filter(week <=input$week_league2)  %>% 
               filter(position == "GOALKEEPER") %>% group_by(team) %>% 
               summarise(ga=-sum(SBgoals)), by="team", all=T) %>%
@@ -287,21 +286,18 @@ server <- function(input, output) {
   output$team_weekly=DT::renderDT({
     
     
-    teams4= weekly%>% filter(team==input$team2)  %>% 
-      mutate(week2=format(week, format="%d-%b")) %>% 
-      filter(is.na(sold)) %>% 
+    weekly%>% filter(team==input$team2) %>% 
+      mutate(week2=format(week, format="%d-%b")) %>%
+      filter(is.na(sold))%>% 
       filter(week ==input$week_player) %>%
       filter(SBgoals!=0) %>%
-      
-      select(-sold, -bought2, -sold2, -App, -week, -week2)
-    
-    
-    teams4 %>% select(-team, -cost2) %>%
+      select(-sold, -bought2, -sold2, -App, -week, -week2)%>%
+      select(-team, -cost2) %>%
       # select(-goals) %>%
       rename("Goals"="SBgoals")%>%
       rename_with(str_to_title) %>%
       relocate(Goals, .after=Club)
-    
+    # 
     
   },
   options = list(
@@ -311,11 +307,13 @@ server <- function(input, output) {
                       list(width = '30px', targets = c(4,5))),
     scrollX=T)
   )
+  
+  
   output$team_history_out=DT::renderDT({
     
     
     teams5= weekly%>% filter(team==input$team3)  %>%
-      mutate(week2=format(week, format="%d-%b")) %>%
+      mutate(week2=as.Date(week, format="%d-%b")) %>%
       filter(bought2<=input$week_player3) %>%
       filter(week <=input$week_player3) %>%
       # filter(SBgoals!=0) %>%
@@ -395,11 +393,11 @@ server <- function(input, output) {
       filter(week>=input$hrstart,
              week<=input$hrend) %>% 
       ggplot(aes(x=week, y=score, col=team, #xmin=as.POSIXct(input$hrstart, format="%Y-%m-%d"), xmax=as.POSIXct(input$hrend, format="%Y-%m-%d")
-                 ))+
+      ))+
       geom_line(linewidth=1)+
       labs(x="Date", y=if_else(input$relative, "Relative Score","Total Score"), col="Team")+
       theme_bw()#+
-     #scale_x_date(limits = as.Date(c(input$hrstart, input$hrend), format="%d-%b"))
+    #scale_x_date(limits = as.Date(c(input$hrstart, input$hrend), format="%d-%b"))
     
   })
   
