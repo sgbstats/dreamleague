@@ -34,6 +34,10 @@ weekly=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4h
                                  col_names = T) %>% 
   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
          week=as.Date(week))
+time=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+                               sheet = "update",
+                               na=c("SOLD",""),
+                               col_names = T) 
 
 weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]
@@ -169,13 +173,17 @@ ui <- dashboardPage(
               )),
       
       tabItem(tabName = "diagnostics", fluid=T,
+              sidebarPanel(
+                h3("Last Updated"),
+                textOutput("update_time")
+              ),
               mainPanel(
                 dataTableOutput("diagnostics")
-              )),
-      tabItem(tabName = "issues", fluid=T,
-              mainPanel(
-                
-              ))
+              ))#,
+      # tabItem(tabName = "issues", fluid=T,
+      #         mainPanel(
+      #           
+      #         ))
       
     )
   )
@@ -400,6 +408,10 @@ server <- function(input, output) {
     #scale_x_date(limits = as.Date(c(input$hrstart, input$hrend), format="%d-%b"))
     
   })
+  output$update_time=renderText({ 
+ 
+    format(time$update_time, format="%Y-%M-%d %H:%M:%S")
+    })
   
 }
 

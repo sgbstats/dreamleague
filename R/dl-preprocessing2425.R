@@ -7,9 +7,9 @@ library(fuzzyjoin)
 library(crayon)
 `%notin%`=Negate(`%in%`)
 # setwd("C:/R/git/dreamleague")
-source("R/comps.R")
+source("C:/R/git/dreamleague/R/comps.R")
 tictoc::tic()
-dl=readxl::read_excel("data/DreamLeague24-25.xlsx", na=c("SOLD"), sheet = "Stats")
+dl=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague24-25.xlsx", na=c("SOLD"), sheet = "Stats")
 gs4_auth(
   email = T
 )
@@ -48,7 +48,7 @@ for(i in 1:nrow(teams))
 }
 
 # sb_id=read.csv("data/sb_id.csv") 
-load("data/ids.RDa")
+load("C:/R/git/dreamleague/data/ids.RDa")
 
 
 
@@ -290,4 +290,8 @@ team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>
 
 
 sheet_write(team_score_weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly")
+
+d=data.frame("update_time"=Sys.time())
+sheet_write(d, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="update")
+
 tictoc::toc()
