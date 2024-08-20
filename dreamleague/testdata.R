@@ -1,3 +1,8 @@
 input=list()
 input$team2="MICHU IN DE GEA BAR"
 input$week_player=as.Date("2024-08-05")
+input$relative_d=T
+input$week_league2_d=as.Date("2024-08-05")
+input$week_league2_o=as.Date("2024-08-05")
+input$league="original"
+

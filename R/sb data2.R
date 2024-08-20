@@ -82,6 +82,7 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
                                                 player=="Joshua Sargent"~"Josh Sargent",
                                                 player=="Mo Eisa"~"Mohamed Eisa",
                                                 player=="Iyenoma Destiny Udogie"~"Destiny Udogie",
+                                                player_id==151107~"IGOR THIAGO",
                                                 T~player))%>% 
   mutate(player=str_to_upper(player)) %>% 
   mutate(team=str_to_upper(team)) %>% 
