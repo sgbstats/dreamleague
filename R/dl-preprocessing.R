@@ -9,7 +9,7 @@ library(crayon)
 # setwd("C:/R/git/dreamleague")
 
 
-dl_process=function(dl, managers)
+dl_process=function(dl, managers, use_soccerbase=T)
 {
   tictoc::tic()
   comps=c("English premier", "English Premier",
@@ -31,6 +31,11 @@ dl_process=function(dl, managers)
            sold=7,
            bought=6) %>% 
     mutate(team=NA_character_)
+  if(!use_soccerbase)
+  {
+    teams=teams %>% mutate(sold=if_else(bought=="SOLD", "2024-07-25", NA_character_),
+                             bought=if_else(cost=="transfer","2024-07-25", NA_character_))
+  }
   
   teams2=teams
   for(i in 1:nrow(teams))
@@ -44,11 +49,10 @@ dl_process=function(dl, managers)
       teams2$team[i]=team
     }
   }
+
   
   # sb_id=read.csv("data/sb_id.csv") 
   load("C:/R/git/dreamleague/data/ids.RDa")
-  
-  
   
   teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
@@ -63,12 +67,15 @@ dl_process=function(dl, managers)
                             player=="HWANG HEE CHAN"~"HEE-CHAN HWANG HEE-CHAN",
                             player=="DAN AGYEI"~"DANIEL AGYEI",
                             T~player)) 
+
   
   # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2=player_id %>% select(player, player_id,team) %>% 
     filter(player_id %notin% c(70735, 182525))
   
-  outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
+  outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>%
+    mutate(player=case_when(player=="STRAND LARSEN"~"JORGEN STRAND LARSEN",
+                            T~player)) %>% 
     fuzzyjoin::stringdist_join(player_id2,
                                by="player", mode="left", method="jw", distance_col="dist") %>% 
     group_by(player.x) %>%
@@ -156,7 +163,7 @@ dl_process=function(dl, managers)
   
   gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     merge(team_id %>% select(team, team_id) %>% 
-            mutate(team=if_else(team=="WEST BROMWICH ALBION", "WEST BROM", team)) %>% 
+            mutate(team=if_else(team=="WEST BROMWICH ALBION", "WEST BROMWICH", team)) %>% 
             group_by(team) %>% 
             slice_min(team_id, with_ties = F) %>%
             ungroup()  %>% 
@@ -288,6 +295,11 @@ dl_process=function(dl, managers)
               App=sum(App, na.rm=T)) %>% 
     arrange(team, position, -cost2, bought2, week) %>% 
     ungroup()  
+  
+  if(!use_soccerbase)
+  {
+    team_score=team_score %>% mutate(SBgoals=goals)
+  }
   
   tictoc::toc()
   return(list("scores"=team_score,

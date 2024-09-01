@@ -98,7 +98,8 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
                            "TOMMY CONWAY", NA_integer_, 134873, "BRISTOL CITY", 376,
                            "GABRIEL SARA", NA_integer_, 146267, "GALATASTARY", 1125,
                            "VICTOR OSHIMEN", NA_integer_, 100403, "NAPOLI", 1801,
-                           "MATT SMITH", NA_integer_,59625,"SALFORD",4880 ))
+                           "MATT SMITH", NA_integer_,59625,"SALFORD",4880,
+                           "MICAHEL OLISE", NA_integer_, 119178, "BAYERN MUNICH", 469))
 
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
