@@ -494,7 +494,7 @@ server <- function(input, output, session) {
   })
   
   output$img=renderImage({
-    outfile=paste("img/", str_replace_all(input$team, "[^[:alnum:]]", ""), ".png", sep="")
+    outfile=paste("img/", str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")), ".png", sep="")
     
     list(src = outfile,
          contentType = 'image/png',

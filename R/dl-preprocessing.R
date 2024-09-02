@@ -9,7 +9,7 @@ library(crayon)
 # setwd("C:/R/git/dreamleague")
 
 
-dl_process=function(dl, managers, use_soccerbase=T)
+dl_process=function(dl, managers, league)
 {
   tictoc::tic()
   comps=c("English premier", "English Premier",
@@ -22,19 +22,29 @@ dl_process=function(dl, managers, use_soccerbase=T)
           "Football League Championship", "Football League Championship Play-Off",
           "Football League One", "Football League One Play-Off",
           "Football League Two", "Football League Two Play-Off" )
-  teams=dl  %>% 
-    rename(position=1,
-           player=2,
-           club=3,
-           cost=4,
-           goals=5,
-           sold=7,
-           bought=6) %>% 
-    mutate(team=NA_character_)
-  if(!use_soccerbase)
+  
+  if(league=="Didsbury")
   {
-    teams=teams %>% mutate(sold=if_else(bought=="SOLD", "2024-07-25", NA_character_),
-                             bought=if_else(cost=="transfer","2024-07-25", NA_character_))
+    teams=dl  %>% 
+      rename(position=1,
+             player=2,
+             club=3,
+             cost=4,
+             goals=5,
+             sold=7,
+             bought=6) %>% 
+      mutate(team=NA_character_)
+  }else if(league=="Original")
+  {
+    teams=dl  %>% 
+      rename(position=1,
+             player=2,
+             club=3,
+             cost=4,
+             goals=5,
+             sold=6,
+             bought=7) %>% 
+      mutate(team=NA_character_)
   }
   
   teams2=teams
@@ -49,15 +59,13 @@ dl_process=function(dl, managers, use_soccerbase=T)
       teams2$team[i]=team
     }
   }
-
+  
   
   # sb_id=read.csv("data/sb_id.csv") 
   load("C:/R/git/dreamleague/data/ids.RDa")
   
-  teams3=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
+  teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
-           bought=format(as.Date(bought), "%d-%b"),
-           sold=format(as.Date(sold), "%d-%b"),
            club=if_else(club=="OXFORD UTD", "OXFORD", club),
            player=case_when(player=="DANIEL ORSI"~ "DANILO ORSI-DADAMO", 
                             player=="BEN BRERETON DIAZ"~"BEN BRERETON",
@@ -67,7 +75,22 @@ dl_process=function(dl, managers, use_soccerbase=T)
                             player=="HWANG HEE CHAN"~"HEE-CHAN HWANG HEE-CHAN",
                             player=="DAN AGYEI"~"DANIEL AGYEI",
                             T~player)) 
-
+  
+  if(league=="Didsbury")
+  {
+    teams3=teams3a %>% mutate(bought=format(as.Date(bought), "%d-%b"),
+                              sold=format(as.Date(sold), "%d-%b"))
+  }else if(league=="Original")
+  {
+    for(i in 1:(nrow(teams3a)-1))
+    {
+      teams3a$sold[i]=teams3a$bought[i+1]
+    }
+    teams3=teams3a %>% 
+      mutate(bought=format(openxlsx::convertToDate(bought)-1, "%d-%b"),
+             sold=format(openxlsx::convertToDate(sold)-1, "%d-%b"))
+  }
+  
   
   # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2=player_id %>% select(player, player_id,team) %>% 
@@ -89,6 +112,8 @@ dl_process=function(dl, managers, use_soccerbase=T)
            sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2024", sep=""),
                                    grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2025", sep=""),
                                    T~"30-Jun-2025"), "%d-%b-%Y"))
+  
+  
   
   mismatch=outfield0 %>% filter(dist!=0|is.na(dist)) %>% 
     select(team, player.x, club, player.y, dist, player_id)
@@ -123,7 +148,7 @@ dl_process=function(dl, managers, use_soccerbase=T)
       appgoals=(tables$tpg) %>% filter(V1 %in% comps) %>% 
         mutate(Date=as.Date(substr(V2,4,13), "%d%b %Y")) %>% 
         filter(Date>outfield$bought2[i],
-               Date<outfield$sold2[i]) %>% 
+               Date<=outfield$sold2[i]) %>% 
         mutate(Goals=as.numeric(V7),
                App=1,
                Goals=if_else(is.na(Goals), 0, Goals),
@@ -168,15 +193,15 @@ dl_process=function(dl, managers, use_soccerbase=T)
             slice_min(team_id, with_ties = F) %>%
             ungroup()  %>% 
             mutate(team=str_to_upper(team)), by.x="club", by.y="team", all.x=T) %>% 
-    mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2024", sep=""),
-                                     grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2025", sep=""),
-                                     T~"01-Jul-2024"), "%d-%b-%Y"),
-           sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2024", sep=""),
-                                   grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2025", sep=""),
-                                   T~"30-Jun-2025"), "%d-%b-%Y")) %>% 
     mutate(SBgoals=0, SBapp=0) %>% 
     ungroup() %>% 
-    drop_na(club)
+    drop_na(club) %>% 
+      mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2024", sep=""),
+                                       grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2025", sep=""),
+                                       T~"01-Jul-2024"), "%d-%b-%Y"),
+             sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2024", sep=""),
+                                     grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2025", sep=""),
+                                     T~"30-Jun-2025"), "%d-%b-%Y"))
   
   weekly_gk=tribble(~"team_id", ~"Date", ~"Goals", ~"App")
   
@@ -228,7 +253,7 @@ dl_process=function(dl, managers, use_soccerbase=T)
         mutate(concede=-as.numeric(str_trim(if_else(teampos>opppos, H, A))))%>%
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
-               date<gk$sold2[i],
+               date<=gk$sold2[i],
                !is.na(H)
         )
       
@@ -296,10 +321,6 @@ dl_process=function(dl, managers, use_soccerbase=T)
     arrange(team, position, -cost2, bought2, week) %>% 
     ungroup()  
   
-  if(!use_soccerbase)
-  {
-    team_score=team_score %>% mutate(SBgoals=goals)
-  }
   
   tictoc::toc()
   return(list("scores"=team_score,
