@@ -32,8 +32,8 @@ managers_o=readxl::read_excel("C:/R/git/dreamleague/data/DL24-25.xlsx", na=c("SO
   filter(team!="TEAM")
 
 dl_o=dl_o %>% mutate(`...7`=case_when(`...2`=="JAMES TRAFFORD"~"45529",
-                                      `...2`=="FREDDIE LADAPO"~"45548",
-                                      `...2`=="HARRY SMITH"~NA_character_,
+                                      #`...2`=="FREDDIE LADAPO"~"45548",
+                                      #`...2`=="HARRY SMITH"~NA_character_,
                                       `...2`=="NONI MADUEKE"~"45530",
                                       T~`...7`))
 

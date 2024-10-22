@@ -6,6 +6,7 @@ library(googlesheets4)
 library(fuzzyjoin)
 library(crayon)
 `%notin%`=Negate(`%in%`)
+library(rvest)
 # setwd("C:/R/git/dreamleague")
 
 
@@ -188,6 +189,7 @@ dl_process=function(dl, managers, league)
   
   gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     merge(team_id %>% select(team, team_id) %>% 
+            rbind.data.frame(data.frame(team=c("WEST BROM"), team_id=c(2744))) %>% 
             mutate(team=if_else(team=="WEST BROMWICH ALBION", "WEST BROMWICH", team)) %>% 
             group_by(team) %>% 
             slice_min(team_id, with_ties = F) %>%
@@ -232,25 +234,35 @@ dl_process=function(dl, managers, league)
     
     cat(paste0(gk$club[i], "\n"))
     tryCatch({
+      
+      
       sl=scraplinks2(url)
       lg=paste(comps, collapse = "|")
       x=sl%>% group_by(row_number()) %>% 
         mutate(comp=str_extract(link, lg),
                date=as.Date(str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),"%Y-%m-%d"),
                score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
+               status=str_extract(link, "(W|L|D|D\\*)[[:space:]]"),
                App=1) %>% 
-        mutate(link=gsub("Bristol C", "Bristolc", link),
-               link=gsub("Bristol R", "Bristolr", link),
-               link=gsub("Cambridge U", "Cambridgeu", link),
-               link=gsub("Paris St-G.", "Psg", link),
-               link=gsub("QPR", "Qpr", link),
-               link=gsub("Sheff Wed", "Sheffw", link)) %>% 
-        mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
-               opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
-        ungroup() %>% 
+        # mutate(link=gsub("Bristol C", "Bristolc ", link),
+        #        link=gsub("Bristol R", "Bristolr ", link),
+        #        link=gsub("Cambridge U", "Cambridgeu", link),
+        #        link=gsub("Paris St-G.", "Psg ", link),
+        #        link=gsub("QPR", "Qpr ", link),
+        #        link=gsub("Sheff Wed", "Sheffw ", link)) %>%
+        # mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
+        #        opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
+        # ungroup() %>% 
         mutate(score=gsub(" ", "", score)) %>% 
         separate(score, into = c("H", "A"), sep="-") %>% 
-        mutate(concede=-as.numeric(str_trim(if_else(teampos>opppos, H, A))))%>%
+        ungroup() %>% 
+        mutate(H=as.numeric(str_trim(H)),
+               A=as.numeric(str_trim(A)),
+               rn=row_number()) %>% 
+        mutate(concede=case_when(status=="W "~ min(H,A),
+                                 status=="D "~H,
+                                 status=="D* "~H,
+                                 status=="L "~max(H,A)),.by="rn")%>%
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
                date<=gk$sold2[i],

@@ -15,39 +15,39 @@ player_id2=player_id %>%
          SBgoals=0,
          SBapp=0)
 weeklyreport=tribble(~"player_id", ~"Date", ~"Goals", ~"App", ~"team")
-
+comps=c("English premier", "English Premier",
+        "EFL Cup", "English League Cup",
+        "Europa League", 
+        "Community Shield",
+        "Champions League",
+        "FA Cup", "English FA Cup",
+        "Europa Conference League",
+        "Football League Championship", "Football League Championship Play-Off",
+        "Football League One", "Football League One Play-Off",
+        "Football League Two", "Football League Two Play-Off" )
 for(i in 1:nrow(player_id2))
   # for(i in 1:100)
 {
   skip_to_next <- FALSE
   # if(is.na(player_id2$id[i])){next}
   
-  url=paste("https://www.soccerbase.com/players/player.sd?player_id=",player_id2$player_id[i],"&season_id=156",sep="")
+  url=paste("https://www.soccerbase.com/players/player.sd?player_id=",player_id2$player_id[i],"&season_id=157",sep="")
   link=RCurl::getURL(url)  
   print(i)
   print(player_id$player[i])
   tryCatch({
     tables=readHTMLTable(link)
     player_id2$position[i]=stringr::word(tables[[1]],1)
-    if(player_id2$player_id[i]==75804)
-    {
-      tables$tpg$V7[5]="1"
-    }
-    
-    if(player_id2$player_id[i]==52657)
-    {
-      tables$tpg$V7=""
-    }
-    appgoals=(tables$tpg) %>% filter(V1 %in% c("Premier League", 
-                                               "EFL Cup", "English League Cup",
-                                               "Europa League", 
-                                               "Community Shield",
-                                               "Champions League",
-                                               "FA Cup", "English FA Cup",
-                                               "Europa Conference League",
-                                               "Championship", "Championship Play-Off",
-                                               "League One", "League One Play-Off",
-                                               "League Two", "League Two Play-Off" )) %>% 
+    # if(player_id2$player_id[i]==75804)
+    # {
+    #   tables$tpg$V7[5]="1"
+    # }
+    # 
+    # if(player_id2$player_id[i]==52657)
+    # {
+    #   tables$tpg$V7=""
+    # }
+    appgoals=(tables$tpg) %>% filter(V1 %in% comps) %>% 
       mutate(Date=as.Date(substr(V2,4,13), "%d%b %Y")) %>% 
       mutate(Goals=as.numeric(V7),
              App=1,
