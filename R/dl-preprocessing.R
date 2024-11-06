@@ -259,10 +259,10 @@ dl_process=function(dl, managers, league)
         mutate(H=as.numeric(str_trim(H)),
                A=as.numeric(str_trim(A)),
                rn=row_number()) %>% 
-        mutate(concede=case_when(status=="W "~ min(H,A),
-                                 status=="D "~H,
-                                 status=="D* "~H,
-                                 status=="L "~max(H,A)),.by="rn")%>%
+        mutate(concede=case_when(status=="W "~ -min(H,A),
+                                 status=="D "~ -H,
+                                 status=="D* "~ -H,
+                                 status=="L "~ -max(H,A)),.by="rn")%>%
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
                date<=gk$sold2[i],
