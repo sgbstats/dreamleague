@@ -16,41 +16,43 @@ library(shinyjs)
 
 
 `%notin%`=Negate(`%in%`)
-options(gargle_oauth_cache = ".secrets",
-        gargle_oauth_email = TRUE)
-gs4_auth(
-  cache = ".secrets",
-  email = "sebastiangbate@gmail.com",
-  scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
-)
-# preprocessing
-dl_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                               sheet = "scores",
-                               na=c("SOLD",""),
-                               col_names = T) 
+# options(gargle_oauth_cache = ".secrets",
+#         gargle_oauth_email = TRUE)
+# gs4_auth(
+#   cache = ".secrets",
+#   email = "sebastiangbate@gmail.com",
+#   scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
+# )
+# # preprocessing
+# dl_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                sheet = "scores",
+#                                na=c("SOLD",""),
+#                                col_names = T) 
+# 
+# weekly_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                    sheet = "weekly",
+#                                    na=c("SOLD",""),
+#                                    col_names = T) %>% 
+#   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
+#          week=as.Date(week))
+# 
+# dl_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                sheet = "scores_original",
+#                                na=c("SOLD",""),
+#                                col_names = T) 
+# 
+# weekly_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                    sheet = "weekly_original",
+#                                    na=c("SOLD",""),
+#                                    col_names = T) %>% 
+#   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
+#          week=as.Date(week))
+# time=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                sheet = "update",
+#                                na=c("SOLD",""),
+#                                col_names = T) 
 
-weekly_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                                   sheet = "weekly",
-                                   na=c("SOLD",""),
-                                   col_names = T) %>% 
-  mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-         week=as.Date(week))
-
-dl_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                               sheet = "scores_original",
-                               na=c("SOLD",""),
-                               col_names = T) 
-
-weekly_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                                   sheet = "weekly_original",
-                                   na=c("SOLD",""),
-                                   col_names = T) %>% 
-  mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-         week=as.Date(week))
-time=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                               sheet = "update",
-                               na=c("SOLD",""),
-                               col_names = T) 
+load("data.RDa")
 
 weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]

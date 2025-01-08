@@ -48,5 +48,11 @@ sheet_write(out_o$weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0S
 d=data.frame("update_time"=Sys.time())
 sheet_write(d, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="update")
 
+dl_d=out_d$scores
+dl_o=out_o$scores
+weekly_d=out_d$weekly
+weekly_o=out_o$weekly
+time=d
 
+save(dl_d, dl_o, weekly_d, weekly_o, time, file="dreamleague/data.RDa")
 # save(managers_o,managers_d, file="dreamleague/managers.RDa")
