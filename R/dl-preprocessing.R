@@ -24,8 +24,7 @@ dl_process=function(dl, managers, league)
           "Football League One", "Football League One Play-Off",
           "Football League Two", "Football League Two Play-Off" )
   
-  if(league=="Didsbury")
-  {
+  if(league=="Didsbury"){
     teams=dl  %>% 
       rename(position=1,
              player=2,
@@ -35,8 +34,7 @@ dl_process=function(dl, managers, league)
              sold=7,
              bought=6) %>% 
       mutate(team=NA_character_)
-  }else if(league=="Original")
-  {
+  }else if(league=="Original"){
     teams=dl  %>% 
       rename(position=1,
              player=2,
@@ -49,14 +47,11 @@ dl_process=function(dl, managers, league)
   }
   
   teams2=teams
-  for(i in 1:nrow(teams))
-  {
-    if(teams$player[i] %in% managers$team)
-    {
+  for(i in 1:nrow(teams)){
+    if(teams$player[i] %in% managers$team){
       team=teams$player[i]
     }
-    if(teams$position[i] %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"))
-    {
+    if(teams$position[i] %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")){
       teams2$team[i]=team
     }
   }
@@ -77,12 +72,10 @@ dl_process=function(dl, managers, league)
                             player=="DAN AGYEI"~"DANIEL AGYEI",
                             T~player)) 
   
-  if(league=="Didsbury")
-  {
+  if(league=="Didsbury"){
     teams3=teams3a %>% mutate(bought=format(as.Date(bought), "%d-%b"),
                               sold=format(as.Date(sold), "%d-%b"))
-  }else if(league=="Original")
-  {
+  }else if(league=="Original"){
     for(i in 1:(nrow(teams3a)-1))
     {
       teams3a$sold[i]=teams3a$bought[i+1]
@@ -134,9 +127,7 @@ dl_process=function(dl, managers, league)
   
   weekly=tribble(~"player_id", ~"Date", ~"Goals", ~"App", ~"team")
   
-  for(i in 1:nrow(outfield))
-    # for(i in 1:10)
-  {
+  for(i in 1:nrow(outfield)){
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
     
@@ -223,9 +214,7 @@ dl_process=function(dl, managers, league)
     return(tibble(link = link_))
   }
   
-  for(i in 1:nrow(gk))
-    # for(i in 1:10)
-  {
+  for(i in 1:nrow(gk)){
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
     
@@ -243,6 +232,8 @@ dl_process=function(dl, managers, league)
                date=as.Date(str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),"%Y-%m-%d"),
                score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
                status=str_extract(link, "(W|L|D|D\\*)[[:space:]]"),
+               score_loc=str_locate(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")[1],
+               awayteam=str_to_upper(substr(link, score_loc+5,score_loc+9)),
                App=1) %>% 
         # mutate(link=gsub("Bristol C", "Bristolc ", link),
         #        link=gsub("Bristol R", "Bristolr ", link),
@@ -261,7 +252,8 @@ dl_process=function(dl, managers, league)
                rn=row_number()) %>% 
         mutate(concede=case_when(status=="W "~ -min(H,A),
                                  status=="D "~ -H,
-                                 status=="D* "~ -H,
+                                 status=="D* "&awayteam==substr(gk$club[i], 1,5)~ -H,
+                                 status=="D* "~ -A,
                                  status=="L "~ -max(H,A)),.by="rn")%>%
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
@@ -333,10 +325,23 @@ dl_process=function(dl, managers, league)
     arrange(team, position, -cost2, bought2, week) %>% 
     ungroup()  
   
+  team_score_daily=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
+    ungroup() %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+    mutate(cost2=as.numeric(cost)) %>% 
+    rename(SBgoals=Goals) %>% 
+    # mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
+    # group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team) %>% 
+    # summarise(SBgoals=sum(Goals, na.rm=T),
+    #           App=sum(App, na.rm=T)) %>% 
+    arrange(team, position, -cost2, bought2) %>% 
+    ungroup()  
+  
   
   tictoc::toc()
   return(list("scores"=team_score,
               "weekly"=team_score_weekly,
+              "daily"=team_score_daily,
               "mismatch"=mismatch,
               "goals_for_mistatch"=test,
               "goals_ag_mistatch"=testgk))

@@ -33,8 +33,7 @@ for(i in 1:nrow(player_id2))
   
   url=paste("https://www.soccerbase.com/players/player.sd?player_id=",player_id2$player_id[i],"&season_id=157",sep="")
   link=RCurl::getURL(url)  
-  print(i)
-  print(player_id$player[i])
+  cat(paste(i, player_id$player[i], "\n"))
   tryCatch({
     tables=readHTMLTable(link)
     player_id2$position[i]=stringr::word(tables[[1]],1)
@@ -67,7 +66,7 @@ for(i in 1:nrow(player_id2))
     
     weeklyreport=rbind(weeklyreport, appgoals %>% select(player_id, Date, Goals, App, team))
     
-    print(player_id2$SBgoals[i])
+    cat(paste(player_id2$SBgoals[i], "\n"))
   },
   error = function(e) { skip_to_next <<- TRUE
   warning("Error")

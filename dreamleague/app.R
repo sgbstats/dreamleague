@@ -93,6 +93,7 @@ ui <- dashboardPage(
       #menuItem("Home",tabName="home",startExpanded = T, icon=icon("home"),
       menuItem("League", tabName = "league", icon = icon("table")),
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
+      menuItem("cup", tabName = "cup", icon = icon("trophy")),
       menuItem("Players taken", tabName = "players", icon = icon("user-xmark")),
       menuItem("Weekly scores", tabName = "weekly", icon = icon("calendar"),
                menuSubItem("Weekly Goals", tabName = "weekly2", icon = icon("futbol")),
@@ -151,6 +152,15 @@ ui <- dashboardPage(
                 )
               )
       ),
+      tabItem(tabName = "cup", fluid=T,
+              sidebarPanel(
+                radioButtons("league_cup", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
+                pickerInput("team_cup", "Team", choices = teamslist, selected = NULL),
+                dateInput("cup_start", "Cup round start date:", value = "2025-02-14")
+              ),
+              mainPanel(
+                # plotOutput("horserace")
+              )),
       
       tabItem(tabName = "league_weekly", fluid=T,
               sidebarPanel(
@@ -229,6 +239,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league)
                  updateRadioButtons(session, "league_league_history", selected = input$league)
                  updateRadioButtons(session, "league_team_history", selected = input$league)
+                 updateRadioButtons(session, "league_cup", selected = input$league)
                })
   observeEvent(input$league_teams,
                {
@@ -239,6 +250,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league_teams)
                  updateRadioButtons(session, "league_league_history", selected = input$league_teams)
                  updateRadioButtons(session, "league_team_history", selected = input$league_teams)
+                 updateRadioButtons(session, "league_cup", selected = input$league_teams)
                  
                  teamslist=(managers %>% arrange(team) %>% 
                               filter(league==input$league_teams))$team
@@ -260,6 +272,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league_players)
                  updateRadioButtons(session, "league_league_history", selected = input$league_players)
                  updateRadioButtons(session, "league_team_history", selected = input$league_players)
+                 updateRadioButtons(session, "league_cup", selected = input$league_players)
                })
   observeEvent(input$league_league_weekly,
                {
@@ -271,6 +284,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league_league_weekly)
                  updateRadioButtons(session, "league_league_history", selected = input$league_league_weekly)
                  updateRadioButtons(session, "league_team_history", selected = input$league_league_weekly)
+                 updateRadioButtons(session, "league_cup", selected = input$league_league_weekly)
                })
   observeEvent(input$league_weekly2,
                {
@@ -281,6 +295,7 @@ server <- function(input, output, session) {
                  #updateRadioButtons(session, "league_weekly2", selected = input$league_weekly2)
                  updateRadioButtons(session, "league_league_history", selected = input$league_weekly2)
                  updateRadioButtons(session, "league_team_history", selected = input$league_weekly2)
+                 updateRadioButtons(session, "league_cup", selected = input$league_weekly2)
                  
                  teamslist=(managers %>% arrange(team) %>% 
                               filter(league==input$league_weekly2))$team
@@ -301,6 +316,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league_league_history)
                  #updateRadioButtons(session, "league_league_history", selected = input$league_league_history)
                  updateRadioButtons(session, "league_team_history", selected = input$league_league_history)
+                 updateRadioButtons(session, "league_cup", selected = input$league_league_history)
                })
   observeEvent(input$league_team_history,
                {
@@ -311,6 +327,7 @@ server <- function(input, output, session) {
                  updateRadioButtons(session, "league_weekly2", selected = input$league_team_history)
                  updateRadioButtons(session, "league_league_history", selected = input$league_team_history)
                  #updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
+                 updateRadioButtons(session, "league_cup", selected = input$league_team_history)
                  
                  teamslist=(managers %>% arrange(team) %>% 
                               filter(league==input$league_team_history))$team
@@ -321,6 +338,27 @@ server <- function(input, output, session) {
                                            filter(league==input$league_team_history))$manager, ")", sep="")
                  
                  updatePickerInput(session, "team3", choices = teamslist)
+               })
+  observeEvent(input$league_cup,
+               {
+                 updateRadioButtons(session, "league", selected = input$league_cup)
+                 updateRadioButtons(session, "league_teams", selected = input$league_cup)
+                 updateRadioButtons(session, "league_players", selected = input$league_cup)
+                 updateRadioButtons(session, "league_league_weekly", selected = input$league_cup)
+                 updateRadioButtons(session, "league_weekly2", selected = input$league_cup)
+                 updateRadioButtons(session, "league_league_history", selected = input$league_cup)
+                 updateRadioButtons(session, "league_team_history", selected = input$league_cup)
+                 # updateRadioButtons(session, "league_cup", selected = input$league_team_history)
+                 
+                 teamslist=(managers %>% arrange(team) %>% 
+                              filter(league==input$league_cup))$team
+                 
+                 names(teamslist)=paste((managers %>% arrange(team) %>% 
+                                           filter(league==input$league_cup))$team, " (", 
+                                        (managers %>% arrange(team) %>% 
+                                           filter(league==input$league_cup))$manager, ")", sep="")
+                 
+                 updatePickerInput(session, "team_cup", choices = teamslist)
                })
   
   output$table=renderUI({
