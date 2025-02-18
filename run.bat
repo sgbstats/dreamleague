@@ -7,7 +7,7 @@ rem Set the path to the R script to execute
 set RSCRIPT_FILE="C:\R\git\dreamleague\R\dl-preprocessing-run.R"
 
 rem Execute the R script
-%RSCRIPT% %RSCRIPT_FILE%
+%RSCRIPT% %RSCRIPT_FILE% -e "renv::activate(); rsconnect::deployApp('dreamleague')"
 
 
 rem Change to the directory of your Git repository
