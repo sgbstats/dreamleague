@@ -13,7 +13,7 @@ library(rvest)
 dl_process=function(dl, managers, league)
 {
   tictoc::tic()
-  comps=c("English premier", "English Premier",
+  comps=c("English premier", "English Premier","Premier League",
           "EFL Cup", "English League Cup",
           "Europa League", 
           "Community Shield",

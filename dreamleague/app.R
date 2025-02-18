@@ -9,7 +9,7 @@ library(flextable)
 library(htmlwidgets)
 library(shinydashboard)
 library(dplyr)
-library(googlesheets4)
+# library(googlesheets4)
 library(DT)
 library(shinyjs)
 # library(golem)
@@ -18,40 +18,42 @@ library(shinyjs)
 `%notin%`=Negate(`%in%`)
 # options(gargle_oauth_cache = ".secrets",
 #         gargle_oauth_email = TRUE)
-# gs4_auth(
+# googlesheets4::gs4_auth(
 #   cache = ".secrets",
 #   email = "sebastiangbate@gmail.com",
 #   scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
 # )
 # # preprocessing
-# dl_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+# dl=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
 #                                sheet = "scores",
 #                                na=c("SOLD",""),
-#                                col_names = T) 
+#                                col_names = T)
 # 
-# weekly_d=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                    sheet = "weekly",
+# daily=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+#                                    sheet = "daily",
 #                                    na=c("SOLD",""),
-#                                    col_names = T) %>% 
+#                                    col_names = T) %>%
 #   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-#          week=as.Date(week))
+#          # week=as.Date(week)
+#          )
 # 
-# dl_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                sheet = "scores_original",
-#                                na=c("SOLD",""),
-#                                col_names = T) 
-# 
-# weekly_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                    sheet = "weekly_original",
-#                                    na=c("SOLD",""),
-#                                    col_names = T) %>% 
-#   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-#          week=as.Date(week))
+# # dl_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+# #                                sheet = "scores_original",
+# #                                na=c("SOLD",""),
+# #                                col_names = T)
+# # 
+# # daily_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
+# #                                    sheet = "daily_original",
+# #                                    na=c("SOLD",""),
+# #                                    col_names = T) %>%
+# #   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
+# #         # week=as.Date(week)
+# #         )
 # time=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
 #                                sheet = "update",
 #                                na=c("SOLD",""),
-#                                col_names = T) 
-
+#                                col_names = T)
+# 
 load("data.RDa")
 
 weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
@@ -65,12 +67,21 @@ load("managers.RDa")
 # dl=dl_o
 # managers=managers_o
 # weekly=weekly_o
-dl=rbind.data.frame(dl_d %>% mutate(league="didsbury"),
-                    dl_o %>% mutate(league="original"))
+# dl=rbind.data.frame(dl_d %>% mutate(league="didsbury"),
+#                     dl_o %>% mutate(league="original"))
 managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
                           managers_o %>% mutate(league="original"))
-weekly=rbind.data.frame(weekly_d %>% mutate(league="didsbury"),
-                        weekly_o %>% mutate(league="original"))
+# daily=rbind.data.frame(daily_d %>% mutate(league="didsbury"),
+#                         daily_o %>% mutate(league="original"))
+weekly=daily %>% 
+  mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
+  group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
+  summarise(SBgoals=sum(SBgoals, na.rm=T),
+            App=sum(App, na.rm=T)) %>% 
+  arrange(team, position, -cost2, bought2, week) %>% 
+  ungroup()  
+
+
 
 league=managers %>% merge(dl %>% group_by(team) %>% 
                             summarise(total=sum(SBgoals)), by="team") %>% 
@@ -155,11 +166,11 @@ ui <- dashboardPage(
       tabItem(tabName = "cup", fluid=T,
               sidebarPanel(
                 radioButtons("league_cup", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                pickerInput("team_cup", "Team", choices = teamslist, selected = NULL),
+                #pickerInput("team_cup", "Team", choices = teamslist, selected = NULL),
                 dateInput("cup_start", "Cup round start date:", value = "2025-02-14")
               ),
               mainPanel(
-                # plotOutput("horserace")
+                uiOutput("cup",inline = TRUE, style = "margin:0px; padding:0px")
               )),
       
       tabItem(tabName = "league_weekly", fluid=T,
@@ -596,6 +607,36 @@ server <- function(input, output, session) {
   output$update_time=renderText({ 
     
     format(time$update_time, format="%Y-%m-%d %H:%M:%S")
+  })
+  
+  output$cup=renderUI({
+    managers %>% merge(daily %>%filter(Date>=input$cup_start,
+                                Date<=input$cup_start+lubridate::days(3)) %>% 
+                         summarise(total=sum(SBgoals),.by="team"), by="team", all.x = T) %>% 
+      merge(daily%>% filter(position != "GOALKEEPER") %>%
+              filter(Date>=input$cup_start,
+                     Date<=input$cup_start+lubridate::days(3)) %>% 
+              summarise(gf=sum(SBgoals),.by="team"), by="team", all.x = T) %>% 
+      merge(daily %>% filter(position == "GOALKEEPER") %>%
+              filter(Date>=input$cup_start,
+                     Date<=input$cup_start+lubridate::days(3)) %>% 
+              summarise(ga=-sum(SBgoals),.by="team"), by="team", all.x = T) %>% 
+      mutate(ga = replace(ga, is.na(ga), 0),
+             gf = replace(gf, is.na(gf), 0)) %>% 
+      arrange(-total,-gf) %>% 
+      mutate(rank=row_number(), .by="league") %>% 
+      filter(league==input$league) %>%
+      select(-league, -rank) %>% 
+      flextable() %>% 
+      set_header_labels(team="Team",
+                        manager="Manager",
+                        total="Total",
+                        gf="For",
+                        ga="Against") %>% 
+     # bg(i=1:2, bg=c("#FFD700", "#C0C0C0")) %>% 
+      autofit() %>%
+      font(fontname = "Arial", part="all") %>% 
+      htmltools_value()
   })
   
 }
