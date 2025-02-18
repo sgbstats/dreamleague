@@ -66,11 +66,13 @@ managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
                           managers_o %>% mutate(league="original"))
 daily=rbind.data.frame(out_d$daily %>% mutate(league="didsbury"),
                        out_o$daily %>% mutate(league="original"))
-sheet_write(dl, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="scores" )
-sheet_write(daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
-
+# sheet_write(dl, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="scores" )
+# sheet_write(daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
+  
 save(dl,  daily, time, file="dreamleague/data.RDa")
 # save(managers_o,managers_d, file="dreamleague/managers.RDa")
+
+rsconnect::deployApp("dreamleague")
 b=Sys.time()
 
 difftime(b,a, units = "mins")
