@@ -14,16 +14,16 @@ rem Change to the directory of your Git repository
 cd /d C:\\R\\git\\dreamleague
 
 rem Add the specific file
-set FILE_PATH=dreamleague/data.RDa
-git add "%FILE_PATH%"
+rem set FILE_PATH=dreamleague/data.RDa
+rem git add "%FILE_PATH%"
 
 rem Commit the changes with a message
-set COMMIT_MSG="Updated file"
-git commit -m %COMMIT_MSG%
+rem set COMMIT_MSG="Updated file"
+rem git commit -m %COMMIT_MSG%
 
 rem Push the changes to the remote repository
-set BRANCH=main
-git push origin %BRANCH%
+rem set BRANCH=main
+rem git push origin %BRANCH%
 
 
 rem Pause so the user can see the output

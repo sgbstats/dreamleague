@@ -54,8 +54,16 @@ library(shinyjs)
 #                                na=c("SOLD",""),
 #                                col_names = T)
 
+options(gargle_oauth_cache = ".secrets",
+        gargle_oauth_email = TRUE)
+googledrive::drive_auth(
+  cache = ".secrets",
+  email = "sebastiangbate@gmail.com"
+)
+googledrive::drive_download(googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),
+                            path="data.RDa",
+                            overwrite = T)
 load("data.RDa")
-
 weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]
 weekschar=format(weeks2, format="%d-%b")
