@@ -1,4 +1,6 @@
 @echo off
+call :script > "C:\R\git\dreamleague\log\logfile.txt" 2>&1
+exit /b
 
 rem Set the path to the Rscript executable
 set RSCRIPT="C:\Program Files\R\R-4.4.1\bin\Rscript.exe"
