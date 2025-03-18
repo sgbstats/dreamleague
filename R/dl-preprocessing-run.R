@@ -76,6 +76,15 @@ save(dl,  daily, time, file="C:/R/git/dreamleague/dreamleague/data.RDa")
 
 # rsconnect::deployApp("C:/R/git/dreamleague/dreamleague")
 # renv::deactivate()
+googledrive::drive_auth(
+  email = TRUE,
+  path = NULL,
+  subject = NULL,
+  scopes = "drive",
+  cache = gargle::gargle_oauth_cache(),
+  use_oob = gargle::gargle_oob_default(),
+  token = NULL
+)
 
 googledrive::drive_update(media="C:/R/git/dreamleague/dreamleague/data.RDa",
                           file=googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),)
