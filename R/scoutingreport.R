@@ -78,19 +78,18 @@ for(i in 1:nrow(player_id2))
   
   }
 
+load("dreamleague/data.RDa")
 
-dl=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-                             sheet = "scores",
-                             na=c("SOLD",""),
-                             col_names = T) %>% 
-  filter(!is.na(player), is.na(sold))
+
 
 weeklyleaguedata=weeklyreport %>% merge(player_id %>% select(player, player_id), by="player_id") %>% 
   select(player, player_id, team, Date, Goals, App) %>% 
-  mutate(taken=player %in% dl$player)
+  mutate(taken=player %in% (dl %>% filter(league=="Didsbury"))$player)
 
 player_id_scout=player_id2%>% 
-  mutate(taken=player %in% dl$player)
+  mutate(taken=player %in% dl$player) %>% 
+  filter(!taken) %>% 
+  arrange(-SBgoals)
 
 tictoc::toc()
 
