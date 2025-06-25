@@ -20,9 +20,9 @@ dl_process=function(dl, managers, league)
           "Champions League",
           "FA Cup", "English FA Cup",
           "Europa Conference League",
-          "Football League Championship", "Football League Championship Play-Off",
-          "Football League One", "Football League One Play-Off",
-          "Football League Two", "Football League Two Play-Off" )
+          "Football League Championship", "Football League Championship Play-Off","Championship Play-Off",
+          "Football League One", "Football League One Play-Off", "League One Play-Off",
+          "Football League Two", "Football League Two Play-Off" , "League Two Play-Off" )
   
   if(league=="Didsbury"){
     teams=dl  %>% 
