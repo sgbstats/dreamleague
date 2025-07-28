@@ -100,25 +100,32 @@ ui <- dashboardPage(
                 ),
                 
                 mainPanel(
+                  tags$div(
+                    class = "alert alert-warning",
+                    "Some goals may be missing due to changes in soccerbase. Please use the report an issue tab so it can be fixed"
+                  ),
                   uiOutput("table",inline = TRUE, style = "margin:0px; padding:0px")
                 )
               )
       ),
-      tabItem(tabName = "teams", fluid=T,
-              sidebarLayout(
-                sidebarPanel(
-                  radioButtons("league_teams", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                  pickerInput("team", "Team", choices = teamslist, selected = NULL),
-                  checkboxInput("current","Current team only", value=T),
-                  imageOutput("img", inline = T),
-                  htmlOutput("teamtext")
-                  
-                ),
-                mainPanel(
-                  dataTableOutput("team")
-                )
-              )
-              
+      tabItem(
+        tabName = "teams",
+        fluid = TRUE,
+        sidebarLayout(
+          sidebarPanel(
+            radioButtons(
+              "league_teams",
+              "League",
+              choices = c("Didsbury" = "didsbury", "Original" = "original"),
+              selected = "didsbury"
+            ),
+            pickerInput("team", "Team", choices = teamslist, selected = NULL),
+            checkboxInput("current", "Current team only", value = T),
+            imageOutput("img", inline = T),
+            htmlOutput("teamtext")
+          ),
+          mainPanel(dataTableOutput("team"))
+        )
       ),
       tabItem(tabName = "players", fluid=T,
               sidebarLayout(
