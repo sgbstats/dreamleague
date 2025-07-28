@@ -13,9 +13,9 @@ source("C:/R/git/dreamleague/R/dl-preprocessing.R")
 # gs4_auth(
 #   email = T
 # )
-dl_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague24-25.xlsx", na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
+dl_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague25-26.xlsx", na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
   dplyr::select(2:8)
-managers_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague24-25.xlsx", na=c("SOLD"), sheet = "Table")%>% dplyr::select(3:4) %>% na.omit() %>%
+managers_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague25-26.xlsx", na=c("SOLD"), sheet = "Stats")%>% dplyr::select(11:12) %>% na.omit() %>%
   rename(manager=1,
          team=2) %>%
   filter(team!="TEAM")
@@ -71,7 +71,7 @@ daily=rbind.data.frame(out_d$daily %>% mutate(league="didsbury"),
 # sheet_write(daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
 
 save(dl,  daily, time, file="C:/R/git/dreamleague/dreamleague/data.RDa")
-# # save(managers_o,managers_d, file="dreamleague/managers.RDa")
+# save(managers_o,managers_d, file="dreamleague/managers.RDa")
 
 
 # rsconnect::deployApp("C:/R/git/dreamleague/dreamleague")

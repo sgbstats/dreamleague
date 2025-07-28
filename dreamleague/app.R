@@ -13,46 +13,6 @@ library(dplyr)
 library(DT)
 library(shinyjs)
 # library(golem)
-# 
-# 
-# `%notin%`=Negate(`%in%`)
-# options(gargle_oauth_cache = ".secrets",
-#         gargle_oauth_email = TRUE)
-# googlesheets4::gs4_auth(
-#   cache = ".secrets",
-#   email = "sebastiangbate@gmail.com",
-#   scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
-# )
-# # preprocessing
-# dl=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                sheet = "scores",
-#                                na=c("SOLD",""),
-#                                col_names = T)
-# 
-# daily=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                    sheet = "daily",
-#                                    na=c("SOLD",""),
-#                                    col_names = T) %>%
-#   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-#          # week=as.Date(week)
-#          )
-# 
-# # dl_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-# #                                sheet = "scores_original",
-# #                                na=c("SOLD",""),
-# #                                col_names = T)
-# #
-# # daily_o=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-# #                                    sheet = "daily_original",
-# #                                    na=c("SOLD",""),
-# #                                    col_names = T) %>%
-# #   mutate(position=factor(position, c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")),
-# #         # week=as.Date(week)
-# #         )
-# time=googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0",
-#                                sheet = "update",
-#                                na=c("SOLD",""),
-#                                col_names = T)
 
 options(gargle_oauth_cache = ".secrets",
         gargle_oauth_email = TRUE)
@@ -64,7 +24,7 @@ googledrive::drive_download(googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqU
                             path="data.RDa",
                             overwrite = T)
 load("data.RDa")
-weeks=seq.Date(as.Date("2024-08-05"), by=7, length.out = 52)
+weeks=seq.Date(as.Date("2025-07-28"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]
 weekschar=format(weeks2, format="%d-%b")
 # weekmatch=cbind.data.frame(weekschar, weeks2)
@@ -122,7 +82,8 @@ ui <- dashboardPage(
                menuSubItem("League History", tabName = "league_history", icon = icon("table"))
                #menuSubItem("Horserace", tabName = "horserace", icon=icon("horse"))
       ),
-      menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope"))
+      menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope")),
+      menuItem("Report an issue", tabName = "bug", icon=icon("bug"))
       #menuItem("Report an issue", tabName = "issues", icon = icon("circle-exclamation"))
     )
   ),
@@ -239,6 +200,19 @@ ui <- dashboardPage(
               ),
               mainPanel(
                 dataTableOutput("diagnostics")
+              )),
+      tabItem(tabName = "bug", fluid=T,
+              mainPanel(
+
+                tags$iframe(
+                  src ="https://docs.google.com/forms/d/e/1FAIpQLScDhSXL2h8HYjTCuwdYKLTF3En2xPfE9O2BJet6VasuRdn2SQ/viewform?embedded=true",
+                  width = "800",
+                  height = "500",
+                  frameborder = "0",
+                  marginheight = "0",
+                  marginwidth = "0"
+                )
+                
               ))
       
     )
@@ -553,6 +527,7 @@ server <- function(input, output, session) {
   })
   
   output$img=renderImage({
+    
     outfile=paste("img/", str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")), ".png", sep="")
     
     list(src = outfile,

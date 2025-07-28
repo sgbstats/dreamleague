@@ -24,30 +24,38 @@ scraplinks <- function(url){
     rvest::html_text()
   return(tibble(link = link_, url = url_))
 }
+# 
+# team_id=scraplinks("https://www.soccerbase.com/teams/home.sd") %>% 
+#   filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) %>% 
+#   mutate(team_id=as.numeric(stringi::stri_extract_first_regex(url, "[0-9]+"))) %>% 
+#   select(-url)%>% 
+#   rename("team"="link") %>% 
+#   mutate(team=case_when(team=="AFC W'bledon"~"Wimbledon",
+#                         team=="Man City"~"Manchester City",
+#                         team=="Man Utd"~"Manchester United",
+#                         team=="Bristol C"~"Bristol City",
+#                         team=="Bristol R"~"Bristol Rovers",
+#                         team=="MK Dons"~"Milton Keynes Dons",
+#                         team=="West Brom"~"West Bromwich Albion",
+#                         team=="Sheff Utd"~"Sheffield United",
+#                         team=="Sheff Wed"~"Sheffield Wednesday",
+#                         team=="Cambridge U"~"Cambridge",
+#                         team=="Nottm Forest"~"Nottingham Forest",
+#                         team=="Notts Co"~"Notts County",
+#                         team=="Newport Co"~"Newport County",
+#                         team=="Norwich"~"Norwich City",
+#                         
+#                    T~team))
+#  
 
-team_id=scraplinks("https://www.soccerbase.com/teams/home.sd") %>% 
-  filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) %>% 
-  mutate(team_id=as.numeric(stringi::stri_extract_first_regex(url, "[0-9]+"))) %>% 
-  select(-url)%>% 
-  rename("team"="link") %>% 
-  mutate(team=case_when(team=="AFC W'bledon"~"Wimbledon",
-                        team=="Man City"~"Manchester City",
-                        team=="Man Utd"~"Manchester United",
-                        team=="Bristol C"~"Bristol City",
-                        team=="Bristol R"~"Bristol Rovers",
-                        team=="MK Dons"~"Milton Keynes Dons",
-                        team=="West Brom"~"West Bromwich Albion",
-                        team=="Sheff Utd"~"Sheffield United",
-                        team=="Sheff Wed"~"Sheffield Wednesday",
-                        team=="Cambridge U"~"Cambridge",
-                        team=="Nottm Forest"~"Nottingham Forest",
-                        team=="Notts Co"~"Notts County",
-                        team=="Newport Co"~"Newport County",
-                        team=="Norwich"~"Norwich City",
-                        
-                   T~team))
- 
+load("data/ids.RDa")
 t=0
+team_id=team_id %>% filter(team %notin% c("CARLISLE", "MORECAMBE")) %>% 
+  rbind.data.frame(tribble(~"team", ~"team_id",
+                           "BARNET", 344,
+                           "OLDHAM", 1924))
+
+
 player_id0=tribble(~player, ~player_id,~team,~team_id)
 for(i in 1:nrow(team_id))
 {

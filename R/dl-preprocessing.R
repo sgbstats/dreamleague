@@ -33,7 +33,12 @@ dl_process=function(dl, managers, league)
              goals=5,
              sold=7,
              bought=6) %>% 
-      mutate(team=NA_character_)
+      mutate(team=NA_character_) 
+    
+    managers=managers%>% 
+      rbind.data.frame(tribble(~"manager", ~"team",
+                               "WILL SMITH", "I ROBOT"))
+    
   }else if(league=="Original"){
     teams=dl  %>% 
       rename(position=1,
@@ -56,6 +61,9 @@ dl_process=function(dl, managers, league)
     }
   }
   
+  teams2 <- teams2 %>% filter(team != "I ROBOT")
+  managers=managers%>% filter(team != "I ROBOT")
+  
   
   # sb_id=read.csv("data/sb_id.csv") 
   load("C:/R/git/dreamleague/data/ids.RDa")
@@ -63,13 +71,9 @@ dl_process=function(dl, managers, league)
   teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
            club=if_else(club=="OXFORD UTD", "OXFORD", club),
-           player=case_when(player=="DANIEL ORSI"~ "DANILO ORSI-DADAMO", 
-                            player=="BEN BRERETON DIAZ"~"BEN BRERETON",
-                            player=="HEUNG MIN SON"~"SON HEUNG-MIN",
-                            player=="HEUNG-MIN SON"~"SON HEUNG-MIN",
-                            player=="DAN JAMES"~"DANIEL JAMES",
-                            player=="HWANG HEE CHAN"~"HEE-CHAN HWANG HEE-CHAN",
-                            player=="DAN AGYEI"~"DANIEL AGYEI",
+           player=case_when(player=="DAN JAMES"~"DANIEL JAMES",
+                            player=="MANNY MONTHE"~"Emmanuel Monthe",
+                            player=="STRAND LARSEN"~"JORGEN STRAND LARSEN",
                             T~player)) 
   
   if(league=="Didsbury"){
@@ -88,11 +92,9 @@ dl_process=function(dl, managers, league)
   
   # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2=player_id %>% select(player, player_id,team) %>% 
-    filter(player_id %notin% c(70735, 182525))
+    filter(player_id %notin% c(65492,199362))
   
   outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>%
-    mutate(player=case_when(player=="STRAND LARSEN"~"JORGEN STRAND LARSEN",
-                            T~player)) %>% 
     fuzzyjoin::stringdist_join(player_id2,
                                by="player", mode="left", method="jw", distance_col="dist") %>% 
     group_by(player.x) %>%
@@ -100,12 +102,12 @@ dl_process=function(dl, managers, league)
     ungroup() %>% 
     rename(team=team.x) %>%
     select(-team.y) %>% 
-    mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2024", sep=""),
-                                     grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2025", sep=""),
-                                     T~"01-Jul-2024"), "%d-%b-%Y"),
-           sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2024", sep=""),
-                                   grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2025", sep=""),
-                                   T~"30-Jun-2025"), "%d-%b-%Y"))
+    mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2025", sep=""),
+                                     grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2026", sep=""),
+                                     T~"01-Jul-2025"), "%d-%b-%Y"),
+           sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2025", sep=""),
+                                   grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2026", sep=""),
+                                   T~"30-Jun-2026"), "%d-%b-%Y"))
   
   
   
@@ -131,7 +133,7 @@ dl_process=function(dl, managers, league)
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
     
-    url=paste("https://www.soccerbase.com/players/player.sd?player_id=",outfield$player_id[i],"&season_id=157",sep="")
+    url=paste("https://www.soccerbase.com/players/player.sd?player_id=",outfield$player_id[i],"&season_id=158",sep="")
     link=RCurl::getURL(url)  
     
     cat(paste0(outfield$player[i],"\n"))
@@ -189,12 +191,12 @@ dl_process=function(dl, managers, league)
     mutate(SBgoals=0, SBapp=0) %>% 
     ungroup() %>% 
     drop_na(club) %>% 
-      mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2024", sep=""),
-                                       grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2025", sep=""),
-                                       T~"01-Jul-2024"), "%d-%b-%Y"),
-             sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2024", sep=""),
-                                     grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2025", sep=""),
-                                     T~"30-Jun-2025"), "%d-%b-%Y"))
+    mutate(bought2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought)~ paste(bought,"-2025", sep=""),
+                                     grepl("Jan|Feb|Mar|Apr|May|Jun", bought)~paste(bought,"-2026", sep=""),
+                                     T~"01-Jul-2025"), "%d-%b-%Y"),
+           sold2=as.Date(case_when(grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold)~ paste(sold,"-2025", sep=""),
+                                   grepl("Jan|Feb|Mar|Apr|May|Jun", sold)~paste(sold,"-2026", sep=""),
+                                   T~"30-Jun-2026"), "%d-%b-%Y"))
   
   weekly_gk=tribble(~"team_id", ~"Date", ~"Goals", ~"App")
   
