@@ -5,5 +5,5 @@ input$relative_d=T
 input$week_league2_d=as.Date("2024-08-05")
 input$week_league2_o=as.Date("2024-08-05")
 input$league="original"
-input$team="#holyf**k"
+input$team="ERIMUS"
 input$cup_start=as.Date("2025-02-14")

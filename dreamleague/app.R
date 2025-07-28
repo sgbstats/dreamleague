@@ -536,11 +536,15 @@ server <- function(input, output, session) {
   output$img=renderImage({
     
     outfile=paste("img/", str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")), ".png", sep="")
-    
-    list(src = outfile,
-         contentType = 'image/png',
-         width = 100,
-         height = 100)
+    hold=magick::image_read(outfile)
+
+    list(
+        src = outfile,
+        contentType = "image/png",
+        width = 100,
+        height = round(100 * (magick::image_info(hold)$height / magick::image_info(hold)$width))
+    )
+
     
   }, deleteFile = F)
   
