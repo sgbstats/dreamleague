@@ -52,11 +52,11 @@ weekly=daily %>%
 
 
 league=managers %>% merge(dl %>% group_by(team) %>% 
-                            summarise(total=sum(SBgoals)), by="team") %>% 
+                            summarise(total=sum(SBgoals)), by="team", all=T) %>% 
   merge(dl%>% filter(position != "GOALKEEPER") %>% group_by(team) %>% 
-          summarise(gf=sum(SBgoals)), by="team") %>% 
+          summarise(gf=sum(SBgoals)), by="team", all=T) %>% 
   merge(dl %>% filter(position == "GOALKEEPER") %>% group_by(team) %>% 
-          summarise(ga=-sum(SBgoals)), by="team") %>% 
+          summarise(ga=-sum(SBgoals)), by="team", all=T) %>% 
   arrange(-total,-gf) %>% 
   mutate(rank=row_number(), .by="league")
 

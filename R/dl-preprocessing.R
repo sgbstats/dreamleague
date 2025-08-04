@@ -72,7 +72,7 @@ dl_process=function(dl, managers, league)
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
            club=if_else(club=="OXFORD UTD", "OXFORD", club),
            player=case_when(player=="DAN JAMES"~"DANIEL JAMES",
-                            player=="MANNY MONTHE"~"Emmanuel Monthe",
+                            player=="MANNY MONTHE"~"EMMANUEL MONTHE",
                             player=="STRAND LARSEN"~"JORGEN STRAND LARSEN",
                             T~player)) 
   

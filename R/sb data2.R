@@ -104,7 +104,7 @@ mostrecent=max(list.files(path = "data/legacy/", pattern = NULL, all.files = FAL
            full.names = FALSE, recursive = FALSE,
            ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE))
 
-# load(paste("data/legacy/", mostrecent, sep=""))
+load(paste("data/legacy/", mostrecent, sep=""))
 
 player_id=player_id %>% 
   rbind.data.frame(legacy) %>%
