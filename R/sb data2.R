@@ -82,6 +82,7 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
                                                 player=="Joshua Sargent"~"Josh Sargent",
                                                 player=="Mo Eisa"~"Mohamed Eisa",
                                                 player=="Iyenoma Destiny Udogie"~"Destiny Udogie",
+                                                player=="Manny Monthe"~"EMMANUEL MONTHE",
                                                 player_id==151107~"IGOR THIAGO",
                                                 T~player))%>% 
   mutate(player=str_to_upper(player)) %>% 
@@ -93,9 +94,13 @@ player_id=player_id0 %>% mutate(player=case_when(player=="Ali Ibrahim Ali Al Ham
   #               "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
   group_by(player_id) %>% 
   slice_min(team, with_ties = F) %>% 
-  filter(player_id%notin%c(116945,107014, 69468)) %>% 
-  rbind.data.frame(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id"))
+  filter(player_id%notin%c(116945,107014, 69468, 188923)) %>% 
+  rbind.data.frame(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
+                           "BORJA SAINZ", 1, 124408, "FC Porto", 978,
+                           "THELO AASGAARD",1,133855,"Rangers", 2104))
 
+
+ 
 team_id=team_id %>% mutate(team=str_to_upper(team))
 
 
