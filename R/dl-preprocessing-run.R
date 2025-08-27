@@ -13,12 +13,16 @@ source("C:/R/git/dreamleague/R/dl-preprocessing.R")
 # gs4_auth(
 #   email = T
 # )
-dl_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague25-26.xlsx", na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
+
+file_d="C:/R/git/dreamleague/data/DreamLeague25-26.xlsx"
+dl_d=readxl::read_excel(file_d, na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
   dplyr::select(2:8)
-managers_d=readxl::read_excel("C:/R/git/dreamleague/data/DreamLeague25-26.xlsx", na=c("SOLD"), sheet = "Stats")%>% dplyr::select(11:12) %>% na.omit() %>%
+managers_d=readxl::read_excel(file_d, na=c("SOLD"), sheet = "Stats")%>% dplyr::select(11:12) %>% na.omit() %>%
   rename(manager=1,
          team=2) %>%
   filter(team!="TEAM")
+
+mod_d=file.info(file_d)$mtime
 
 out_d=dl_process(dl_d, managers_d, "Didsbury")
 # 
@@ -26,13 +30,15 @@ out_d=dl_process(dl_d, managers_d, "Didsbury")
 # sheet_write(out_d$weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly" )
 # sheet_write(out_d$daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
 
-# 
-dl_o=readxl::read_excel("C:/R/git/dreamleague/data/DL25-26.xlsx", na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
+file_o="C:/R/git/dreamleague/data/DL25-26.xlsx"
+dl_o=readxl::read_excel(, na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
   dplyr::select(1:7)
-managers_o=readxl::read_excel("C:/R/git/dreamleague/data/DL25-26.xlsx", na=c("SOLD"), sheet = "Table")%>% dplyr::select(3:4) %>% na.omit() %>%
+managers_o=readxl::read_excel(file_o, na=c("SOLD"), sheet = "Table")%>% dplyr::select(3:4) %>% na.omit() %>%
   rename(manager=1,
          team=2) %>%
   filter(team!="TEAM")
+
+mod_o=file.info(file_o)$mtime
 
 dl_o=dl_o %>% mutate(`...7`=case_when(`...2`=="JAMES TRAFFORD"~"45529",
                                       #`...2`=="FREDDIE LADAPO"~"45548",
@@ -49,7 +55,6 @@ out_o=dl_process(dl_o, managers_o,"Original")
 #sheet_write(out_o$weekly, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="weekly_original" )
 # sheet_write(out_o$daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily_original" )
 
-d=data.frame("update_time"=Sys.time())
 # sheet_write(d, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="update")
 
 dl_d=out_d$scores
@@ -58,7 +63,7 @@ weekly_d=out_d$weekly
 weekly_o=out_o$weekly
 daily_o=out_o$daily
 daily_d=out_d$daily
-time=d
+time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
 # weekly_d, weekly_o,
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),

@@ -95,7 +95,7 @@ ui <- dashboardPage(
               sidebarLayout(
                 sidebarPanel(
                   h3("Last Updated"),
-                  textOutput("update_time"),
+                  uiOutput("update_time"),
                   radioButtons("league", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury")
                 ),
                 
@@ -598,10 +598,16 @@ server <- function(input, output, session) {
     #scale_x_date(limits = as.Date(c(input$hrstart, input$hrend), format="%d-%b"))
     
   })
-  output$update_time=renderText({ 
-    
-    format(time$update_time, format="%Y-%m-%d %H:%M:%S")
+  output$update_time=renderUI({ 
+    HTML(paste0("Last score update: ",
+    format(time$update_time, format="%Y-%m-%d %H:%M:%S"),
+    "<br>Last file upload<br>Didsbury: ",
+    format(time$mod_d, format="%Y-%m-%d %H:%M:%S"),
+    "<br>Original: ",
+    format(time$mod_o, format="%Y-%m-%d %H:%M:%S")
+    ))
   })
+    
   
   output$cup=renderUI({
     managers %>% merge(daily %>%filter(Date>=input$cup_start,
