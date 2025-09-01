@@ -31,9 +31,9 @@ out_d=dl_process(dl_d, managers_d, "Didsbury")
 # sheet_write(out_d$daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
 
 file_o="C:/R/git/dreamleague/data/DL25-26.xlsx"
-dl_o=readxl::read_excel(, na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
+dl_o=readxl::read_excel(file_o, na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
   dplyr::select(1:7)
-managers_o=readxl::read_excel(file_o, na=c("SOLD"), sheet = "Table")%>% dplyr::select(3:4) %>% na.omit() %>%
+managers_o=readxl::read_excel(file_o, na=c("SOLD"), sheet = "Table", skip = 4)%>% dplyr::select(c(2,4))  %>%
   rename(manager=1,
          team=2) %>%
   filter(team!="TEAM")
@@ -65,6 +65,8 @@ daily_o=out_o$daily
 daily_d=out_d$daily
 time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
 # weekly_d, weekly_o,
+cupties=read.csv("data/cupties.csv") %>% 
+  mutate(date=as.Date(date, format = "%d/%m/%Y"))
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),
                     out_o$scores %>% mutate(league="original"))
@@ -75,12 +77,8 @@ daily=rbind.data.frame(out_d$daily %>% mutate(league="didsbury"),
 # sheet_write(dl, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="scores" )
 # sheet_write(daily, ss="https://docs.google.com/spreadsheets/d/1dKUl4hpZ0SnqqLoZk5IpJwISKoMj7o0WNoeUoLebc8s/edit#gid=0", sheet="daily" )
 
-save(dl,  daily, time, file="C:/R/git/dreamleague/dreamleague/data.RDa")
-# save(managers_o,managers_d, file="dreamleague/managers.RDa")
+save(dl,  daily, time, cupties, file="C:/R/git/dreamleague/dreamleague/data.RDa")
 
-
-# rsconnect::deployApp("C:/R/git/dreamleague/dreamleague")
-# renv::deactivate()
 googledrive::drive_auth(
   email = TRUE,
   path = NULL,

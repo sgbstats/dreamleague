@@ -92,7 +92,7 @@ dl_process=function(dl, managers, league)
   
   # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2=player_id %>% select(player, player_id,team) %>% 
-    filter(player_id %notin% c(65492,199362))
+    filter(player_id %notin% c(65492,199362, 209366))
   
   outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>%
     fuzzyjoin::stringdist_join(player_id2,
