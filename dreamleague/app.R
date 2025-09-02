@@ -32,15 +32,9 @@ names(weeks2)=weekschar
 
 load("managers.RDa")
 
-# dl=dl_o
-# managers=managers_o
-# weekly=weekly_o
-# dl=rbind.data.frame(dl_d %>% mutate(league="didsbury"),
-#                     dl_o %>% mutate(league="original"))
 managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
                           managers_o %>% mutate(league="original"))
-# daily=rbind.data.frame(daily_d %>% mutate(league="didsbury"),
-#                         daily_o %>% mutate(league="original"))
+
 weekly=daily %>% 
   mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
   group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
