@@ -70,7 +70,9 @@ dl_process=function(dl, managers, league)
   
   teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
-           club=if_else(club=="OXFORD UTD", "OXFORD", club),
+           club=case_when(club=="OXFORD UTD"~ "OXFORD",
+                        club=="MILTON KEYNES"~"MILTON KEYNES DONS",
+                        T~club),
            player=case_when(player=="DAN JAMES"~"DANIEL JAMES",
                             player=="MANNY MONTHE"~"EMMANUEL MONTHE",
                             player=="STRAND LARSEN"~"JORGEN STRAND LARSEN",
@@ -92,7 +94,7 @@ dl_process=function(dl, managers, league)
   
   # merge(team_id %>% mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2=player_id %>% select(player, player_id,team) %>% 
-    filter(player_id %notin% c(65492,199362, 209366))
+    filter(!player_id %in% c(65492,199362, 209366))
   
   outfield0=teams3 %>% filter(position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>%
     fuzzyjoin::stringdist_join(player_id2,
@@ -175,15 +177,16 @@ dl_process=function(dl, managers, league)
     
   }
   # 
-  test=outfield %>% filter(goals!=SBgoals, !is.na(id)) %>% 
+  test=outfield %>% filter(goals!=SBgoals, !is.na(player_id)) %>% 
     select(position, player, goals, SBgoals, player_id) %>% 
     rename("BCgoals"="goals")
   # load("Data/team_id.RDa")
   
-  gk=teams3 %>% filter(position %notin% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
+  gk=teams3 %>% filter(!position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     merge(team_id %>% select(team, team_id) %>% 
             rbind.data.frame(data.frame(team=c("WEST BROM"), team_id=c(2744))) %>% 
-            mutate(team=if_else(team=="WEST BROMWICH ALBION", "WEST BROMWICH", team)) %>% 
+            mutate(team=case_when(team=="WEST BROMWICH ALBION"~ "WEST BROMWICH",
+                                  T~team)) %>% 
             group_by(team) %>% 
             slice_min(team_id, with_ties = F) %>%
             ungroup()  %>% 
@@ -237,15 +240,6 @@ dl_process=function(dl, managers, league)
                score_loc=str_locate(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")[1],
                awayteam=str_to_upper(substr(link, score_loc+5,score_loc+9)),
                App=1) %>% 
-        # mutate(link=gsub("Bristol C", "Bristolc ", link),
-        #        link=gsub("Bristol R", "Bristolr ", link),
-        #        link=gsub("Cambridge U", "Cambridgeu", link),
-        #        link=gsub("Paris St-G.", "Psg ", link),
-        #        link=gsub("QPR", "Qpr ", link),
-        #        link=gsub("Sheff Wed", "Sheffw ", link)) %>%
-        # mutate(teampos=unlist(gregexpr("[a-z][[:space:]]1[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1],
-        #        opppos=unlist(gregexpr("[a-z][[:space:]]2[[:space:]]\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])", link))[1]) %>% 
-        # ungroup() %>% 
         mutate(score=gsub(" ", "", score)) %>% 
         separate(score, into = c("H", "A"), sep="-") %>% 
         ungroup() %>% 
@@ -274,7 +268,7 @@ dl_process=function(dl, managers, league)
       gk$SBgoals[i]= x2[1,1]
       gk$SBapp[i]= x2[1,2]
       
-      
+      cat(blue(paste0(x2[1,1], "\n")))
       
       weekly_gk=rbind(weekly_gk, x %>% rename(Goals=concede,
                                               Date=date) %>%
@@ -295,7 +289,7 @@ dl_process=function(dl, managers, league)
   }
   gk$SBgoals=as.numeric(gk$SBgoals)
   
-  testgk=gk %>% filter(goals!=SBgoals, !is.na(id)) %>% 
+  testgk=gk %>% filter(goals!=SBgoals, !is.na(team_id)) %>% 
     select(position, club, goals, SBgoals, team_id) %>% 
     rename("BCgoals"="goals")
   
@@ -303,7 +297,8 @@ dl_process=function(dl, managers, league)
                      mutate(SBgoals=as.numeric(SBgoals),
                             SBapp=as.numeric(SBapp))) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
+           cost=gsub("transfer","", cost, ignore.case = T) ) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     arrange(team, position, -cost2, bought2) %>% 
     select(-cost2)
@@ -318,24 +313,20 @@ dl_process=function(dl, managers, league)
   
   team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
+           cost=gsub("transfer","", cost, ignore.case = T)) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
-    group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
     summarise(SBgoals=sum(Goals, na.rm=T),
-              App=sum(App, na.rm=T)) %>% 
-    arrange(team, position, -cost2, bought2, week) %>% 
-    ungroup()  
+              App=sum(App, na.rm=T), .by=c("position", "player", "club", "cost","cost2", "bought", "sold", "bought2","sold2", "team", "week")) %>% 
+    arrange(team, position, -cost2, bought2, week) 
   
   team_score_daily=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
+           cost=gsub("transfer","", cost, ignore.case = T)) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     rename(SBgoals=Goals) %>% 
-    # mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
-    # group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team) %>% 
-    # summarise(SBgoals=sum(Goals, na.rm=T),
-    #           App=sum(App, na.rm=T)) %>% 
     arrange(team, position, -cost2, bought2) %>% 
     ungroup()  
   
