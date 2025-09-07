@@ -390,8 +390,8 @@ server <- function(input, output, session) {
     text2=paste("<b>Score:", league$total[which(league$team==input$team)], "</b>")
     text3=paste("<font color=\"#4DAF4A\">For:", league$gf[which(league$team==input$team)], "</font>")
     text4=paste("<font color=\"#E41A1C\">Against:", league$ga[which(league$team==input$team)], "</font>")
-    outfield=paste("Outfield transfers remaining:", 8-dl %>% filter(team==input$team, position!= "GOALKEEPER", cost=="TRANSFER") %>% nrow())
-    goalie=paste("Goalkeeper transfers remaining:", 2-dl %>% filter(team==input$team, position== "GOALKEEPER", cost=="TRANSFER") %>% nrow())
+    outfield=paste("Outfield transfers remaining:", 8-dl %>% filter(team==input$team, position!= "GOALKEEPER", cost=="") %>% nrow())
+    goalie=paste("Goalkeeper transfers remaining:", 2-dl %>% filter(team==input$team, position== "GOALKEEPER", cost=="`") %>% nrow())
     HTML(paste(text1, text2, text3, text4, outfield,goalie,sep="<br/>"))
   })
   
