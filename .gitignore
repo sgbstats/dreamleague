@@ -34,3 +34,6 @@ vignettes/*.pdf
 .secrets/
 
 /log/
+
+*/legacy/*
+  
