@@ -33,7 +33,8 @@ dl_process=function(dl, managers, league)
              goals=5,
              sold=7,
              bought=6) %>% 
-      mutate(team=NA_character_) 
+      mutate(team=NA_character_,
+             cost=gsub("TRANSFER|TRASNFER","", cost, ignore.case = T)) 
     
     managers=managers%>% 
       rbind.data.frame(tribble(~"manager", ~"team",
@@ -48,7 +49,8 @@ dl_process=function(dl, managers, league)
              goals=5,
              sold=6,
              bought=7) %>% 
-      mutate(team=NA_character_)
+      mutate(team=NA_character_,
+             cost=gsub("transfer","", cost, ignore.case = T))
   }
   
   teams2=teams
@@ -183,7 +185,8 @@ dl_process=function(dl, managers, league)
   # load("Data/team_id.RDa")
   
   gk=teams3 %>% filter(!position %in% c( "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
-    merge(team_id %>% select(team, team_id) %>% 
+    merge(team_id %>% #rename(team_id=id) %>% 
+            dplyr::select(team, team_id) %>% 
             rbind.data.frame(data.frame(team=c("WEST BROM"), team_id=c(2744))) %>% 
             mutate(team=case_when(team=="WEST BROMWICH ALBION"~ "WEST BROMWICH",
                                   T~team)) %>% 
@@ -297,8 +300,7 @@ dl_process=function(dl, managers, league)
                      mutate(SBgoals=as.numeric(SBgoals),
                             SBapp=as.numeric(SBapp))) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
-           cost=gsub("transfer","", cost, ignore.case = T) ) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T) ) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     arrange(team, position, -cost2, bought2) %>% 
     select(-cost2)
@@ -313,8 +315,7 @@ dl_process=function(dl, managers, league)
   
   team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
-           cost=gsub("transfer","", cost, ignore.case = T)) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
     summarise(SBgoals=sum(Goals, na.rm=T),
@@ -323,8 +324,7 @@ dl_process=function(dl, managers, league)
   
   team_score_daily=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
     ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T),
-           cost=gsub("transfer","", cost, ignore.case = T)) %>% 
+    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
     mutate(cost2=as.numeric(cost)) %>% 
     rename(SBgoals=Goals) %>% 
     arrange(team, position, -cost2, bought2) %>% 

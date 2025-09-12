@@ -108,11 +108,11 @@ team_id=team_id %>% mutate(team=str_to_upper(team))
 
 
 
-mostrecent=max(list.files(path = "data/legacy/", pattern = NULL, all.files = FALSE,
+mostrecent=max(list.files(path = "data/legacy/playerdata/", pattern = NULL, all.files = FALSE,
            full.names = FALSE, recursive = FALSE,
            ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE))
 
-load(paste("data/legacy/", mostrecent, sep=""))
+load(paste("data/legacy/playerdata/", mostrecent, sep=""))
 
 player_id=player_id %>% 
   rbind.data.frame(legacy) %>%
@@ -120,5 +120,5 @@ player_id=player_id %>%
   filter(player_id%notin%c()) 
 
 legacy=player_id
-save(legacy, file = paste("data/legacy/ids", Sys.Date(),".RDa",sep=""))
+save(legacy, file = paste("data/legacy/playerdata/ids", Sys.Date(),".RDa",sep=""))
 save(team_id, player_id, file = "data/ids.RDa")

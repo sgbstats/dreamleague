@@ -1,0 +1,302 @@
+---
+title: "BFL Cup 1st round look ahead"
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=1in
+header-includes: |
+  \renewcommand{\familydefault}{\sfdefault}
+  
+editor: visual
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+load("C:\\R\\git\\dreamleague\\dreamleague\\data.RDa")
+
+squads=dl %>% mutate(out=case_when(position=="GOALKEEPER"~club,
+                            T~player)) %>% 
+  filter(is.na(sold)) %>% 
+  summarise(out=paste(out, collapse =", ") %>% str_to_title(),
+            score=sum(goals),
+            .by=c("league", "team")) %>% 
+  merge(dl %>% filter(goals>0) %>% 
+          summarise(gf=sum(goals),
+            .by=c("league", "team"))) %>% 
+    merge(dl %>% filter(goals<=0) %>% 
+          summarise(ga=sum(goals),
+            .by=c("league", "team"))) %>% 
+  arrange(-score, -gf) %>% 
+  mutate(rank=rank(row_number()), .by="league") %>% 
+  mutate(rank_suffix = case_when(
+    rank %in% c(11, 12, 13) ~ 'th',
+    rank %% 10 == 1 ~ 'st',
+    rank %% 10 == 2 ~ 'nd',
+    rank %% 10 == 3 ~ 'rd',
+    TRUE ~ 'th'
+  ),
+  rank_label = paste0(rank, rank_suffix),
+  holder=paste0(rank_label, "; ", score,  " (",gf,"-",ga,")" ))
+```
+
+The inaugural BFL Challenge Cup kicks off this weekend. We look ahead to the ten ties. Scores will be updated through the weekend just head to the [Website](https://sgbstats.shinyapps.io/dreamleague) and click BFL cup. We have 42 games on Saturday, three on Sunday and one on Friday night. This is the only round with domestic protection before the 6 bye teams join in the 2nd round.
+
+## Rash In The Attic v Phoenix Flyers
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.4\linewidth]{../dreamleague/img/RASHINTHEATTIC.png}
+
+`r (squads %>% filter(team=="RASH IN THE ATTIC"))[,9]`in the BFL (Didsbury League)\\
+Current Score: `r (squads %>% filter(team=="RASH IN THE ATTIC"))[,4]` (`r (squads %>% filter(team=="RASH IN THE ATTIC"))[,5]`-`r (squads %>% filter(team=="RASH IN THE ATTIC"))[,6]`)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/PHOENIXFLYERS.png}
+
+`r (squads %>% filter(team=="PHOENIX FLYERS"))[,9]` in the Original League\\
+`r (squads %>% filter(team=="PHOENIX FLYERS"))[,4]` (`r (squads %>% filter(team=="PHOENIX FLYERS"))[,5]`-`r (squads %>% filter(team=="PHOENIX FLYERS"))[,6]`)
+\end{minipage}
+:::
+
+Gary's Phoenix Flyers are indeed off to a flying start with a cross-league best of 25 goals with a line lead by Josh Sargent and Omari Patrick. PF only have one player, Greg Leigh, yet to find the back of the net. GK Everton face a misfiring Villa at home (3pm) who are yet to score. 
+
+Mark's RitA had a tough start to the season with Wigan haemorrhaging nine and a Delap injury forcing early transfers. Wigan are replaced by Gillingham (who face midtable Notts Co at home). Main man Salah doesn't play until Sunday but will there be too much to do to catch the Flyers?
+
+Line ups:
+
+*RiTA: `r (squads %>% filter(team=="RASH IN THE ATTIC"))[,3]`*
+
+*PF: `r (squads %>% filter(team=="PHOENIX FLYERS"))[,3]`*
+
+## Dreamer's Dregs v Wooden Spoon Army
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/DREAMERSDREGS.png}
+
+`r (squads %>% filter(team=="DREAMERS DREGS"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/WOODENSPOONARMY.png}
+
+`r (squads %>% filter(team=="WOODEN SPOON ARMY"))[,10]`
+\end{minipage}
+:::
+
+A start to forget for the Dreamers being firmly back on the mark (although far from the wooden spoon). Their defense has picked up three of the their four goals so far. GK Man City face cross city rivals on Sunday afternoon.
+
+WSA would be 3rd if they were in the BFL with their steady start and could have the tie wrapped up on Saturday night: Chelsea play in the late kick off with leading goal scorers Kabia and Lowe featuring in the afternoon.
+
+*DD: `r (squads %>% filter(team=="DREAMERS DREGS"))[,3]`*
+
+*WSA: `r (squads %>% filter(team=="WOODEN SPOON ARMY"))[,3]`*
+
+## CF Cala Alcaufar v Glens
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.4\linewidth]{../dreamleague/img/CFCALAALCAUFAR.png}
+
+`r (squads %>% filter(team=="CF CALA ALCAUFAR"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/GLENS.png}
+
+`r (squads %>% filter(team=="GLENS"))[,10]`
+\end{minipage}
+:::
+
+Two on form teams make up the third tie. Perennial winners Glens find themselves 3rd and will know how many goals they will need to be made up with Arsenal playing in the early kick off against Forest (new manager bounce?). League favourite Keillor-Dunn is their top scorer and early transfer Carlton Morris adding another three. 
+
+Another team with Everton in goal and Sargent top scoring, CFCA have made three transfers already, although none have found the net. Star signing Fernandes will need to score more for an upset here.
+
+*CFCA: `r (squads %>% filter(team=="CF CALA ALCAUFAR"))[,3]`*
+
+*Glens: `r (squads %>% filter(team=="GLENS"))[,3]`*
+
+## Atletico DEC v Surreal Madrid
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/ATLETICODEC.png}
+
+`r (squads %>% filter(team=="ATLETICO DEC"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.6\linewidth]{../dreamleague/img/SURREALMADRID.png}
+
+`r (squads %>% filter(team=="SURREAL MADRID"))[,10]`
+\end{minipage}
+:::
+
+Another major mismatch with 2nd from top playing 2nd from bottom. Atleti are still underwater and are one of two teams with three managers, showing three heads are not necessarily better than one. They have a leaky MK Dons in goal and have three joint top scorers each with two goals apiece.
+
+Across the proverbial Spanish capital are Surreal Madrid. Were they in the BFL, they would be leading by two. Newcastle host Wolves and joint top scorers (this time with four each) Keiffer Moor and James Collins look to extend their tallies.
+
+*Atleti: `r (squads %>% filter(team=="ATLETICO DEC"))[,3]`*
+
+*SM: `r (squads %>% filter(team=="SURREAL MADRID"))[,3]`*
+
+## Nutmeg Utd v Munters United
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.4\linewidth]{../dreamleague/img/NUTMEGUTD.png}
+
+`r (squads %>% filter(team=="NUTMEG UTD"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/MUNTERSUNITED.png}
+
+`r (squads %>% filter(team=="MUNTERS UNITED"))[,10]`
+\end{minipage}
+:::
+
+A potentially low scoring thriller makes up the fifth tie as we see the clash of the Uniteds. Duffy's Nutmeg finds themselves in the rare position of not being rock bottom of the BFL but still not off the mark. They have the lowest number of goals scored across both leagues with only Palace saving their blushes from being at the bottom.
+
+Munters have six outfield players on the score sheet with ex-Wycombe diva Richard Kone as their top scorer. Only Gakpo (MU), Silva (NU) and Diaz (NU) play on Sunday with one goal between the three. Palace host upstarts Sunderland while the Cherries host fellow south coasters Brighton in a tie that could be all bar wrapped up by tea time.
+
+*Nutmeg U: `r (squads %>% filter(team=="NUTMEG UTD"))[,3]`*
+
+*Munters U: `r (squads %>% filter(team=="MUNTERS UNITED"))[,3]`*
+
+## Wenger Boys v #holyf**k
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/WENGERBOYS.png}
+
+`r (squads %>% filter(team=="WENGER BOYS"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.6\linewidth]{../dreamleague/img/HOLYFK.png}
+
+`r (squads %>% filter(team=="#holyf**k"))[,10]`
+\end{minipage}
+:::
+
+Both teams have had rocky starts to this season having replaced their keepers in the end of August (WB Wycombe for Cardiff and #hf opting for Boro over Colchester) as well as both having Gyokeres as their marquee signing, essentially reducing the tie to 10 v 10. Michael Cheek of Bromley is the Boys' top scorer while Wooton of Stockport makes his debut against their own GK, Cardiff. 
+
+#holyf**fk are relying on Boro to keep PNE at bay while hoping that Kvistgaarden ($28) opens his account this weekend at Coventry.
+
+*WB: `r (squads %>% filter(team=="WENGER BOYS"))[,3]`*
+
+*#hf: `r (squads %>% filter(team=="#holyf**k"))[,3]`*
+
+## Erimus v King's XI
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.6\linewidth]{../dreamleague/img/ERIMUS.png}
+
+`r (squads %>% filter(team=="ERIMUS"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/KINGSXI.png}
+
+`r (squads %>% filter(team=="KING'S XI"))[,10]`
+\end{minipage}
+:::
+
+Two teams trying to tread water with one just above level and one just below. Any goals from the King's XI from Harland or Gvardiol will immediately be nullified as they put them past their own keeper of Man U. However, a goal from Josko Gvardiol would help Erimus. Goals in the Bristol C game may be of interest with Riis and Mehmeti playing on both sides of the tie. Erimus will be hoping for a strong performance at Portman Rd as they feature the Tractor Boys in goal v Sheff U and Chuba Akpom upfront who has only featured in 55 mins of football so far this season.
+
+*Erimus: `r (squads %>% filter(team=="ERIMUS"))[,3]`*
+
+*KXI: `r (squads %>% filter(team=="KING'S XI"))[,3]`*
+
+## Naths Rovers v Newquay Hornets
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.4\linewidth]{../dreamleague/img/NATHSROVERS.png}
+
+`r (squads %>% filter(team=="NATHS ROVERS"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/NEWQUAYHORNETS.png}
+
+`r (squads %>% filter(team=="NEWQUAY HORNETS"))[,10]`
+\end{minipage}
+:::
+
+A match that may be far from settled at 5pm on Saturday with four in action on Sunday (inlcuding Marmoush who may well not play at all) and a further two in the late late kickoff. NH have the worst defensive record of the 26 teams in the competition with an ill-fated transfer of Sheff U for MK Dons.
+
+Ismaila Sarr is Naths/Robs Rover's top scorer. They have Luton in goal (home to Plymouth). Meanwhile NH only have 2 players outside of the PL, with Mateta top scoring; all eyes will be on Palace match on Saturday.
+
+*NR: `r (squads %>% filter(team=="NATHS ROVERS"))[,3]`*
+
+*NH: `r (squads %>% filter(team=="NEWQUAY HORNETS"))[,3]`*
+
+## Shefspanyol v Creme D'Advocaat
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.6\linewidth]{../dreamleague/img/SHEFSPANYOL.png}
+
+`r (squads %>% filter(team=="SHEFSPANYOL"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/CRÈMEDADVOCAAT.png}
+
+`r (squads %>% filter(team=="CRÈME D'ADVOCAAT"))[,10]`
+\end{minipage}
+:::
+
+A middle of the pack tie that could very much go either way. Both keepers are not in action until Sunday as well Ekitike and Reijnders for Shefspanyol and Cunha for CdA. There have been a run of early changes for Creme using 4 subs in the first month. Evans and Sarr are CdA's top scorers. 
+
+*Shef: `r (squads %>% filter(team=="SHEFSPANYOL"))[,3]`*
+
+*CdA: `r (squads %>% filter(team=="CRÈME D'ADVOCAAT"))[,3]`*
+
+## Middlesbrotherrs v Dynamo Durham
+
+::: {=latex}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.5\linewidth]{../dreamleague/img/MIDDLESBROTHERS.png}
+
+`r (squads %>% filter(team=="MIDDLESBROTHERS"))[,10]`
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=0.6\linewidth]{../dreamleague/img/DYNAMODURHAM.png}
+
+`r (squads %>% filter(team=="DYNAMO DURHAM"))[,10]`
+\end{minipage}
+:::
+
+Mr Multiclub Ownership has had his appeal at CAS turned down so his weaker side of Durham Dynamo are forced to feature here. New keeper West Brom make their first outing having replaced Chesterfield in net and Haji Wright looks to keep his run of form going. 
+
+Matty Stevens is the lead scorer for the Brothers. Big name Wirtz yet to score and Mbeumo netting two in a midfield heavy team. Liverpool feature at the back.
+
+*MBros: `r (squads %>% filter(team=="MIDDLESBROTHERS"))[,3]`*
+
+*DD: `r (squads %>% filter(team=="DYNAMO DURHAM"))[,3]`*
+

@@ -341,7 +341,7 @@ server <- function(input, output, session) {
     
     weekly%>% filter(team==input$team2) %>% 
       mutate(week2=format(week, format="%d-%b")) %>%
-      filter(is.na(sold))%>% 
+      # filter(is.na(sold))%>% 
       filter(week ==input$week_player) %>%
       filter(SBgoals!=0) %>%
       select(-sold, -bought2, -sold2, -App, -week, -week2)%>%
@@ -391,11 +391,7 @@ server <- function(input, output, session) {
     text3=paste("<font color=\"#4DAF4A\">For:", league$gf[which(league$team==input$team)], "</font>")
     text4=paste("<font color=\"#E41A1C\">Against:", league$ga[which(league$team==input$team)], "</font>")
     outfield=paste("Outfield transfers remaining:", 8-dl %>% filter(team==input$team, position!= "GOALKEEPER", cost=="") %>% nrow())
-<<<<<<< HEAD
-    goalie=paste("Goalkeeper transfers remaining:", 2-dl %>% filter(team==input$team, position== "GOALKEEPER", cost=="`") %>% nrow())
-=======
     goalie=paste("Goalkeeper transfers remaining:", 2-dl %>% filter(team==input$team, position== "GOALKEEPER", cost=="") %>% nrow())
->>>>>>> fd4432a3001fd5a15fe4b9ef3d2425fb698591ff
     HTML(paste(text1, text2, text3, text4, outfield,goalie,sep="<br/>"))
   })
   
