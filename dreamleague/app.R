@@ -73,13 +73,10 @@ ui <- dashboardPage(
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
       menuItem("BFL Cup", tabName = "cup", icon = icon("trophy")),
       menuItem("Players taken", tabName = "players", icon = icon("user-xmark")),
-      menuItem("Weekly scores", tabName = "weekly", icon = icon("calendar"),
-               menuSubItem("Weekly Goals", tabName = "weekly2", icon = icon("futbol")),
-               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table"))),
       menuItem("History", tabName = "history", icon=icon("clock-rotate-left"),
                menuSubItem("Team History", tabName = "team_history", icon = icon("futbol")),
-               menuSubItem("League History", tabName = "league_history", icon = icon("table"))
-               #menuSubItem("Horserace", tabName = "horserace", icon=icon("horse"))
+               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")),
+               menuSubItem("League History", tabName = "league_history", icon = icon("clock-rotate-left"))
       ),
       menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope")),
       menuItem("Report an issue", tabName = "bug", icon=icon("bug"))
@@ -183,7 +180,9 @@ ui <- dashboardPage(
                 sidebarPanel(
                   radioButtons("league_team_history", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
                   pickerInput("team3", "Team", choices = teamslist, selected = NULL),
-                  pickerInput("week_player3", "Game week", choices = weeks2, selected = weeks2[length(weekschar)-2])),
+                  dateInput("start", "Start date", value = floor_date(Sys.Date(), "week", week_start = 1)- 7),
+                  dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
+                ),
                 mainPanel(
                   dataTableOutput("team_history_out")
                 )
@@ -209,7 +208,7 @@ ui <- dashboardPage(
               )),
       tabItem(tabName = "bug", fluid=T,
               mainPanel(
-
+                
                 tags$iframe(
                   src ="https://docs.google.com/forms/d/e/1FAIpQLScDhSXL2h8HYjTCuwdYKLTF3En2xPfE9O2BJet6VasuRdn2SQ/viewform?embedded=true",
                   width = "800",
@@ -228,7 +227,7 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   
   league_master=reactiveVal("didsbury")
-
+  
   
   output$table=renderUI({
     league%>% 
@@ -366,10 +365,10 @@ server <- function(input, output, session) {
   output$team_history_out=DT::renderDT({
     
     
-    teams5= weekly%>% filter(team==input$team3)  %>%
-      mutate(week2=as.Date(week, format="%d-%b")) %>%
-      filter(bought2<=input$week_player3) %>%
-      filter(week <=input$week_player3) %>%
+    teams5= daily%>% filter(team==input$team3)  %>%
+      # mutate(week2=as.Date(week, format="%d-%b")) %>%
+      filter(Date<=as.Date(input$end), 
+             Date>=as.Date(input$start)) %>% 
       # filter(SBgoals!=0) %>%
       group_by(position, player,club,cost,bought,sold, cost2) %>%
       summarise(SBgoals=sum(SBgoals, na.rm = T)) %>%
@@ -399,14 +398,14 @@ server <- function(input, output, session) {
     
     outfile=paste("img/", str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")), ".png", sep="")
     hold=magick::image_read(outfile)
-
+    
     list(
-        src = outfile,
-        contentType = "image/png",
-        width = 100,
-        height = round(100 * (magick::image_info(hold)$height / magick::image_info(hold)$width))
+      src = outfile,
+      contentType = "image/png",
+      width = 100,
+      height = round(100 * (magick::image_info(hold)$height / magick::image_info(hold)$width))
     )
-
+    
     
   }, deleteFile = F)
   
@@ -462,14 +461,14 @@ server <- function(input, output, session) {
   })
   output$update_time=renderUI({ 
     HTML(paste0("Last score update: ",
-    format(time$update_time, format="%Y-%m-%d %H:%M:%S"),
-    "<br>Last file upload<br>Didsbury: ",
-    format(time$mod_d, format="%Y-%m-%d %H:%M:%S"),
-    "<br>Original: ",
-    format(time$mod_o, format="%Y-%m-%d %H:%M:%S")
+                format(time$update_time, format="%Y-%m-%d %H:%M:%S"),
+                "<br>Last file upload<br>Didsbury: ",
+                format(time$mod_d, format="%Y-%m-%d %H:%M:%S"),
+                "<br>Original: ",
+                format(time$mod_o, format="%Y-%m-%d %H:%M:%S")
     ))
   })
-    
+  
   
   output$cup=renderUI({
     date=cupties %>% filter(comp==input$comp_cup, round==input$round_cup) %>% pull(date) %>% min(na.rm=T)
@@ -635,9 +634,9 @@ server <- function(input, output, session) {
                })
   observeEvent(input$comp_cup,
                {
-        
+                 
                  round_cup=unique((cupties %>% filter(comp==input$comp_cup) )$round)
-
+                 
                  updatePickerInput(session, "round_cup", choices = round_cup)
                })
   
