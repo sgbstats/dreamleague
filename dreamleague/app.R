@@ -142,7 +142,7 @@ ui <- dashboardPage(
               sidebarPanel(
                 
                 radioButtons("comp_cup", "Competition ", choices = c("BFL Challenge Cup"="bfl", "Didsbury Cup"="didsbury","Original Cup"="original"), selected = "bfl"),
-                pickerInput("round_cup", "Round", choices = rounds, selected="R1", multiple = F)
+                pickerInput("round_cup", "Round", choices = rounds, selected="R1 Replay", multiple = F)
               ),
               mainPanel(
                 uiOutput("cup",inline = TRUE, style = "margin:0px; padding:0px")
@@ -472,7 +472,7 @@ server <- function(input, output, session) {
     
   
   output$cup=renderUI({
-    date=cupties %>% filter(comp==input$comp_cup, round==input$round_cup) %>% pull(date) %>% min()
+    date=cupties %>% filter(comp==input$comp_cup, round==input$round_cup) %>% pull(date) %>% min(na.rm=T)
     
     
     main=managers %>% merge(daily %>%filter(Date>=date,

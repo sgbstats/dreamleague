@@ -59,8 +59,11 @@ daily_o=out_o$daily
 daily_d=out_d$daily
 time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
 
-cupties=read.csv("C:/R/git/dreamleague/data/cupties.csv") %>% 
-  mutate(date=as.Date(date, format = "%d/%m/%Y"))
+
+cupties <- read.csv("C:/R/git/dreamleague/data/cupties.csv") %>%
+  mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
+  mutate(across(where(is.character), trimws))
+
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),
                     out_o$scores %>% mutate(league="original"))
