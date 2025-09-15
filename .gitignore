@@ -38,3 +38,5 @@ vignettes/*.pdf
 */legacy/*
   
 /dreamleague/data.RDa
+
+*.dcf
