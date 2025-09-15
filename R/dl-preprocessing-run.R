@@ -9,12 +9,36 @@ suppressPackageStartupMessages({
   library(crayon)
 })
 a=Sys.time()
-source("C:/R/git/dreamleague/R/dl-preprocessing.R")
+
+get_os <- function(){
+  sysinf <- Sys.info()
+  if (!is.null(sysinf)){
+    os <- sysinf['sysname']
+    if (os == 'Darwin')
+      os <- "osx"
+  } else { ## mystery machine
+    os <- .Platform$OS.type
+    if (grepl("^darwin", R.version$os))
+      os <- "osx"
+    if (grepl("linux-gnu", R.version$os))
+      os <- "linux"
+  }
+  tolower(os)
+}
+
+if(get_os()=="linux"){
+  short=""
+}else{
+  
+  short="C:/R/git/dreamleague/"
+}
+
+source(paste0(short,"R/dl-preprocessing.R"))
 # gs4_auth(
 #   email = T
 # )
 
-file_d="C:/R/git/dreamleague/data/DreamLeague25-26.xlsx"
+file_d=paste0(short,"data/DreamLeague25-26.xlsx")
 dl_d=readxl::read_excel(file_d, na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
   suppressMessages() %>% 
   dplyr::select(2:8)
@@ -30,7 +54,7 @@ cat("Didsbury\n")
 out_d=dl_process(dl_d, managers_d, "Didsbury")
 
 
-file_o="C:/R/git/dreamleague/data/DL25-26.xlsx"
+file_o=paste0(short,"data/DL25-26.xlsx")
 dl_o=readxl::read_excel(file_o, na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
   suppressMessages() %>% 
   dplyr::select(1:7)
@@ -59,7 +83,6 @@ daily_o=out_o$daily
 daily_d=out_d$daily
 time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
 
-
 cupties <- read.csv("C:/R/git/dreamleague/data/cupties.csv") %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
   mutate(across(where(is.character), trimws))
@@ -72,7 +95,7 @@ managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
 daily=rbind.data.frame(out_d$daily %>% mutate(league="didsbury"),
                        out_o$daily %>% mutate(league="original"))
 
-save(dl,  daily, time, cupties, file="C:/R/git/dreamleague/dreamleague/data.RDa")
+save(dl,  daily, time, cupties, file=paste0(short,"dreamleague/data.RDa"))
 
 googledrive::drive_auth(
   email = TRUE,
@@ -84,7 +107,7 @@ googledrive::drive_auth(
   token = NULL
 )
 
-googledrive::drive_update(media="C:/R/git/dreamleague/dreamleague/data.RDa",
+googledrive::drive_update(media=paste0(short,"dreamleague/data.RDa"),
                           file=googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),)
 b=Sys.time()
 
