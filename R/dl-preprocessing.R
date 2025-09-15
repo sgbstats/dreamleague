@@ -24,6 +24,28 @@ dl_process=function(dl, managers, league)
           "Football League One", "Football League One Play-Off", "League One Play-Off",
           "Football League Two", "Football League Two Play-Off" , "League Two Play-Off" )
   
+  get_os <- function(){
+    sysinf <- Sys.info()
+    if (!is.null(sysinf)){
+      os <- sysinf['sysname']
+      if (os == 'Darwin')
+        os <- "osx"
+    } else { ## mystery machine
+      os <- .Platform$OS.type
+      if (grepl("^darwin", R.version$os))
+        os <- "osx"
+      if (grepl("linux-gnu", R.version$os))
+        os <- "linux"
+    }
+    tolower(os)
+  }
+  
+  if(get_os()=="linux"){
+    short=""
+  }else{
+    
+    short="C:/R/git/dreamleague/"
+  }
   if(league=="Didsbury"){
     teams=dl  %>% 
       rename(position=1,
@@ -68,7 +90,7 @@ dl_process=function(dl, managers, league)
   
   
   # sb_id=read.csv("data/sb_id.csv") 
-  load("C:/R/git/dreamleague/data/ids.RDa")
+  load(paste0(short,"data/ids.RDa"))
   
   teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
