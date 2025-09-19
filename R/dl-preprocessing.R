@@ -17,7 +17,7 @@ dl_process=function(dl, managers, league)
           "EFL Cup", "English League Cup",
           "Europa League", 
           "Community Shield",
-          "Champions League",
+          "Champions League", "European Cup",
           "FA Cup", "English FA Cup",
           "Europa Conference League",
           "Football League Championship", "Football League Championship Play-Off","Championship Play-Off",
