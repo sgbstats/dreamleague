@@ -12,6 +12,7 @@ library(dplyr)
 # library(googlesheets4)
 library(DT)
 library(shinyjs)
+library(reactable)
 # library(golem)
 
 options(gargle_oauth_cache = ".secrets",
@@ -142,7 +143,7 @@ ui <- dashboardPage(
                 pickerInput("round_cup", "Round", choices = rounds, selected="R1 Replay", multiple = F)
               ),
               mainPanel(
-                uiOutput("cup",inline = TRUE, style = "margin:0px; padding:0px")
+                reactableOutput("cup")
               )),
       
       tabItem(tabName = "league_weekly", fluid=T,
@@ -480,58 +481,120 @@ server <- function(input, output, session) {
     ))
   })
   
-  
-  output$cup=renderUI({
-    date=cupties %>% filter(comp==input$comp_cup, round==input$round_cup) %>% pull(date) %>% min(na.rm=T)
+
+  output$cup <- renderReactable({
+    date <- cupties %>%
+      filter(comp == input$comp_cup, round == input$round_cup) %>%
+      pull(date) %>%
+      min(na.rm = TRUE)
     
+    weekend=daily %>%
+      filter(
+        Date >= date,
+        Date <= date + lubridate::days(3)
+      )
     
-    main=managers %>% merge(daily %>%filter(Date>=date,
-                                            Date<=date+lubridate::days(3)) %>% 
-                              summarise(total=sum(SBgoals, na.rm=T),.by="team"), by="team", all.x = T) %>% 
-      merge(daily%>% filter(position != "GOALKEEPER") %>%
-              filter(Date>=date,
-                     Date<=date+lubridate::days(3)) %>% 
-              summarise(gf=sum(SBgoals),.by="team"), by="team", all.x = T) %>% 
-      merge(daily %>% filter(position == "GOALKEEPER") %>%
-              filter(Date>=date,
-                     Date<=date+lubridate::days(3)) %>% 
-              summarise(ga=-sum(SBgoals),.by="team"), by="team", all.x = T) %>% 
-      mutate(ga = replace(ga, is.na(ga), 0),
-             total = replace(total, is.na(total), 0),
-             gf = replace(gf, is.na(gf), 0)) %>% 
-      arrange(-total,-gf) %>% 
-      mutate(team_manager=paste0(team, " (", manager,")"),
-             score=paste0(total, " (", gf,"-",ga,")")) %>% 
-      dplyr::select(team, team_manager, total, gf, score)
+
+    scorers=weekend %>% 
+      filter(SBgoals!=0) %>%
+      mutate(name = paste0(ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)), if_else(SBgoals==1, "", paste0(" (", SBgoals, ")"))) %>% str_to_title()) %>% 
+      summarise(scorers=paste(name, collapse = ", ", sep=""), .by="team")
+
     
-    res=cupties %>% mutate(rn=row_number()) %>%
-      filter(comp==input$comp_cup, round==input$round_cup) %>% 
-      merge(main, by.x="team1", by.y="team") %>% 
-      merge(main, by.x="team2", by.y="team") %>% 
-      mutate(winner=case_when(total.x>total.y~1,
-                              total.x<total.y~2,
-                              gf.x>gf.y~1,
-                              gf.x<gf.y~2)) %>% 
-      arrange(rn) %>% 
-      dplyr::select(team_manager.x, score.x, score.y, team_manager.y,winner)
-    
-    
-    
-    res %>%
-      flextable(col_keys = c("team_manager.x", "score.x", "score.y", "team_manager.y")) %>%
-      set_header_labels(
-        team_manager.x = "",
-        team_manager.y = "",
-        score.x = "",
-        score.y = ""
+    main <- managers %>%
+      merge(weekend %>%
+              summarise(total = sum(SBgoals, na.rm = T), .by = "team"),
+            by = "team",
+            all.x = T) %>%
+      merge(weekend %>% filter(position != "GOALKEEPER") %>%
+              summarise(gf = sum(SBgoals), .by = "team"),
+            by = "team",
+            all.x = T) %>%
+      merge(weekend %>% filter(position == "GOALKEEPER") %>%
+              summarise(ga = -sum(SBgoals), .by = "team"),
+            by = "team",
+            all.x = T) %>%
+      merge(scorers, .by="team") %>% 
+      mutate(
+        ga = replace(ga, is.na(ga), 0),
+        total = replace(total, is.na(total), 0),
+        gf = replace(gf, is.na(gf), 0)
       ) %>%
-      bg(i = which(res$winner == 1), j = 1, bg = "#FFD700") %>%
-      bg(i = which(res$winner == 2), j = 4, bg = "#FFD700") %>%
-      autofit() %>%
-      font(fontname = "Arial", part = "all") %>%
-      delete_part(part="header") %>% 
-      htmltools_value()
+      arrange(-total, -gf) %>%
+      mutate(
+        team_manager = paste0(team, " (", manager, ")"),
+        score = paste0(total, " (", gf, "-", ga, ")")
+      ) %>%
+      dplyr::select(team, team_manager, total, gf, score, scorers)
+    
+    res <- cupties %>%
+      mutate(rn = row_number()) %>%
+      filter(comp == input$comp_cup, round == input$round_cup) %>%
+      merge(main, by.x = "team1", by.y = "team") %>%
+      merge(main, by.x = "team2", by.y = "team") %>%
+      mutate(winner = case_when(
+        total.x > total.y ~ 1,
+        total.x < total.y ~ 2,
+        gf.x > gf.y ~ 1,
+        gf.x < gf.y ~ 2
+      )) %>%
+      arrange(rn) %>%
+      dplyr::select(team_manager.x, score.x, score.y, team_manager.y, winner, scorers.x, scorers.y, team1, team2)
+    
+    reactable(
+      res[, 1:4],
+      columns = list(
+        team_manager.x = colDef(
+          name = "",
+          style = function(value, index) {
+            if (!is.na(res$winner[index]) && res$winner[index] == 1) {
+              list(background = "#FFD700")
+            }
+          }
+        ),
+        score.x = colDef(
+          name = "",
+          style = function(value, index) {
+            if (!is.na(res$winner[index]) && res$winner[index] == 1) {
+              list(background = "#FFD700")
+            }
+          }
+        ),
+        score.y = colDef(
+          name = "",
+          style = function(value, index) {
+            if (!is.na(res$winner[index]) && res$winner[index] == 2) {
+              list(background = "#FFD700")
+            }
+          }
+        ),
+        team_manager.y = colDef(
+          name = "",
+          style = function(value, index) {
+            if (!is.na(res$winner[index]) && res$winner[index] == 2) {
+              list(background = "#FFD700")
+            }
+          }
+        )
+      ),
+      details = function(index) {
+        div(
+          style = "padding: 16px;",
+          strong("Scorers:"),
+          br(),
+          paste0(res$team1[index], ": ", res$scorers.x[index]),
+          br(),
+          paste0(res$team2[index], ": ", res$scorers.y[index])
+        )
+      }
+      
+    )
+    
+    
+    
+    
   })
+
   
   
   observeEvent(input$league,
