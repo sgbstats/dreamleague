@@ -184,6 +184,10 @@ ui <- dashboardPage(
                   dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
                 ),
                 mainPanel(
+                  tags$div(
+                    class = "alert alert-warning",
+                    "Only players who played in the window provided are listed."
+                  ),
                   dataTableOutput("team_history_out")
                 )
               )
@@ -375,14 +379,21 @@ server <- function(input, output, session) {
       #select(-sold, -bought2, -sold2, -App, -week, -week2) %>%
       ungroup() %>%
       arrange(position, -cost2) %>%
-      select(-cost2) %>%
+      select(-cost2, -sold) %>%
       rename("Goals"="SBgoals")%>%
       rename_with(str_to_title) %>%
       relocate(Goals, .after=Club)
     
     teams5 %>% data.table::as.data.table()
     
-  })
+  },
+  options = list(
+    autoWidth = TRUE,
+    columnDefs = list(list(width = '100px', targets = c(1,2)),
+                      list(width = '50px', targets = c(0,3)),
+                      list(width = '30px', targets = c(4,5))),
+    scrollX=T,
+    pageLength=15))
   
   output$teamtext=renderUI({
     text1=paste("<b>League position:",league$rank[which(league$team==input$team)] , "</b>")
