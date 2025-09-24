@@ -74,11 +74,13 @@ ui <- dashboardPage(
                   uiOutput("update_time"),
                   radioButtons("league", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury")
                 ),
-                
                 mainPanel(
                   tags$div(
                     class = "alert alert-warning",
-                    "Some goals may be missing due to changes in soccerbase. Please use the report an issue tab so it can be fixed"
+                    HTML(paste0(
+                      "Some goals may be missing due to changes in soccerbase. Please use the report an issue tab so it can be fixed ",
+                      "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
+                    ))
                   ),
                   uiOutput("table",inline = TRUE, style = "margin:0px; padding:0px")
                 )
@@ -118,6 +120,13 @@ ui <- dashboardPage(
                 pickerInput("round_cup", "Round", choices = rounds, selected="R1 Replay", multiple = F)
               ),
               mainPanel(
+                tags$div(
+                  class = "alert alert-secondary",
+                  HTML(paste0(
+                    "Rows expand to show scorers",
+                    "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
+                  ))
+                ),
                 reactableOutput("cup")
               )
       ),
@@ -131,14 +140,19 @@ ui <- dashboardPage(
                   dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
                 ),
                 mainPanel(
+                  tags$div(
+                    class = "alert alert-secondary",
+                    HTML(paste0(
+                      "Rows expand to show scorers",
+                      "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
+                    ))
+                  ),
                   reactableOutput("team_history_out")
                 )
               )
       ),
       tabItem(tabName = "diagnostics", fluid=T,
-              sidebarPanel(
-                
-              ),
+              sidebarPanel(),
               mainPanel(
                 dataTableOutput("diagnostics")
               )
