@@ -77,10 +77,14 @@ ui <- dashboardPage(
                 mainPanel(
                   tags$div(
                     class = "alert alert-warning",
-                    HTML(paste0(
-                      "Some goals may be missing due to changes in soccerbase. Please use the report an issue tab so it can be fixed ",
-                      "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
-                    ))
+                    HTML(
+                      paste0(
+                        "Some goals may be missing due to changes in soccerbase. Please ",
+                        "<a href=\"#shiny-tab-bug\" data-toggle=\"tab\">report an issue</a>",
+                        " so it can be fixed. ",
+                        "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
+                      )
+                    )
                   ),
                   uiOutput("table",inline = TRUE, style = "margin:0px; padding:0px")
                 )
@@ -130,8 +134,6 @@ ui <- dashboardPage(
                 reactableOutput("cup")
               )
       ),
-      
-      
       tabItem(tabName = "history", fluid=T,
               sidebarLayout(
                 sidebarPanel(
