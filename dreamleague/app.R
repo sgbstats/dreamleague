@@ -74,10 +74,10 @@ ui <- dashboardPage(
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
       menuItem("BFL Cup", tabName = "cup", icon = icon("trophy")),
       menuItem("Players taken", tabName = "players", icon = icon("user-xmark")),
-      menuItem("History", tabName = "history", icon=icon("clock-rotate-left"),
-               menuSubItem("Team History", tabName = "team_history", icon = icon("futbol")),
-               menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")),
-               menuSubItem("League History", tabName = "league_history", icon = icon("clock-rotate-left"))
+      menuItem("History", tabName = "history", icon=icon("clock-rotate-left")#,
+               # menuSubItem("Team History", tabName = "team_history", icon = icon("futbol")),
+               # menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")),
+               # menuSubItem("League History", tabName = "league_history", icon = icon("clock-rotate-left"))
       ),
       menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope")),
       menuItem("Report an issue", tabName = "bug", icon=icon("bug"))
@@ -146,64 +146,20 @@ ui <- dashboardPage(
                 reactableOutput("cup")
               )),
       
-      tabItem(tabName = "league_weekly", fluid=T,
-              sidebarPanel(
-                radioButtons("league_league_weekly", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                pickerInput("week_league", "Game week", choices = weeks2, selected = weeks2[length(weekschar)-1])),
-              mainPanel(
-                uiOutput("table_weekly",inline = TRUE, style = "margin:0px; padding:0px")
-              )
-              
-      ),
-      tabItem(tabName = "weekly2", fluid=T,
-              sidebarLayout(
-                sidebarPanel(
-                  radioButtons("league_weekly2", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                  pickerInput("team2", "Team", choices = teamslist, selected = NULL),
-                  pickerInput("week_player", "Game week", choices = weeks2, selected = weeks2[length(weekschar)-1])),
-                mainPanel(
-                  dataTableOutput("team_weekly")
-                )
-              )
-      ) ,
       
-      tabItem(tabName = "league_history", fluid=T,
-              sidebarPanel(
-                radioButtons("league_league_history", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                pickerInput("week_league2", "Game week", choices = weeks2, selected = weeks2[length(weekschar)-2])),
-              mainPanel(
-                uiOutput("table_history",inline = TRUE, style = "margin:0px; padding:0px")
-              )
-              
-      ),
-      tabItem(tabName = "team_history", fluid=T,
+      tabItem(tabName = "history", fluid=T,
               sidebarLayout(
                 sidebarPanel(
                   radioButtons("league_team_history", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                  pickerInput("team3", "Team", choices = teamslist, selected = NULL),
+                  #pickerInput("team3", "Team", choices = teamslist, selected = NULL),
                   dateInput("start", "Start date", value = floor_date(Sys.Date(), "week", week_start = 1)- 7),
                   dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
                 ),
                 mainPanel(
-                  tags$div(
-                    class = "alert alert-warning",
-                    "Only players who played in the window provided are listed."
-                  ),
-                  dataTableOutput("team_history_out")
+                  reactableOutput("team_history_out")
                 )
               )
-      ) ,
-      tabItem(tabName = "horserace", fluid=T,
-              sidebarPanel(
-                selectInput("team_choose", "Teams", choices = teamslist, selected = NULL, multiple = T),
-                pickerInput("hrstart", "Start", choices = weeks2, selected = weeks2[1]),
-                pickerInput("hrend", "End", choices = weeks2, selected = weeks2[length(weekschar)-1]),
-                checkboxInput("relative","Relative to start date?", value=F),
-              ),
-              mainPanel(
-                plotOutput("horserace")
-              )),
-      
+      ),
       tabItem(tabName = "diagnostics", fluid=T,
               sidebarPanel(
                 
@@ -367,34 +323,54 @@ server <- function(input, output, session) {
   )
   
   
-  output$team_history_out=DT::renderDT({
+  
+  output$team_history_out=renderReactable({
     
-    
-    teams5= daily%>% filter(team==input$team3)  %>%
-      # mutate(week2=as.Date(week, format="%d-%b")) %>%
+    period=daily  %>%
       filter(Date<=as.Date(input$end), 
-             Date>=as.Date(input$start)) %>% 
-      # filter(SBgoals!=0) %>%
-      group_by(position, player,club,cost,bought,sold, cost2) %>%
-      summarise(SBgoals=sum(SBgoals, na.rm = T)) %>%
-      #select(-sold, -bought2, -sold2, -App, -week, -week2) %>%
-      ungroup() %>%
-      arrange(position, -cost2) %>%
-      select(-cost2, -sold) %>%
-      rename("Goals"="SBgoals")%>%
-      rename_with(str_to_title) %>%
-      relocate(Goals, .after=Club)
+             Date>=as.Date(input$start)) 
     
-    teams5 %>% data.table::as.data.table()
+    league3=managers %>% 
+      merge(period %>% 
+              summarise(total=sum(SBgoals),.by=c("team", "league")),by=c("team", "league"), all = T) %>% 
+      merge(period %>% 
+              filter(position != "GOALKEEPER") %>% 
+              summarise(gf=sum(SBgoals),.by=c("team", "league")), by=c("team", "league"), all=T) %>% 
+      merge(period %>% 
+              filter(position == "GOALKEEPER") %>% 
+              summarise(ga=-sum(SBgoals),.by=c("team", "league")),by=c("team", "league"), all=T) %>%
+      replace(is.na(.), 0) %>% 
+      filter(league==input$league_team_history) %>%
+      select(-league) %>% 
+      arrange(-total,-gf)
     
-  },
-  options = list(
-    autoWidth = TRUE,
-    columnDefs = list(list(width = '100px', targets = c(1,2)),
-                      list(width = '50px', targets = c(0,3)),
-                      list(width = '30px', targets = c(4,5))),
-    scrollX=T,
-    pageLength=15))
+    scorers2=period %>% 
+      filter(league==input$league_team_history) %>% 
+      filter(SBgoals!=0) %>%
+      summarise(SBgoals=sum(SBgoals), .by=c("team", "position", "player", "club")) %>% 
+      mutate(name = paste0(ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)), if_else(SBgoals==1, "", paste0(" (", SBgoals, ")"))) %>% str_to_title()) %>% 
+      summarise(scorers=paste(name, collapse = ", ", sep=""), .by="team") 
+    
+    
+    res2=league3 %>% merge(scorers2)
+    reactable(res2[,1:5],
+              columns=list(
+                team = colDef(width = 150, name = "" ),
+                manager = colDef(width = 150, name = ""),
+                total = colDef(width = 70, name = "Total"),
+                gf = colDef(width = 70, name = "For"),
+                ga = colDef(width = 70, name = "Against")
+              ),
+              details = function(index){
+                div(
+                  style = "padding: 16px;",
+                  strong("Scorers: "),
+                  paste0(res2$scorers[index])
+                )
+              },
+              defaultPageSize = 15)
+  })
+
   
   output$teamtext=renderUI({
     text1=paste("<b>League position:",league$rank[which(league$team==input$team)] , "</b>")
@@ -444,33 +420,6 @@ server <- function(input, output, session) {
       filter(GOALKEEPER!=1|DEFENDER!=2|MIDFIELDER!=3|FORWARD!=5)
   })
   
-  output$horserace=renderPlot({
-    if(input$relative)
-    {
-      weekly0=weekly %>% 
-        filter(week>=input$hrstart)
-    }else
-    {
-      weekly0=weekly
-    }
-    
-    weekly0 %>% group_by(team, week) %>% 
-      filter(team %in% input$team_choose) %>% 
-      summarise(score=sum(SBgoals, na.rm=T)) %>% 
-      ungroup() %>% 
-      arrange(team, week) %>% 
-      group_by(team) %>% 
-      mutate(score=cumsum(score)) %>% 
-      filter(week>=input$hrstart,
-             week<=input$hrend) %>% 
-      ggplot(aes(x=week, y=score, col=team, #xmin=as.POSIXct(input$hrstart, format="%Y-%m-%d"), xmax=as.POSIXct(input$hrend, format="%Y-%m-%d")
-      ))+
-      geom_line(linewidth=1)+
-      labs(x="Date", y=if_else(input$relative, "Relative Score","Total Score"), col="Team")+
-      theme_bw()#+
-    #scale_x_date(limits = as.Date(c(input$hrstart, input$hrend), format="%d-%b"))
-    
-  })
   output$update_time=renderUI({ 
     HTML(paste0("Last score update: ",
                 format(time$update_time, format="%Y-%m-%d %H:%M:%S"),
@@ -481,7 +430,7 @@ server <- function(input, output, session) {
     ))
   })
   
-
+  
   output$cup <- renderReactable({
     date <- cupties %>%
       filter(comp == input$comp_cup, round == input$round_cup) %>%
@@ -494,12 +443,12 @@ server <- function(input, output, session) {
         Date <= date + lubridate::days(3)
       )
     
-
+    
     scorers=weekend %>% 
       filter(SBgoals!=0) %>%
       mutate(name = paste0(ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)), if_else(SBgoals==1, "", paste0(" (", SBgoals, ")"))) %>% str_to_title()) %>% 
       summarise(scorers=paste(name, collapse = ", ", sep=""), .by="team")
-
+    
     
     main <- managers %>%
       merge(weekend %>%
@@ -594,7 +543,7 @@ server <- function(input, output, session) {
     
     
   })
-
+  
   
   
   observeEvent(input$league,

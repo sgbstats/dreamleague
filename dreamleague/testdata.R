@@ -10,3 +10,6 @@ input$cup_start=as.Date("2025-09-12")
 input$team_cup="DURHAM DYNAMO"
 input$comp_cup="bfl"
 input$round_cup="R1"
+input$start=as.Date("2025-09-01")
+input$end=as.Date("2025-09-15")
+input$league_team_history="didsbury"
