@@ -9,11 +9,9 @@ library(flextable)
 library(htmlwidgets)
 library(shinydashboard)
 library(dplyr)
-# library(googlesheets4)
 library(DT)
 library(shinyjs)
 library(reactable)
-# library(golem)
 
 options(gargle_oauth_cache = ".secrets",
         gargle_oauth_email = TRUE)
@@ -28,24 +26,12 @@ load("data.RDa")
 weeks=seq.Date(as.Date("2025-07-28"), by=7, length.out = 52)
 weeks2=weeks[weeks<=Sys.Date()]
 weekschar=format(weeks2, format="%d-%b")
-# weekmatch=cbind.data.frame(weekschar, weeks2)
 names(weeks2)=weekschar
 
 load("managers.RDa")
 
 managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
                           managers_o %>% mutate(league="original"))
-
-weekly=daily %>% 
-  mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
-  group_by(position, player, club, cost,cost2, bought, sold, bought2,sold2, team, week) %>% 
-  summarise(SBgoals=sum(SBgoals, na.rm=T),
-            App=sum(App, na.rm=T)) %>% 
-  arrange(team, position, -cost2, bought2, week) %>% 
-  ungroup()  
-
-
-
 league=managers %>% merge(dl %>% group_by(team) %>% 
                             summarise(total=sum(SBgoals)), by="team", all=T) %>% 
   merge(dl%>% filter(position != "GOALKEEPER") %>% group_by(team) %>% 
@@ -69,24 +55,17 @@ ui <- dashboardPage(
   dashboardHeader(title = "DreamLeague"),
   dashboardSidebar(
     sidebarMenu(
-      #menuItem("Home",tabName="home",startExpanded = T, icon=icon("home"),
       menuItem("League", tabName = "league", icon = icon("table")),
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
       menuItem("BFL Cup", tabName = "cup", icon = icon("trophy")),
       menuItem("Players taken", tabName = "players", icon = icon("user-xmark")),
-      menuItem("History", tabName = "history", icon=icon("clock-rotate-left")#,
-               # menuSubItem("Team History", tabName = "team_history", icon = icon("futbol")),
-               # menuSubItem("Weekly League", tabName = "league_weekly", icon = icon("table")),
-               # menuSubItem("League History", tabName = "league_history", icon = icon("clock-rotate-left"))
-      ),
+      menuItem("History", tabName = "history", icon=icon("clock-rotate-left")),
       menuItem("Diagnostics", tabName = "diagnostics", icon=icon("stethoscope")),
       menuItem("Report an issue", tabName = "bug", icon=icon("bug"))
-      #menuItem("Report an issue", tabName = "issues", icon = icon("circle-exclamation"))
     )
   ),
   
   dashboardBody(
-    #tags$head(tags$link(rel = "shortcut icon", href = "img/favicon.ico")),
     tabItems(
       tabItem(tabName = "league", fluid=T,
               sidebarLayout(
@@ -106,8 +85,7 @@ ui <- dashboardPage(
               )
       ),
       tabItem(
-        tabName = "teams",
-        fluid = TRUE,
+        tabName = "teams",fluid = TRUE,
         sidebarLayout(
           sidebarPanel(
             radioButtons(
@@ -129,29 +107,26 @@ ui <- dashboardPage(
                 sidebarPanel(
                   radioButtons("league_players", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury")
                 ),
-                
                 mainPanel(
-                  
                   dataTableOutput("playerstaken")
                 )
               )
       ),
       tabItem(tabName = "cup", fluid=T,
               sidebarPanel(
-                
                 radioButtons("comp_cup", "Competition ", choices = c("BFL Challenge Cup"="bfl", "Didsbury Cup"="didsbury","Original Cup"="original"), selected = "bfl"),
                 pickerInput("round_cup", "Round", choices = rounds, selected="R1 Replay", multiple = F)
               ),
               mainPanel(
                 reactableOutput("cup")
-              )),
+              )
+      ),
       
       
       tabItem(tabName = "history", fluid=T,
               sidebarLayout(
                 sidebarPanel(
                   radioButtons("league_team_history", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                  #pickerInput("team3", "Team", choices = teamslist, selected = NULL),
                   dateInput("start", "Start date", value = floor_date(Sys.Date(), "week", week_start = 1)- 7),
                   dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
                 ),
@@ -166,10 +141,10 @@ ui <- dashboardPage(
               ),
               mainPanel(
                 dataTableOutput("diagnostics")
-              )),
+              )
+      ),
       tabItem(tabName = "bug", fluid=T,
               mainPanel(
-                
                 tags$iframe(
                   src ="https://docs.google.com/forms/d/e/1FAIpQLScDhSXL2h8HYjTCuwdYKLTF3En2xPfE9O2BJet6VasuRdn2SQ/viewform?embedded=true",
                   width = "800",
@@ -178,9 +153,8 @@ ui <- dashboardPage(
                   marginheight = "0",
                   marginwidth = "0"
                 )
-                
-              ))
-      
+              )
+      )
     )
   )
 )
@@ -201,70 +175,6 @@ server <- function(input, output, session) {
                         gf="For",
                         ga="Against") %>% 
       bg(i=1:2, bg=c("#FFD700", "#C0C0C0")) %>% 
-      autofit() %>%
-      font(fontname = "Arial", part="all") %>% 
-      htmltools_value()
-  })
-  
-  output$table_weekly=renderUI({
-    
-    league2=managers %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week ==input$week_league) %>%
-              group_by(team) %>% 
-              summarise(total=sum(SBgoals)), by="team", all = T) %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week ==input$week_league)%>% 
-              filter(position != "GOALKEEPER") %>% group_by(team) %>% 
-              summarise(gf=sum(SBgoals)), by="team", all=T) %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week ==input$week_league) %>% 
-              filter(position == "GOALKEEPER") %>% group_by(team) %>% 
-              summarise(ga=-sum(SBgoals)), by="team", all=T) %>%
-      replace(is.na(.), 0) %>% 
-      filter(league==input$league_league_weekly) %>%
-      select(-league) %>% 
-      arrange(-total,-gf)
-    
-    league2%>% flextable() %>% 
-      set_header_labels(team="Team",
-                        manager="Manager",
-                        total="Total",
-                        gf="For",
-                        ga="Against") %>% 
-      # bg(i=1:2, bg=c("#FFD700", "#C0C0C0")) %>% 
-      autofit() %>%
-      font(fontname = "Arial", part="all") %>% 
-      htmltools_value()
-  })
-  
-  output$table_history=renderUI({
-    
-    league3=managers %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week <=input$week_league2) %>%
-              group_by(team) %>% 
-              summarise(total=sum(SBgoals)), by="team", all = T) %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week <=input$week_league2) %>% 
-              filter(position != "GOALKEEPER") %>% group_by(team) %>% 
-              summarise(gf=sum(SBgoals)), by="team", all=T) %>% 
-      merge(weekly %>%mutate(week2=as.Date(week, format="%d-%b")) %>% 
-              filter(week <=input$week_league2)  %>% 
-              filter(position == "GOALKEEPER") %>% group_by(team) %>% 
-              summarise(ga=-sum(SBgoals)), by="team", all=T) %>%
-      replace(is.na(.), 0) %>% 
-      filter(league==input$league_league_history) %>%
-      select(-league) %>% 
-      arrange(-total,-gf)
-    
-    league3%>% flextable() %>% 
-      set_header_labels(team="Team",
-                        manager="Manager",
-                        total="Total",
-                        gf="For",
-                        ga="Against") %>% 
-      # bg(i=1:2, bg=c("#FFD700", "#C0C0C0")) %>% 
       autofit() %>%
       font(fontname = "Arial", part="all") %>% 
       htmltools_value()
@@ -296,41 +206,13 @@ server <- function(input, output, session) {
     pageLength=15)
   )
   
-  output$team_weekly=DT::renderDT({
-    
-    
-    weekly%>% filter(team==input$team2) %>% 
-      mutate(week2=format(week, format="%d-%b")) %>%
-      # filter(is.na(sold))%>% 
-      filter(week ==input$week_player) %>%
-      filter(SBgoals!=0) %>%
-      select(-sold, -bought2, -sold2, -App, -week, -week2)%>%
-      select(-team, -cost2) %>%
-      # select(-goals) %>%
-      rename("Goals"="SBgoals")%>%
-      rename_with(str_to_title) %>%
-      relocate(Goals, .after=Club)
-    # 
-    
-  },
-  options = list(
-    autoWidth = TRUE,
-    columnDefs = list(list(width = '100px', targets = c(1,2)),
-                      list(width = '50px', targets = c(0,3)),
-                      list(width = '30px', targets = c(4,5))),
-    scrollX=T,
-    pageLength=15)
-  )
-  
-  
-  
   output$team_history_out=renderReactable({
     
     period=daily  %>%
       filter(Date<=as.Date(input$end), 
              Date>=as.Date(input$start)) 
     
-    league3=managers %>% 
+    league2=managers %>% 
       merge(period %>% 
               summarise(total=sum(SBgoals),.by=c("team", "league")),by=c("team", "league"), all = T) %>% 
       merge(period %>% 
@@ -352,7 +234,7 @@ server <- function(input, output, session) {
       summarise(scorers=paste(name, collapse = ", ", sep=""), .by="team") 
     
     
-    res2=league3 %>% merge(scorers2)
+    res2=league2 %>% merge(scorers2)
     reactable(res2[,1:5],
               columns=list(
                 team = colDef(width = 150, name = "" ),
@@ -370,7 +252,7 @@ server <- function(input, output, session) {
               },
               defaultPageSize = 15)
   })
-
+  
   
   output$teamtext=renderUI({
     text1=paste("<b>League position:",league$rank[which(league$team==input$team)] , "</b>")
@@ -405,9 +287,6 @@ server <- function(input, output, session) {
   },
   options = list(
     autoWidth = TRUE,
-    # columnDefs = list(list(width = '100px', targets = c(1,2)),
-    #                   list(width = '50px', targets = c(0,3)),
-    #                   list(width = '30px', targets = c(4,5))),
     scrollX=T,
     pageLength=15))
   
@@ -495,6 +374,7 @@ server <- function(input, output, session) {
       columns = list(
         team_manager.x = colDef(
           name = "",
+          width = 150,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 1) {
               list(background = "#FFD700")
@@ -503,6 +383,7 @@ server <- function(input, output, session) {
         ),
         score.x = colDef(
           name = "",
+          width = 70,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 1) {
               list(background = "#FFD700")
@@ -511,6 +392,7 @@ server <- function(input, output, session) {
         ),
         score.y = colDef(
           name = "",
+          width = 70,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 2) {
               list(background = "#FFD700")
@@ -519,6 +401,7 @@ server <- function(input, output, session) {
         ),
         team_manager.y = colDef(
           name = "",
+          width = 150,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 2) {
               list(background = "#FFD700")
@@ -538,131 +421,44 @@ server <- function(input, output, session) {
       }
       
     )
-    
-    
-    
-    
   })
-  
-  
-  
+  # maintaining pickers across tabs
   observeEvent(input$league,
                {
-                 #updateRadioButtons(session, "league", selected = input$league)
-                 updateRadioButtons(session, "league_teams", selected = input$league)
-                 updateRadioButtons(session, "league_players", selected = input$league)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league)
-                 updateRadioButtons(session, "league_league_history", selected = input$league)
-                 updateRadioButtons(session, "league_team_history", selected = input$league)
-                 updateRadioButtons(session, "league_cup", selected = input$league)
-               })
-  observeEvent(input$league_teams,
-               {
-                 updateRadioButtons(session, "league", selected = input$league_teams)
-                 #updateRadioButtons(session, "league_teams", selected = input$league_teams)
-                 updateRadioButtons(session, "league_players", selected = input$league_teams)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league_teams)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league_teams)
-                 updateRadioButtons(session, "league_league_history", selected = input$league_teams)
-                 updateRadioButtons(session, "league_team_history", selected = input$league_teams)
-                 updateRadioButtons(session, "league_cup", selected = input$league_teams)
-                 
-                 teamslist=(managers %>% arrange(team) %>% 
-                              filter(league==input$league_teams))$team
-                 
-                 names(teamslist)=paste((managers %>% arrange(team) %>% 
-                                           filter(league==input$league_teams))$team, " (", 
-                                        (managers %>% arrange(team) %>% 
-                                           filter(league==input$league_teams))$manager, ")", sep="")
-                 
-                 updatePickerInput(session, "team", choices = teamslist)
-               })
-  observeEvent(input$league_players,
-               {
-                 #players_taken list
-                 updateRadioButtons(session, "league", selected = input$league_players)
-                 updateRadioButtons(session, "league_teams", selected = input$league_players)
-                 #updateRadioButtons(session, "league_players", selected = input$league_players)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league_players)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league_players)
-                 updateRadioButtons(session, "league_league_history", selected = input$league_players)
-                 updateRadioButtons(session, "league_team_history", selected = input$league_players)
-                 updateRadioButtons(session, "league_cup", selected = input$league_players)
-               })
-  observeEvent(input$league_league_weekly,
-               {
-                 #weekly league
-                 updateRadioButtons(session, "league", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_teams", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_players", selected = input$league_league_weekly)
-                 #updateRadioButtons(session, "league_league_weekly", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_league_history", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_team_history", selected = input$league_league_weekly)
-                 updateRadioButtons(session, "league_cup", selected = input$league_league_weekly)
-               })
-  observeEvent(input$league_weekly2,
-               {
-                 updateRadioButtons(session, "league", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_teams", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_players", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league_weekly2)
-                 #updateRadioButtons(session, "league_weekly2", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_league_history", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_team_history", selected = input$league_weekly2)
-                 updateRadioButtons(session, "league_cup", selected = input$league_weekly2)
-                 
-                 teamslist=(managers %>% arrange(team) %>% 
-                              filter(league==input$league_weekly2))$team
-                 
-                 names(teamslist)=paste((managers %>% arrange(team) %>% 
-                                           filter(league==input$league_weekly2))$team, " (", 
-                                        (managers %>% arrange(team) %>% 
-                                           filter(league==input$league_weekly2))$manager, ")", sep="")
-                 
-                 updatePickerInput(session, "team2", choices = teamslist)
-               })
-  observeEvent(input$league_league_history,
-               {
-                 updateRadioButtons(session, "league", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_teams", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_players", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league_league_history)
-                 #updateRadioButtons(session, "league_league_history", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_team_history", selected = input$league_league_history)
-                 updateRadioButtons(session, "league_cup", selected = input$league_league_history)
-               })
-  observeEvent(input$league_team_history,
-               {
-                 updateRadioButtons(session, "league", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_teams", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_players", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_league_weekly", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_weekly2", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_league_history", selected = input$league_team_history)
-                 #updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
-                 updateRadioButtons(session, "league_cup", selected = input$league_team_history)
-                 
-                 teamslist=(managers %>% arrange(team) %>% 
-                              filter(league==input$league_team_history))$team
-                 
-                 names(teamslist)=paste((managers %>% arrange(team) %>% 
-                                           filter(league==input$league_team_history))$team, " (", 
-                                        (managers %>% arrange(team) %>% 
-                                           filter(league==input$league_team_history))$manager, ")", sep="")
-                 
-                 updatePickerInput(session, "team3", choices = teamslist)
-               })
-  observeEvent(input$comp_cup,
-               {
-                 
-                 round_cup=unique((cupties %>% filter(comp==input$comp_cup) )$round)
-                 
-                 updatePickerInput(session, "round_cup", choices = round_cup)
+                 s=input$league
+                 #updateRadioButtons(session, "league", selected = s)
+                 updateRadioButtons(session, "league_teams", selected = s)
+                 updateRadioButtons(session, "league_players", selected = s)
+                 updateRadioButtons(session, "league_team_history", selected = s)
                })
   
+  observeEvent(input$league_team,
+               {
+                 s=input$league_teams
+                 updateRadioButtons(session, "league", selected = s)
+                 # updateRadioButtons(session, "league_teams", selected = s)
+                 updateRadioButtons(session, "league_players", selected = s)
+                 updateRadioButtons(session, "league_team_history", selected = s)
+               })
+  
+  observeEvent(input$league_players,
+               {
+                 s=input$league_players
+                 #players_taken list
+                 updateRadioButtons(session, "league", selected = s)
+                 updateRadioButtons(session, "league_teams", selected = s)
+                 # updateRadioButtons(session, "league_players", selected = s)
+                 updateRadioButtons(session, "league_team_history", selected = s)
+               })
+  
+  observeEvent(input$league_team_history,
+               {
+                 s=input$league_team_history
+                 updateRadioButtons(session, "league", selected = s)
+                 updateRadioButtons(session, "league_teams", selected = s)
+                 updateRadioButtons(session, "league_players", selected = s)
+                 # updateRadioButtons(session, "league_team_history", selected = s)
+               })
 }
 
 # Run the application 

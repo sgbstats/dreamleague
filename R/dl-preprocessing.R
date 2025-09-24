@@ -335,15 +335,6 @@ dl_process=function(dl, managers, league)
   
   #seq.Date(as.Date("2023-07-26"), by=7, length.out = 52)
   
-  team_score_weekly=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
-    ungroup() %>% 
-    mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
-    mutate(cost2=as.numeric(cost)) %>% 
-    mutate(week=lubridate::floor_date(Date,"weeks",week_start = 1)) %>% 
-    summarise(SBgoals=sum(Goals, na.rm=T),
-              App=sum(App, na.rm=T), .by=c("position", "player", "club", "cost","cost2", "bought", "sold", "bought2","sold2", "team", "week")) %>% 
-    arrange(team, position, -cost2, bought2, week) 
-  
   team_score_daily=rbind.data.frame(weekly2 %>% select(-player_id), weekly_gk2 %>% select(-team_id)) %>% 
     ungroup() %>% 
     mutate(position=factor(position, levels=c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"), ordered = T)) %>% 
@@ -355,7 +346,6 @@ dl_process=function(dl, managers, league)
   
   tictoc::toc()
   return(list("scores"=team_score,
-              "weekly"=team_score_weekly,
               "daily"=team_score_daily,
               "mismatch"=mismatch,
               "goals_for_mistatch"=test,
