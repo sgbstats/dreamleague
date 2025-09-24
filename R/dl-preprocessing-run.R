@@ -77,8 +77,6 @@ out_o=dl_process(dl_o, managers_o,"Original")
 
 dl_d=out_d$scores
 dl_o=out_o$scores
-weekly_d=out_d$weekly
-weekly_o=out_o$weekly
 daily_o=out_o$daily
 daily_d=out_d$daily
 time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
