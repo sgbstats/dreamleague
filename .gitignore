@@ -28,7 +28,7 @@ vignettes/*.pdf
 .Renviron
 #Other junk
 *.html
-*/junk/*
+**/junk/
 *$*
 .secrets
 .secrets/
@@ -37,6 +37,4 @@ vignettes/*.pdf
 
 */legacy/*
   
-/dreamleague/data.RDa
-
-*.dcf
+dreamleague/data.RDa
