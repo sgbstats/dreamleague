@@ -441,39 +441,57 @@ server <- function(input, output, session) {
   # maintaining pickers across tabs
   observeEvent(input$league,
                {
-                 s=input$league
-                 #updateRadioButtons(session, "league", selected = s)
-                 updateRadioButtons(session, "league_teams", selected = s)
-                 updateRadioButtons(session, "league_players", selected = s)
-                 updateRadioButtons(session, "league_team_history", selected = s)
+                 
+                 #updateRadioButtons(session, "league", selected = input$league)
+                 updateRadioButtons(session, "league_teams", selected = input$league)
+                 updateRadioButtons(session, "league_players", selected = input$leagues)
+                 updateRadioButtons(session, "league_team_history", selected = input$league)
                })
   
-  observeEvent(input$league_team,
+  observeEvent(input$league_teams,
                {
-                 s=input$league_teams
-                 updateRadioButtons(session, "league", selected = s)
-                 # updateRadioButtons(session, "league_teams", selected = s)
-                 updateRadioButtons(session, "league_players", selected = s)
-                 updateRadioButtons(session, "league_team_history", selected = s)
+                 updateRadioButtons(session, "league", selected = input$league_teams)
+                 # updateRadioButtons(session, "league_teams", selected = input$league_teams)
+                 updateRadioButtons(session, "league_players", selected = input$league_teams)
+                 updateRadioButtons(session, "league_team_history", selected = input$league_teams)
+                 teamslist=(managers %>% arrange(team) %>% 
+                              filter(league==input$league_teams))$team
+                 
+                 names(teamslist)=paste((managers %>% arrange(team) %>% 
+                                           filter(league==input$league_teams))$team, " (", 
+                                        (managers %>% arrange(team) %>% 
+                                           filter(league==input$league_teams))$manager, ")", sep="")
+                 
+                 updatePickerInput(session, "team", choices = teamslist)
                })
   
   observeEvent(input$league_players,
                {
-                 s=input$league_players
+                 
                  #players_taken list
-                 updateRadioButtons(session, "league", selected = s)
-                 updateRadioButtons(session, "league_teams", selected = s)
-                 # updateRadioButtons(session, "league_players", selected = s)
-                 updateRadioButtons(session, "league_team_history", selected = s)
+                 updateRadioButtons(session, "league", selected = input$league_players)
+                 updateRadioButtons(session, "league_teams", selected = input$league_players)
+                 # updateRadioButtons(session, "league_players", selected = input$league_players)
+                 updateRadioButtons(session, "league_team_history", selected = input$league_players)
                })
   
   observeEvent(input$league_team_history,
                {
-                 s=input$league_team_history
-                 updateRadioButtons(session, "league", selected = s)
-                 updateRadioButtons(session, "league_teams", selected = s)
-                 updateRadioButtons(session, "league_players", selected = s)
-                 # updateRadioButtons(session, "league_team_history", selected = s)
+                
+                 updateRadioButtons(session, "league", selected = input$league_team_history)
+                 updateRadioButtons(session, "league_teams", selected = input$league_team_history)
+                 updateRadioButtons(session, "league_players", selected = input$league_team_history)
+                 # updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
+                 
+                 
+               })
+  
+  observeEvent(input$round_cup,
+               {
+                 updatePickerInput(session, "comp_cup", selected = cupties %>% filter(comp==input$comp_cup) %>% slice_max(date, with_ties = F) %>% pull(round))
+                 
+                 
+                 
                })
 }
 
