@@ -250,7 +250,7 @@ server <- function(input, output, session) {
       summarise(scorers=paste(name, collapse = ", ", sep=""), .by="team") 
     
     
-    res2=league2 %>% merge(scorers2)
+    res2=league2 %>% merge(scorers2, all.x=T)
     reactable(res2[,1:5],
               columns=list(
                 team = colDef(width = 150, name = "" ),
