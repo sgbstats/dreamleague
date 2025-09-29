@@ -77,6 +77,7 @@ ui <- dashboardPage(
                 mainPanel(
                   tags$div(
                     class = "alert alert-warning",
+                    style = "margin:0; padding:2px 6px;",  # tight alert
                     HTML(
                       paste0(
                         "Some goals may be missing due to changes in soccerbase. Please ",
@@ -121,35 +122,43 @@ ui <- dashboardPage(
       tabItem(tabName = "cup", fluid=T,
               sidebarPanel(
                 radioButtons("comp_cup", "Competition ", choices = c("BFL Challenge Cup"="bfl", "Didsbury Cup"="didsbury","Original Cup"="original"), selected = "bfl"),
-                pickerInput("round_cup", "Round", choices = rounds, selected="R1 Replay", multiple = F)
+                pickerInput("round_cup", "Round", choices = rounds, selected=cupties %>% filter(comp==input$comp_cup) %>% slice_max(date, with_ties = F) %>% pull(round), multiple = F)
               ),
               mainPanel(
                 tags$div(
                   class = "alert alert-secondary",
+                  style = "margin:0; padding:2px 6px;",  # tight alert
                   HTML(paste0(
                     "Rows expand to show scorers",
                     "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
                   ))
                 ),
-                reactableOutput("cup")
+                div(
+                  style = "margin:0; padding:0;",
+                  reactableOutput("cup")
+                )
               )
       ),
       tabItem(tabName = "history", fluid=T,
               sidebarLayout(
                 sidebarPanel(
                   radioButtons("league_team_history", "League", choices = c("Didsbury"="didsbury","Original"="original"), selected = "didsbury"),
-                  dateInput("start", "Start date", value = floor_date(Sys.Date(), "week", week_start = 1)- 7),
-                  dateInput("end", "End date", value = floor_date(Sys.Date(), "week", week_start = 1) - 1),
+                  dateInput("start", "Start date", value = Sys.Date()- 6),
+                  dateInput("end", "End date", value = Sys.Date()),
                 ),
                 mainPanel(
                   tags$div(
                     class = "alert alert-secondary",
+                    style = "margin:0; padding:2px 6px;",  # tight alert
                     HTML(paste0(
-                      "Rows expand to show scorers",
+                      "Rows expand to show scorers, data defaults to last 7 days.",
                       "<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>"
                     ))
                   ),
-                  reactableOutput("team_history_out")
+                  div(
+                    style = "margin:0; padding:0;",
+                    reactableOutput("team_history_out")
+                  )
                 )
               )
       ),
@@ -358,11 +367,12 @@ server <- function(input, output, session) {
               summarise(ga = -sum(SBgoals), .by = "team"),
             by = "team",
             all.x = T) %>%
-      merge(scorers, .by="team") %>% 
+      merge(scorers, .by="team", all.x=T) %>% 
       mutate(
         ga = replace(ga, is.na(ga), 0),
         total = replace(total, is.na(total), 0),
-        gf = replace(gf, is.na(gf), 0)
+        gf = replace(gf, is.na(gf), 0),
+        scorers = replace(scorers, is.na(scorers), "")
       ) %>%
       arrange(-total, -gf) %>%
       mutate(
@@ -389,7 +399,7 @@ server <- function(input, output, session) {
       res[, 1:4],
       columns = list(
         team_manager.x = colDef(
-          name = "",
+          name = "", show=T,
           width = 150,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 1) {
@@ -398,7 +408,7 @@ server <- function(input, output, session) {
           }
         ),
         score.x = colDef(
-          name = "",
+          name = "", show=T,
           width = 70,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 1) {
@@ -407,7 +417,7 @@ server <- function(input, output, session) {
           }
         ),
         score.y = colDef(
-          name = "",
+          name = "",show=T,
           width = 70,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 2) {
@@ -416,7 +426,7 @@ server <- function(input, output, session) {
           }
         ),
         team_manager.y = colDef(
-          name = "",
+          name = "", show=T,
           width = 150,
           style = function(value, index) {
             if (!is.na(res$winner[index]) && res$winner[index] == 2) {
@@ -425,6 +435,8 @@ server <- function(input, output, session) {
           }
         )
       ),
+      
+      
       details = function(index) {
         div(
           style = "padding: 16px;",
@@ -434,7 +446,8 @@ server <- function(input, output, session) {
           br(),
           paste0(res$team2[index], ": ", res$scorers.y[index])
         )
-      }
+      },
+      defaultColDef = colDef(header = NULL)
       
     )
   })
