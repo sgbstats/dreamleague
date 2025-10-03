@@ -122,7 +122,7 @@ ui <- dashboardPage(
       tabItem(tabName = "cup", fluid=T,
               sidebarPanel(
                 radioButtons("comp_cup", "Competition ", choices = c("BFL Challenge Cup"="bfl", "Didsbury Cup"="didsbury","Original Cup"="original"), selected = "bfl"),
-                pickerInput("round_cup", "Round", choices = rounds, selected=cupties %>% filter(comp==input$comp_cup) %>% slice_max(date, with_ties = F) %>% pull(round), multiple = F)
+                pickerInput("round_cup", "Round", choices = rounds, selected=cupties %>% filter(comp=="bfl") %>% slice_max(date, with_ties = F) %>% pull(round), multiple = F)
               ),
               mainPanel(
                 tags$div(

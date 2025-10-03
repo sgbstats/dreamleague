@@ -13,17 +13,19 @@ library(rvest)
 dl_process=function(dl, managers, league)
 {
   tictoc::tic()
-  comps=c("English premier", "English Premier","Premier League",
-          "EFL Cup", "English League Cup",
-          "Europa League", 
-          "Community Shield",
-          "Champions League", "European Cup",
-          "FA Cup", "English FA Cup",
-          "Europa Conference League",
-          "Football League Championship", "Football League Championship Play-Off","Championship Play-Off",
-          "Football League One", "Football League One Play-Off", "League One Play-Off",
-          "Football League Two", "Football League Two Play-Off" , "League Two Play-Off" )
-  
+  comps<<-c("English premier", "English Premier","Premier League",
+            "EFL Cup", "English League Cup",
+            "Europa League", 
+            "Community Shield",
+            "Champions League", "European Cup",
+            "FA Cup", "English FA Cup",
+            "Europa Conference League",
+            "Football League Championship", "Football League Championship Play-Off","Championship Play-Off",
+            "Football League One", "Football League One Play-Off", "League One Play-Off",
+            "Football League Two", "Football League Two Play-Off" , "League Two Play-Off", 
+            "Fairs Cup", "UEFA Cup", "Euro Cup Winners Cup", "European Super Cup",
+            "Capital One Cup", "Carling Cup","Premiership", "English Div 1 \\(old\\)",
+            "Charity Shield" )
   get_os <- function(){
     sysinf <- Sys.info()
     if (!is.null(sysinf)){
@@ -229,53 +231,67 @@ dl_process=function(dl, managers, league)
   weekly_gk=tribble(~"team_id", ~"Date", ~"Goals", ~"App")
   
   scraplinks2 <- function(url){
-    # Create an html document from the url
-    webpage <- xml2::read_html(url)
-    # Extract the URLs
-    # url_ <- webpage %>%
-    #   rvest::html_nodes("tbody") %>%
-    #   rvest::html_attr("match")
-    # Extract the link text
-    link_ <- webpage %>%
-      rvest::html_nodes("tbody") %>%
-      rvest::html_text()
+    
+    headers=c(`User-Agent` = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+              `Accept` = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+              `Accept-Language` = "en-US,en;q=0.9",
+              `Connection` = "keep-alive")
+    
+    response=GET(url,
+                 add_headers(.headers = headers),
+                 timeout(15))
+    
+    html <- content(response, as = "text", encoding = "UTF-8") %>% read_html()
+    tables <- html %>% html_elements("table")
+    
+    x=tables[[2]] %>% html_table()
+    
+    x <- x[-1:-2,]
+    names(x) <- c("Competition","date","foo","Home" ,"score" ,"Away", "W","D","L", "foo2"  )
     
     
-    return(tibble(link = link_))
+    lg=paste(comps, collapse = "|")
+    
+    x2=x %>% as.data.frame()%>%
+      mutate(rn=row_number()) %>% 
+      mutate(comp=str_extract(Competition, lg),.by="rn") %>% 
+      dplyr::select(-Competition, -contains("foo")) %>% 
+      mutate(score=gsub(" ", "", score)) %>% 
+      filter(grepl("-", score)) %>% 
+      mutate(
+        Home = str_trim(str_extract(Home, "^([^0-9]+)")),
+        Away = str_trim(str_extract(Away, "^([^0-9]+)")),
+        date=substr(date, 14,24) %>% 
+          as.Date()) %>% 
+      separate(score, into = c("H", "A"), sep="-") %>% 
+      mutate(status=paste0(W,D,L),
+             H=as.numeric(str_trim(H)),
+             A=as.numeric(str_trim(A))) %>% 
+      drop_na(date)
+    
+    return(x2)
   }
   
   for(i in 1:nrow(gk)){
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
     
-    url=paste("https://www.soccerbase.com/teams/team.sd?team_id=",gk$team_id[i],"&teamTabs=results",sep="")
-    link=RCurl::getURL(url)  
+    url=paste("https://www.soccerbase.com/teams/team.sd?team_id=",gk$team_id[i],"&teamTabs=results&season_id=158",sep="")
+     
     
     cat(paste0(gk$club[i], "\n"))
     tryCatch({
       
       
       sl=scraplinks2(url)
-      lg=paste(comps, collapse = "|")
-      x=sl%>% group_by(row_number()) %>% 
-        mutate(comp=str_extract(link, lg),
-               date=as.Date(str_extract(link, "\\d{4}-([0]\\d|1[0-2])-([0-2]\\d|3[01])"),"%Y-%m-%d"),
-               score=str_extract(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}"),
-               status=str_extract(link, "(W|L|D|D\\*)[[:space:]]"),
-               score_loc=str_locate(link, "\\d{1}[[:space:]]-[[:space:]]\\d{1}")[1],
-               awayteam=str_to_upper(substr(link, score_loc+5,score_loc+9)),
-               App=1) %>% 
-        mutate(score=gsub(" ", "", score)) %>% 
-        separate(score, into = c("H", "A"), sep="-") %>% 
-        ungroup() %>% 
-        mutate(H=as.numeric(str_trim(H)),
-               A=as.numeric(str_trim(A)),
-               rn=row_number()) %>% 
-        mutate(concede=case_when(status=="W "~ -min(H,A),
-                                 status=="D "~ -H,
-                                 status=="D* "&awayteam==substr(gk$club[i], 1,5)~ -H,
-                                 status=="D* "~ -A,
-                                 status=="L "~ -max(H,A)),.by="rn")%>%
+      x=sl%>% 
+        mutate(rn=row_number()) %>% 
+        mutate(concede=case_when(status=="W"~ -min(H,A),
+                                 status=="D"~ -H,
+                                 status=="D*"&str_to_upper(Away)==gk$club[i]~ -H,
+                                 status=="D*"~ -A,
+                                 status=="L"~ -max(H,A)),
+               App=1,.by="rn") %>% 
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
                date<=gk$sold2[i],
