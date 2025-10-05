@@ -7,6 +7,7 @@ library(fuzzyjoin)
 library(crayon)
 `%notin%`=Negate(`%in%`)
 library(rvest)
+library(httr)
 # setwd("C:/R/git/dreamleague")
 
 
