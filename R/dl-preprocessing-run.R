@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(googlesheets4)
   library(fuzzyjoin)
   library(crayon)
+  library(httr)
 })
 a=Sys.time()
 
