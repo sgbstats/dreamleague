@@ -8,9 +8,8 @@ library(crayon)
 `%notin%`=Negate(`%in%`)
 library(rvest)
 library(httr)
-# setwd("C:/R/git/dreamleague")
 
-
+#use cuttime to allow roll back of goals to check for mistaches
 dl_process=function(dl, managers, league, cut_time=Sys.Date())
 {
   tictoc::tic()
