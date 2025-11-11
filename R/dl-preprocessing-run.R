@@ -11,14 +11,12 @@ suppressPackageStartupMessages({
 })
 a=Sys.time()
 
-short=here::here()
-
-source(paste0(short,"/R/dl-preprocessing.R"))
+source("R/dl-preprocessing.R")
 # gs4_auth(
 #   email = T
 # )
 
-file_d=paste0(short,"/data/DreamLeague25-26.xlsx")
+file_d="data/DreamLeague25-26.xlsx"
 dl_d=readxl::read_excel(file_d, na=c("SOLD"), sheet = "Stats", skip=0, col_names = F)%>%
   suppressMessages() %>% 
   dplyr::select(2:8)
@@ -34,7 +32,7 @@ cat("Didsbury\n")
 out_d=dl_process(dl_d, managers_d, "Didsbury")
 
 
-file_o=paste0(short,"/data/DL25-26.xlsx")
+file_o="data/DL25-26.xlsx"
 dl_o=readxl::read_excel(file_o, na=c(""), sheet = "Stats", skip=0, col_names = F) %>%
   suppressMessages() %>% 
   dplyr::select(1:7)
@@ -61,10 +59,11 @@ daily_o=out_o$daily
 daily_d=out_d$daily
 time=list("update_time"=Sys.time(), "mod_d"=mod_d,"mod_o"=mod_o)
 
-cupties <- read.csv(paste0(short,"/data/cupties.csv")) %>%
+cupties <- read.csv("data/cupties.csv") %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
   mutate(across(where(is.character), trimws))
 
+if(out_d$cut_time==Sys.Date()){
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),
                     out_o$scores %>% mutate(league="original"))
@@ -73,7 +72,7 @@ managers=rbind.data.frame(managers_d %>% mutate(league="didsbury"),
 daily=rbind.data.frame(out_d$daily %>% mutate(league="didsbury"),
                        out_o$daily %>% mutate(league="original"))
 
-save(dl,  daily, time, cupties, file=paste0(short,"/dreamleague/data.RDa"))
+save(dl,  daily, time, cupties, file="dreamleague/data.RDa")
 
 googledrive::drive_auth(
   email = TRUE,
@@ -85,8 +84,9 @@ googledrive::drive_auth(
   token = NULL
 )
 
-googledrive::drive_update(media=paste0(short,"/dreamleague/data.RDa"),
-                          file=googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),)
+googledrive::drive_update(media="dreamleague/data.RDa",
+                          file=googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"))
+}
 b=Sys.time()
 
 difftime(b,a, units = "mins")

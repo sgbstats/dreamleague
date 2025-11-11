@@ -8,10 +8,9 @@ library(crayon)
 `%notin%`=Negate(`%in%`)
 library(rvest)
 library(httr)
-# setwd("C:/R/git/dreamleague")
 
-
-dl_process=function(dl, managers, league)
+#use cuttime to allow roll back of goals to check for mistaches
+dl_process=function(dl, managers, league, cut_time=Sys.Date())
 {
   tictoc::tic()
   comps<<-c("English premier", "English Premier","Premier League",
@@ -27,28 +26,7 @@ dl_process=function(dl, managers, league)
             "Fairs Cup", "UEFA Cup", "Euro Cup Winners Cup", "European Super Cup",
             "Capital One Cup", "Carling Cup","Premiership", "English Div 1 \\(old\\)",
             "Charity Shield" )
-  get_os <- function(){
-    sysinf <- Sys.info()
-    if (!is.null(sysinf)){
-      os <- sysinf['sysname']
-      if (os == 'Darwin')
-        os <- "osx"
-    } else { ## mystery machine
-      os <- .Platform$OS.type
-      if (grepl("^darwin", R.version$os))
-        os <- "osx"
-      if (grepl("linux-gnu", R.version$os))
-        os <- "linux"
-    }
-    tolower(os)
-  }
-  
-  if(get_os()=="linux"){
-    short=""
-  }else{
-    
-    short="C:/R/git/dreamleague/"
-  }
+
   if(league=="Didsbury"){
     teams=dl  %>% 
       rename(position=1,
@@ -93,7 +71,7 @@ dl_process=function(dl, managers, league)
   
   
   # sb_id=read.csv("data/sb_id.csv") 
-  load(paste0(short,"data/ids.RDa"))
+  load("data/ids.RDa")
   
   teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
@@ -171,7 +149,8 @@ dl_process=function(dl, managers, league)
       appgoals=(tables$tpg) %>% filter(V1 %in% comps) %>% 
         mutate(Date=as.Date(substr(V2,4,13), "%d%b %Y")) %>% 
         filter(Date>outfield$bought2[i],
-               Date<=outfield$sold2[i]) %>% 
+               Date<=outfield$sold2[i],
+               Date<=as.Date(cut_time)) %>% 
         mutate(Goals=as.numeric(V7),
                App=1,
                Goals=if_else(is.na(Goals), 0, Goals),
@@ -296,6 +275,7 @@ dl_process=function(dl, managers, league)
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
                date<=gk$sold2[i],
+               date<=as.Date(cut_time),
                !is.na(H)
         )
       
@@ -366,5 +346,6 @@ dl_process=function(dl, managers, league)
               "daily"=team_score_daily,
               "mismatch"=mismatch,
               "goals_for_mistatch"=test,
-              "goals_ag_mistatch"=testgk))
+              "goals_ag_mistatch"=testgk,
+              "cut_time"=cut_time))
 }
