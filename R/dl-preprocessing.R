@@ -27,7 +27,7 @@ dl_process=function(dl, managers, league, cut_time=Sys.Date())
             "Fairs Cup", "UEFA Cup", "Euro Cup Winners Cup", "European Super Cup",
             "Capital One Cup", "Carling Cup","Premiership", "English Div 1 \\(old\\)",
             "Charity Shield" )
-  short=here::here()
+
   if(league=="Didsbury"){
     teams=dl  %>% 
       rename(position=1,
@@ -72,7 +72,7 @@ dl_process=function(dl, managers, league, cut_time=Sys.Date())
   
   
   # sb_id=read.csv("data/sb_id.csv") 
-  load(paste0(short,"/data/ids.RDa"))
+  load("data/ids.RDa")
   
   teams3a=teams2 %>% filter(position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")) %>% 
     mutate(goals=if_else(position=="GOALKEEPER", -abs(as.numeric(goals)), as.numeric(goals)),
