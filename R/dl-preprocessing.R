@@ -11,7 +11,7 @@ library(httr)
 # setwd("C:/R/git/dreamleague")
 
 
-dl_process=function(dl, managers, league)
+dl_process=function(dl, managers, league, cut_time=Sys.Date())
 {
   tictoc::tic()
   comps<<-c("English premier", "English Premier","Premier League",
@@ -150,7 +150,8 @@ dl_process=function(dl, managers, league)
       appgoals=(tables$tpg) %>% filter(V1 %in% comps) %>% 
         mutate(Date=as.Date(substr(V2,4,13), "%d%b %Y")) %>% 
         filter(Date>outfield$bought2[i],
-               Date<=outfield$sold2[i]) %>% 
+               Date<=outfield$sold2[i],
+               Date<=as.Date(cut_time)) %>% 
         mutate(Goals=as.numeric(V7),
                App=1,
                Goals=if_else(is.na(Goals), 0, Goals),
@@ -275,6 +276,7 @@ dl_process=function(dl, managers, league)
         filter(comp %in% comps ) %>% 
         filter(date>gk$bought2[i],
                date<=gk$sold2[i],
+               date<=as.Date(cut_time),
                !is.na(H)
         )
       
@@ -345,5 +347,6 @@ dl_process=function(dl, managers, league)
               "daily"=team_score_daily,
               "mismatch"=mismatch,
               "goals_for_mistatch"=test,
-              "goals_ag_mistatch"=testgk))
+              "goals_ag_mistatch"=testgk,
+              "cut_time"=cut_time))
 }

@@ -65,6 +65,7 @@ cupties <- read.csv(paste0(short,"/data/cupties.csv")) %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
   mutate(across(where(is.character), trimws))
 
+if(out_d$cut_time==Sys.Date()){
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),
                     out_o$scores %>% mutate(league="original"))
@@ -87,6 +88,7 @@ googledrive::drive_auth(
 
 googledrive::drive_update(media=paste0(short,"/dreamleague/data.RDa"),
                           file=googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),)
+}
 b=Sys.time()
 
 difftime(b,a, units = "mins")
