@@ -63,7 +63,7 @@ cupties <- read.csv("data/cupties.csv") %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y")) %>%
   mutate(across(where(is.character), trimws))
 
-if(out_d$cut_time==Sys.Date()){
+if(out_d$cut_time==Sys.Date()&out_o$cut_time==Sys.Date()){
 
 dl=rbind.data.frame(out_d$scores %>% mutate(league="didsbury"),
                     out_o$scores %>% mutate(league="original"))

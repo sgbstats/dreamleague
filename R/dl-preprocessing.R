@@ -10,8 +10,7 @@ library(rvest)
 library(httr)
 
 #use cuttime to allow roll back of goals to check for mistaches
-dl_process=function(dl, managers, league, cut_time=Sys.Date())
-{
+dl_process=function(dl, managers, league, cut_time=Sys.Date()){
   tictoc::tic()
   comps<<-c("English premier", "English Premier","Premier League",
             "EFL Cup", "English League Cup",
