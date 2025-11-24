@@ -1,10 +1,17 @@
-comps=c("English premier", 
-        "EFL Cup", "English League Cup",
-        "Europa League", 
-        "Community Shield",
-        "Champions League",
-        "FA Cup", "English FA Cup",
-        "Europa Conference League",
-        "Football League Championship", "Football League Championship Play-Off",
-        "Football League One", "Football League One Play-Off",
-        "Football League Two", "Football League Two Play-Off" )
+comps = c(
+  "English premier",
+  "EFL Cup",
+  "English League Cup",
+  "Europa League",
+  "Community Shield",
+  "Champions League",
+  "FA Cup",
+  "English FA Cup",
+  "Europa Conference League",
+  "Football League Championship",
+  "Football League Championship Play-Off",
+  "Football League One",
+  "Football League One Play-Off",
+  "Football League Two",
+  "Football League Two Play-Off"
+)
