@@ -9,6 +9,61 @@ library(crayon)
 library(rvest)
 library(httr)
 
+scraplinks2 <- function(url) {
+  headers = c(
+    `User-Agent` = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+    `Accept` = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    `Accept-Language` = "en-US,en;q=0.9",
+    `Connection` = "keep-alive"
+  )
+
+  response = GET(url, add_headers(.headers = headers), timeout(15))
+
+  html <- content(response, as = "text", encoding = "UTF-8") |> read_html()
+  tables <- html |> html_elements("table")
+
+  x = tables[[2]] |> html_table()
+
+  x <- x[-1:-2, ]
+  names(x) <- c(
+    "Competition",
+    "date",
+    "foo",
+    "Home",
+    "score",
+    "Away",
+    "W",
+    "D",
+    "L",
+    "foo2"
+  )
+
+  lg = paste(comps, collapse = "|")
+
+  x2 = x |>
+    as.data.frame() |>
+    mutate(rn = row_number()) |>
+    mutate(comp = str_extract(Competition, lg), .by = "rn") |>
+    dplyr::select(-Competition, -contains("foo")) |>
+    mutate(score = gsub(" ", "", score)) |>
+    filter(grepl("-", score)) |>
+    mutate(
+      Home = str_trim(str_extract(Home, "^([^0-9]+)")),
+      Away = str_trim(str_extract(Away, "^([^0-9]+)")),
+      date = substr(date, 14, 24) |>
+        as.Date()
+    ) |>
+    separate(score, into = c("H", "A"), sep = "-") |>
+    mutate(
+      status = paste0(W, D, L),
+      H = as.numeric(str_trim(H)),
+      A = as.numeric(str_trim(A))
+    ) |>
+    drop_na(date)
+
+  return(x2)
+}
+
 #use cuttime to allow roll back of goals to check for mistaches
 dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   tictoc::tic()
@@ -343,61 +398,6 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   weekly_gk = tribble(
     ~"team_id" , ~"Date" , ~"Goals" , ~"App"
   )
-
-  scraplinks2 <- function(url) {
-    headers = c(
-      `User-Agent` = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-      `Accept` = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      `Accept-Language` = "en-US,en;q=0.9",
-      `Connection` = "keep-alive"
-    )
-
-    response = GET(url, add_headers(.headers = headers), timeout(15))
-
-    html <- content(response, as = "text", encoding = "UTF-8") |> read_html()
-    tables <- html |> html_elements("table")
-
-    x = tables[[2]] |> html_table()
-
-    x <- x[-1:-2, ]
-    names(x) <- c(
-      "Competition",
-      "date",
-      "foo",
-      "Home",
-      "score",
-      "Away",
-      "W",
-      "D",
-      "L",
-      "foo2"
-    )
-
-    lg = paste(comps, collapse = "|")
-
-    x2 = x |>
-      as.data.frame() |>
-      mutate(rn = row_number()) |>
-      mutate(comp = str_extract(Competition, lg), .by = "rn") |>
-      dplyr::select(-Competition, -contains("foo")) |>
-      mutate(score = gsub(" ", "", score)) |>
-      filter(grepl("-", score)) |>
-      mutate(
-        Home = str_trim(str_extract(Home, "^([^0-9]+)")),
-        Away = str_trim(str_extract(Away, "^([^0-9]+)")),
-        date = substr(date, 14, 24) |>
-          as.Date()
-      ) |>
-      separate(score, into = c("H", "A"), sep = "-") |>
-      mutate(
-        status = paste0(W, D, L),
-        H = as.numeric(str_trim(H)),
-        A = as.numeric(str_trim(A))
-      ) |>
-      drop_na(date)
-
-    return(x2)
-  }
 
   for (i in 1:nrow(gk)) {
     skip_to_next <- FALSE
