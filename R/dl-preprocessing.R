@@ -176,6 +176,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         player == "DAN JAMES" ~ "DANIEL JAMES",
         player == "MANNY MONTHE" ~ "EMMANUEL MONTHE",
         player == "STRAND LARSEN" ~ "JORGEN STRAND LARSEN",
+        player == "ELI KROUPI" ~ "JUNIOR KROUPI",
         T ~ player
       )
     )
@@ -293,7 +294,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           filter(
             Date > outfield$bought2[i],
             Date <= outfield$sold2[i],
-            Date <= as.Date(cut_time)
+            Date < as.Date(cut_time)
           ) |>
           mutate(
             Goals = as.numeric(V7),
@@ -431,7 +432,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           filter(
             date > gk$bought2[i],
             date <= gk$sold2[i],
-            date <= as.Date(cut_time),
+            date < as.Date(cut_time),
             !is.na(H)
           )
 
@@ -516,12 +517,15 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     ungroup()
 
   tictoc::toc()
-  return(list(
-    "scores" = team_score,
-    "daily" = team_score_daily,
-    "mismatch" = mismatch,
-    "goals_for_mistatch" = test,
-    "goals_ag_mistatch" = testgk,
-    "cut_time" = cut_time
-  ))
+  structure(
+    list(
+      "scores" = team_score,
+      "daily" = team_score_daily,
+      "mismatch" = mismatch,
+      "goals_for_mismatch" = test,
+      "goals_ag_mismatch" = testgk,
+      "cut_time" = cut_time
+    ),
+    class = "DL"
+  )
 }
