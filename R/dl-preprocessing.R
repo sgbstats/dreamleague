@@ -276,11 +276,8 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
 
-    url = paste(
-      "https://www.soccerbase.com/players/player.sd?player_id=",
-      outfield$player_id[i],
-      "&season_id=158",
-      sep = ""
+    url = glue::glue(
+      "https://www.soccerbase.com/players/player.sd?player_id={outfield$player_id[i]}&season_id=158"
     )
     link = RCurl::getURL(url)
 
@@ -404,11 +401,8 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     skip_to_next <- FALSE
     # if(is.na(outfield$id[i])){next}
 
-    url = paste(
-      "https://www.soccerbase.com/teams/team.sd?team_id=",
-      gk$team_id[i],
-      "&teamTabs=results&season_id=158",
-      sep = ""
+    url = glue::glue(
+      "https://www.soccerbase.com/teams/team.sd?team_id={gk$team_id[i]}&teamTabs=results&season_id=158"
     )
 
     cat(paste0(gk$club[i], "\n"))
@@ -432,7 +426,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           filter(
             date > gk$bought2[i],
             date <= gk$sold2[i],
-            date < as.Date(cut_time),
+            # date < as.Date(cut_time),
             !is.na(H)
           )
 
