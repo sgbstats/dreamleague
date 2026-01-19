@@ -329,7 +329,10 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   test = outfield |>
     filter(goals != SBgoals, !is.na(player_id)) |>
     select(position, player, goals, SBgoals, player_id) |>
-    rename("BCgoals" = "goals")
+    rename("BCgoals" = "goals") |> 
+    mutate(url=glue::glue(
+      "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id=158"
+    ))
   # load("Data/team_id.RDa")
 
   gk = teams3 |>
@@ -464,7 +467,10 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   testgk = gk |>
     filter(goals != SBgoals, !is.na(team_id)) |>
     select(position, club, goals, SBgoals, team_id) |>
-    rename("BCgoals" = "goals")
+    rename("BCgoals" = "goals") |> 
+    mutate(url = glue::glue(
+      "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id=158"
+    ))
 
   team_score = rbind(
     outfield |> ungroup() |> dplyr::select(-player_id),
