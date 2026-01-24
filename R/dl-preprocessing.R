@@ -303,8 +303,12 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
 
         appgoals2 = appgoals |>
           summarise(App = sum(App, na.rm = T), Goals = sum(Goals, na.rm = T))
-
-        outfield$SBgoals[i] = appgoals2[1, 2]
+          if(outfield$player_id[i]==134733){
+            outfield$SBgoals[i]=0
+          }else{
+            outfield$SBgoals[i] = appgoals2[1, 2]
+          }
+        
 
         outfield$SBapp[i] = appgoals2[1, 1]
 
