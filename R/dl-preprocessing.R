@@ -54,12 +54,13 @@ scraplinks2 <- function(url) {
         as.Date()
     ) |>
     separate(score, into = c("H", "A"), sep = "-") |>
+    drop_na(date) |> 
+    filter(!grepl("P", H)) |> 
     mutate(
       status = paste0(W, D, L),
       H = as.numeric(str_trim(H)),
       A = as.numeric(str_trim(A))
-    ) |>
-    drop_na(date)
+    )
 
   return(x2)
 }
@@ -459,6 +460,9 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
       error = function(e) {
         skip_to_next <<- TRUE
         cat(red("Error\n"))
+      },
+      warning = function(e){
+        cat(red("Warning\n"))
       }
     )
 
