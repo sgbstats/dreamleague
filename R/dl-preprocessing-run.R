@@ -100,8 +100,8 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
 
   googledrive::drive_auth(
-    email = TRUE,
-    path = NULL,
+    # email = TRUE,
+    path = "credentials.json",
     subject = NULL,
     scopes = "drive",
     cache = gargle::gargle_oauth_cache(),
