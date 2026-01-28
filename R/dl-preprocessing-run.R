@@ -14,7 +14,7 @@ a = Sys.time()
 
 source("R/dl-preprocessing.R")
 gs4_auth(
-  path="credentials.json"
+  path = "credentials.json"
 )
 
 # Create a cluster with 2 cores
@@ -34,7 +34,7 @@ clusterEvalQ(cl, {
     library(httr)
   })
   source("R/dl-preprocessing.R")
-  gs4_auth(path="credentials.json")
+  gs4_auth(path = "credentials.json")
 })
 
 # Define the two processing tasks as functions
@@ -100,12 +100,15 @@ tasks <- list(
 )
 
 # Run tasks in parallel
-results <- tryCatch({
-  parLapply(cl, tasks, function(task) task())
-}, finally = {
-  # Stop the cluster
-  stopCluster(cl)
-})
+results <- tryCatch(
+  {
+    parLapply(cl, tasks, function(task) task())
+  },
+  finally = {
+    # Stop the cluster
+    stopCluster(cl)
+  }
+)
 
 # Unpack results
 didsbury_result <- results$didsbury
@@ -143,7 +146,12 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   )
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-  # save(out_d, out_o, file="data/diagnostics.RDa")
+  save(out_d, out_o, file = "data/diagnostics/diagnostics.RDa")
+  for (i in names(out_d)) {
+    write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
+    write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
+  }
+
   googledrive::drive_auth(
     # email = TRUE,
     path = "credentials.json",

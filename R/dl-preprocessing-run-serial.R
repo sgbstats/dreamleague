@@ -13,7 +13,7 @@ a = Sys.time()
 
 source("R/dl-preprocessing.R")
 gs4_auth(
-  path="credentials.json"
+  path = "credentials.json"
 )
 
 file_d = "data/DreamLeague25-26.xlsx"
@@ -98,7 +98,11 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   )
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-
+  save(out_d, out_o, file = "data/diagnostics/diagnostics.RDa")
+  for (i in names(out_d)) {
+    write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
+    write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
+  }
   googledrive::drive_auth(
     # email = TRUE,
     path = "credentials.json",

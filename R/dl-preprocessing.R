@@ -54,8 +54,8 @@ scraplinks2 <- function(url) {
         as.Date()
     ) |>
     separate(score, into = c("H", "A"), sep = "-") |>
-    drop_na(date) |> 
-    filter(!grepl("P", H)) |> 
+    drop_na(date) |>
+    filter(!grepl("P", H)) |>
     mutate(
       status = paste0(W, D, L),
       H = as.numeric(str_trim(H)),
@@ -304,12 +304,11 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
 
         appgoals2 = appgoals |>
           summarise(App = sum(App, na.rm = T), Goals = sum(Goals, na.rm = T))
-          if(outfield$player_id[i]==134733){
-            outfield$SBgoals[i]=0
-          }else{
-            outfield$SBgoals[i] = appgoals2[1, 2]
-          }
-        
+        if (outfield$player_id[i] == 134733) {
+          outfield$SBgoals[i] = 0
+        } else {
+          outfield$SBgoals[i] = appgoals2[1, 2]
+        }
 
         outfield$SBapp[i] = appgoals2[1, 1]
 
@@ -333,11 +332,13 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   #
   test = outfield |>
     filter(goals != SBgoals, !is.na(player_id)) |>
-    select(position, player, goals, SBgoals, player_id) |>
-    rename("BCgoals" = "goals") |> 
-    mutate(url=glue::glue(
-      "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id=158"
-    ))
+    select(position, player, team, goals, SBgoals, player_id) |>
+    rename("BCgoals" = "goals") |>
+    mutate(
+      url = glue::glue(
+        "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id=158"
+      )
+    )
   # load("Data/team_id.RDa")
 
   gk = teams3 |>
@@ -461,7 +462,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         skip_to_next <<- TRUE
         cat(red("Error\n"))
       },
-      warning = function(e){
+      warning = function(e) {
         cat(red("Warning\n"))
       }
     )
@@ -474,11 +475,13 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
 
   testgk = gk |>
     filter(goals != SBgoals, !is.na(team_id)) |>
-    select(position, club, goals, SBgoals, team_id) |>
-    rename("BCgoals" = "goals") |> 
-    mutate(url = glue::glue(
-      "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id=158"
-    ))
+    select(position, club, team, goals, SBgoals, team_id) |>
+    rename("BCgoals" = "goals") |>
+    mutate(
+      url = glue::glue(
+        "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id=158"
+      )
+    )
 
   team_score = rbind(
     outfield |> ungroup() |> dplyr::select(-player_id),
