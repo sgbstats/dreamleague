@@ -12,9 +12,9 @@ suppressPackageStartupMessages({
 a = Sys.time()
 
 source("R/dl-preprocessing.R")
-# gs4_auth(
-#   email = T
-# )
+gs4_auth(
+  path="credentials.json"
+)
 
 file_d = "data/DreamLeague25-26.xlsx"
 dl_d = readxl::read_excel(

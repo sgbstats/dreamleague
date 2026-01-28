@@ -67,7 +67,7 @@ scraplinks2 <- function(url) {
 
 #use cuttime to allow roll back of goals to check for mistaches
 dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
-  tictoc::tic()
+  # tictoc::tic()
   comps <<- c(
     "English premier",
     "English Premier",
@@ -524,7 +524,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     arrange(team, position, -cost2, bought2) |>
     ungroup()
 
-  tictoc::toc()
+  # tictoc::toc()
   structure(
     list(
       "scores" = team_score,
