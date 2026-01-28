@@ -101,7 +101,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   save(out_d, out_o, file = "data/diagnostics/diagnostics.RDa")
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
-    write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
+    write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
   googledrive::drive_auth(
     # email = TRUE,
