@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(fuzzyjoin)
   library(crayon)
   library(httr)
+  library(parallel)
 })
 a = Sys.time()
 
@@ -16,62 +17,106 @@ gs4_auth(
   path="credentials.json"
 )
 
-file_d = "data/DreamLeague25-26.xlsx"
-dl_d = readxl::read_excel(
-  file_d,
-  na = c("SOLD"),
-  sheet = "Stats",
-  skip = 0,
-  col_names = F
-) |>
-  suppressMessages() |>
-  dplyr::select(2:8)
-managers_d = readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
-  suppressMessages() |>
-  dplyr::select(11:12) |>
-  na.omit() |>
-  rename(manager = 1, team = 2) |>
-  filter(team != "TEAM")
+# Create a cluster with 2 cores
+cl <- makeCluster(2)
 
-mod_d = file.info(file_d)$mtime
-cat("Didsbury\n")
-out_d = dl_process(dl_d, managers_d, "Didsbury")
+# Export necessary objects and load packages on each worker
+clusterEvalQ(cl, {
+  suppressPackageStartupMessages({
+    library(tidyverse)
+    library(readxl)
+    library(rvest)
+    library(RCurl)
+    library(XML)
+    library(googlesheets4)
+    library(fuzzyjoin)
+    library(crayon)
+    library(httr)
+  })
+  source("R/dl-preprocessing.R")
+  gs4_auth(path="credentials.json")
+})
 
+# Define the two processing tasks as functions
+tasks <- list(
+  didsbury = function() {
+    file_d = "data/DreamLeague25-26.xlsx"
+    dl_d = readxl::read_excel(
+      file_d,
+      na = c("SOLD"),
+      sheet = "Stats",
+      skip = 0,
+      col_names = F
+    ) |>
+      suppressMessages() |>
+      dplyr::select(2:8)
+    managers_d = readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
+      suppressMessages() |>
+      dplyr::select(11:12) |>
+      na.omit() |>
+      rename(manager = 1, team = 2) |>
+      filter(team != "TEAM")
 
-file_o = "data/DL25-26.xlsx"
-dl_o = readxl::read_excel(
-  file_o,
-  na = c(""),
-  sheet = "Stats",
-  skip = 0,
-  col_names = F
-) |>
-  suppressMessages() |>
-  dplyr::select(1:7)
-managers_o = readxl::read_excel(
-  file_o,
-  na = c("SOLD"),
-  sheet = "Table",
-  skip = 4
-) |>
-  suppressMessages() |>
-  dplyr::select(c(2, 4)) |>
-  rename(manager = 1, team = 2) |>
-  filter(team != "TEAM")
+    mod_d = file.info(file_d)$mtime
+    cat("Didsbury\n")
+    out_d = dl_process(dl_d, managers_d, "Didsbury")
+    list(out = out_d, mod = mod_d, managers = managers_d)
+  },
+  original = function() {
+    file_o = "data/DL25-26.xlsx"
+    dl_o = readxl::read_excel(
+      file_o,
+      na = c(""),
+      sheet = "Stats",
+      skip = 0,
+      col_names = F
+    ) |>
+      suppressMessages() |>
+      dplyr::select(1:7)
+    managers_o = readxl::read_excel(
+      file_o,
+      na = c("SOLD"),
+      sheet = "Table",
+      skip = 4
+    ) |>
+      suppressMessages() |>
+      dplyr::select(c(2, 4)) |>
+      rename(manager = 1, team = 2) |>
+      filter(team != "TEAM")
 
-mod_o = file.info(file_o)$mtime
-cat("Original\n")
-dl_o = dl_o |>
-  mutate(
-    `...7` = case_when(
-      `...2` == "JAMES TRAFFORD" ~ "45529",
-      `...2` == "NONI MADUEKE" ~ "45530",
-      T ~ `...7`
-    )
-  )
+    mod_o = file.info(file_o)$mtime
+    cat("Original\n")
+    dl_o = dl_o |>
+      mutate(
+        `...7` = case_when(
+          `...2` == "JAMES TRAFFORD" ~ "45529",
+          `...2` == "NONI MADUEKE" ~ "45530",
+          T ~ `...7`
+        )
+      )
+    out_o = dl_process(dl_o, managers_o, "Original")
+    list(out = out_o, mod = mod_o, managers = managers_o)
+  }
+)
 
+# Run tasks in parallel
+results <- tryCatch({
+  parLapply(cl, tasks, function(task) task())
+}, finally = {
+  # Stop the cluster
+  stopCluster(cl)
+})
 
-out_o = dl_process(dl_o, managers_o, "Original")
+# Unpack results
+didsbury_result <- results$didsbury
+out_d <- didsbury_result$out
+mod_d <- didsbury_result$mod
+managers_d <- didsbury_result$managers
+
+original_result <- results$original
+out_o <- original_result$out
+mod_o <- original_result$mod
+managers_o <- original_result$managers
 
 dl_d = out_d$scores
 dl_o = out_o$scores
@@ -98,7 +143,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   )
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-
+  save(out_d, out_o, file="data/diganostics.RDa")
   googledrive::drive_auth(
     # email = TRUE,
     path = "credentials.json",
