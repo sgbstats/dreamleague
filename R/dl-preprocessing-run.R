@@ -143,7 +143,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   )
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-  save(out_d, out_o, file="data/diganostics.RDa")
+  # save(out_d, out_o, file="data/diagnostics.RDa")
   googledrive::drive_auth(
     # email = TRUE,
     path = "credentials.json",
