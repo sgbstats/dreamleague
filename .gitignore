@@ -40,3 +40,4 @@ vignettes/*.pdf
 dreamleague/data.RDa
 data.RDa
 credentials.json
+data/diagnostics/*
