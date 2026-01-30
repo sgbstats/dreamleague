@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 })
 a = Sys.time()
 
-source("R/dl-preprocessing-slow.R")
+source("R/dl-preprocessing-fast.R")
 gs4_auth(
   path = "credentials.json"
 )
@@ -98,7 +98,6 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   )
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-  save(out_d, out_o, file = "data/diagnostics/diagnostics.RDa")
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
     write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
