@@ -151,7 +151,7 @@ ui <- dashboardPage(
             imageOutput("img", inline = T),
             htmlOutput("teamtext")
           ),
-          mainPanel(dataTableOutput("team_out"))
+          mainPanel(reactableOutput("team_out"))
         )
       ),
       tabItem(
@@ -167,7 +167,7 @@ ui <- dashboardPage(
             )
           ),
           mainPanel(
-            dataTableOutput("playerstaken")
+            reactableOutput("playerstaken")
           )
         )
       ),
@@ -288,37 +288,40 @@ server <- function(input, output, session) {
       htmltools_value()
   })
 
-  output$team_out = DT::renderDT(
-    {
-      if (input$current) {
-        teams3 = dl %>%
-          filter(team == input$team) %>%
-          filter(is.na(sold)) %>%
-          select(-sold, -bought2, -sold2, -SBapp, -league)
-      } else {
-        teams3 = dl %>%
-          filter(team == input$team) %>%
-          select(-bought2, -sold2, -SBapp, -league)
-      }
+  output$team_out <- renderReactable({
+    if (input$current) {
+      teams3 <- dl %>%
+        filter(team == input$team) %>%
+        filter(is.na(sold)) %>%
+        select(-sold, -bought2, -sold2, -SBapp, -league)
+    } else {
+      teams3 <- dl %>%
+        filter(team == input$team) %>%
+        select(-bought2, -sold2, -SBapp, -league)
+    }
 
-      teams3 %>%
-        select(-team) %>%
-        select(-goals) %>%
-        rename("Goals" = "SBgoals") %>%
-        rename_with(str_to_title) %>%
-        relocate(Goals, .after = Club)
-    },
-    options = list(
-      autoWidth = TRUE,
-      columnDefs = list(
-        list(width = '100px', targets = c(1, 2)),
-        list(width = '50px', targets = c(0, 3)),
-        list(width = '30px', targets = c(4, 5))
+    table_data <- teams3 %>%
+      select(-team) %>%
+      select(-goals) %>%
+      rename("Goals" = "SBgoals") %>%
+      rename_with(str_to_title) %>%
+      relocate(Goals, .after = Club)
+
+    reactable(
+      table_data,
+      sortable = TRUE,
+      searchable = TRUE,
+      columns = list(
+        Player = colDef(width = 150),
+        Club = colDef(width = 150),
+        Position = colDef(width = 100),
+        Goals = colDef(width = 70),
+        Cost = colDef(width = 70),
+        Bought = colDef(width = 100)
       ),
-      scrollX = T,
-      pageLength = 15
+      defaultPageSize = 21
     )
-  )
+  })
 
   output$team_history_out = renderReactable({
     period = daily %>%
@@ -448,19 +451,24 @@ server <- function(input, output, session) {
     deleteFile = F
   )
 
-  output$playerstaken = DT::renderDT(
-    {
-      dl %>%
-        filter(is.na(sold), league == input$league) %>%
-        dplyr::select(team, player, club, position) %>%
-        rename_with(str_to_title)
-    },
-    options = list(
-      autoWidth = TRUE,
-      scrollX = T,
-      pageLength = 15
+  output$playerstaken <- renderReactable({
+    table_data <- dl %>%
+      filter(is.na(sold), league == input$league_players) %>%
+      dplyr::select(team, player, club, position) %>%
+      rename_with(str_to_title)
+    
+    reactable(
+      table_data,
+      searchable = TRUE,
+      columns = list(
+        Team = colDef(width = 150),
+        Player = colDef(width = 150),
+        Club = colDef(width = 150),
+        Position = colDef(width = 100)
+      ),
+      defaultPageSize = 15
     )
-  )
+  })
 
   output$diagnostics = DT::renderDT({
     dl %>%
