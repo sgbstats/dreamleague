@@ -300,9 +300,11 @@ server <- function(input, output, session) {
         select(-bought2, -sold2, -SBapp, -league)
     }
 
-    table_data <- teams3 |>
+    table_data_unformatted <- teams3 |>
+      select(-goals)
+
+    table_data <- table_data_unformatted |>
       select(-team) |>
-      select(-goals) |>
       rename("Goals" = "SBgoals") |>
       rename_with(str_to_title) |>
       relocate(Goals, .after = Club)
@@ -319,7 +321,42 @@ server <- function(input, output, session) {
         Cost = colDef(width = 70),
         Bought = colDef(width = 100)
       ),
-      defaultPageSize = 21
+      defaultPageSize = 15,
+      details = function(index) {
+        player_name <- table_data_unformatted$player[index]
+        team_name <- table_data_unformatted$team[index]
+
+        if (is.na(player_name)) {
+          scoring_history <- daily |>
+            filter(team == team_name, SBgoals != 0, position == "GOALKEEPER") |>
+            select(date = Date, goals = SBgoals) |>
+            arrange(desc(date))
+        } else {
+          scoring_history <- daily |>
+            filter(player == player_name, team == team_name, SBgoals != 0) |>
+            select(date = Date, goals = SBgoals) |>
+            arrange(desc(date))
+        }
+
+        if (nrow(scoring_history) > 0) {
+          htmltools::div(
+            style = "padding: 1rem",
+            reactable(
+              scoring_history,
+              outlined = TRUE,
+              bordered = TRUE,
+              striped = TRUE,
+              fullWidth = FALSE,
+              columns = list(
+                date = colDef(name = "Date", width = 100),
+                goals = colDef(name = "Goals", width = 70)
+              )
+            )
+          )
+        } else {
+          htmltools::div(style = "padding: 1rem", "No goals recorded.")
+        }
+      }
     )
   })
 
