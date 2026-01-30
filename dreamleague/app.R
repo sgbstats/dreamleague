@@ -84,6 +84,7 @@ ui <- dashboardPage(
   dashboardHeader(title = "DreamLeague"),
   dashboardSidebar(
     sidebarMenu(
+      id = "sidebar",
       menuItem("League", tabName = "league", icon = icon("table")),
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
       menuItem("BFL Cup", tabName = "cup", icon = icon("trophy")),
@@ -149,7 +150,9 @@ ui <- dashboardPage(
             pickerInput("team", "Team", choices = teamslist, selected = NULL),
             checkboxInput("current", "Current team only", value = T),
             imageOutput("img", inline = T),
-            htmlOutput("teamtext")
+            htmlOutput("teamtext"),
+            br(),
+            actionButton("goto_league", "Return to League")
           ),
           mainPanel(reactableOutput("team_out"))
         )
@@ -278,7 +281,21 @@ server <- function(input, output, session) {
       table_data |> select(-league),
       columns = list(
         rank = colDef(show = FALSE),
-        team = colDef(name = "Team", width = 200),
+        team = colDef(
+          name = "Team",
+          width = 200,
+          cell = function(value) {
+            escaped_value <- gsub("'", "\\\\'", value)
+            tags$span(
+              style = "cursor: pointer; text-decoration: underline; color: #000000;",
+              onclick = sprintf(
+                "Shiny.setInputValue('goto_team', {team: '%s', nonce: Math.random()})",
+                escaped_value
+              ),
+              value
+            )
+          }
+        ),
         manager = colDef(name = "Manager", width = 200),
         total = colDef(name = "Total", width = 70),
         gf = colDef(name = "For", width = 70),
@@ -756,6 +773,16 @@ server <- function(input, output, session) {
         slice_max(date, with_ties = F) |>
         pull(round)
     )
+  })
+
+  observeEvent(input$goto_league, {
+    updateTabItems(session, "sidebar", "league")
+  })
+
+  observeEvent(input$goto_team, {
+    req(input$goto_team)
+    updateTabItems(session, "sidebar", "teams")
+    updatePickerInput(session, "team", selected = input$goto_team$team)
   })
 }
 
