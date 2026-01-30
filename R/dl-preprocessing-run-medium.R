@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 })
 a = Sys.time()
 
-source("R/dl-preprocessing.R")
+source("R/dl-preprocessing-slow.R")
 gs4_auth(
   path = "credentials.json"
 )
@@ -169,4 +169,4 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
 }
 b = Sys.time()
 
-difftime(b, a, units = "mins")
+difftime(b, a, units = "secs")

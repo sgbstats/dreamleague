@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 })
 a = Sys.time()
 
-source("R/dl-preprocessing.R")
+source("R/dl-preprocessing-slow.R")
 gs4_auth(
   path = "credentials.json"
 )
