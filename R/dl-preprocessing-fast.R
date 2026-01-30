@@ -274,57 +274,73 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   plan(multisession)
 
   # Process outfield players in parallel
-  outfield_results <- future_map(1:nrow(outfield), function(i) {
-    # Short-circuit if player_id is NA
-    if (is.na(outfield$player_id[i])) {
-      return(NULL)
-    }
+  outfield_results <- future_map(
+    1:nrow(outfield),
+    function(i) {
+      # Short-circuit if player_id is NA
+      if (is.na(outfield$player_id[i])) {
+        return(NULL)
+      }
 
-    url <- glue::glue("https://www.soccerbase.com/players/player.sd?player_id={outfield$player_id[i]}&season_id=158")
+      url <- glue::glue(
+        "https://www.soccerbase.com/players/player.sd?player_id={outfield$player_id[i]}&season_id=158"
+      )
 
-    cat(paste0(outfield$player[i], "\n"))
+      cat(paste0(outfield$player[i], "\n"))
 
-    tryCatch({
-      link <- RCurl::getURL(url)
-      tables <- readHTMLTable(link)
-      appgoals <- tables$tpg |>
-        filter(V1 %in% comps) |>
-        mutate(Date = as.Date(substr(V2, 4, 13), "%d%b %Y")) |>
-        filter(
-          Date > outfield$bought2[i],
-          Date <= outfield$sold2[i],
-          Date < as.Date(cut_time)
-        ) |>
-        mutate(
-          Goals = as.numeric(V7),
-          App = 1,
-          Goals = if_else(is.na(Goals), 0, Goals),
-          player_id = outfield$player_id[i],
-          team = outfield$team[i]
-        )
+      tryCatch(
+        {
+          link <- RCurl::getURL(url)
+          tables <- readHTMLTable(link)
+          appgoals <- tables$tpg |>
+            filter(V1 %in% comps) |>
+            mutate(Date = as.Date(substr(V2, 4, 13), "%d%b %Y")) |>
+            filter(
+              Date > outfield$bought2[i],
+              Date <= outfield$sold2[i],
+              Date < as.Date(cut_time)
+            ) |>
+            mutate(
+              Goals = as.numeric(V7),
+              App = 1,
+              Goals = if_else(is.na(Goals), 0, Goals),
+              player_id = outfield$player_id[i],
+              team = outfield$team[i]
+            )
 
-      appgoals2 <- appgoals |>
-        summarise(App = sum(App, na.rm = TRUE), Goals = sum(Goals, na.rm = TRUE))
+          appgoals2 <- appgoals |>
+            summarise(
+              App = sum(App, na.rm = TRUE),
+              Goals = sum(Goals, na.rm = TRUE)
+            )
 
-      sb_goals <- if (outfield$player_id[i] == 134733) 0 else appgoals2[[1, "Goals"]]
-      sb_app <- appgoals2[[1, "App"]]
+          sb_goals <- if (outfield$player_id[i] == 134733) {
+            0
+          } else {
+            appgoals2[[1, "Goals"]]
+          }
+          sb_app <- appgoals2[[1, "App"]]
 
-      cat(blue(paste0(sb_goals, "\n")))
+          cat(blue(paste0(sb_goals, "\n")))
 
-      return(list(
-        SBgoals = sb_goals,
-        SBapp = sb_app,
-        weekly = appgoals |> select(player_id, Date, Goals, App, team)
-      ))
-    }, error = function(e) {
-      cat(red("Error fetching data for ", outfield$player[i], "\n"))
-      return(NULL)
-    })
-  }, .progress = TRUE)
+          return(list(
+            SBgoals = sb_goals,
+            SBapp = sb_app,
+            weekly = appgoals |> select(player_id, Date, Goals, App, team)
+          ))
+        },
+        error = function(e) {
+          cat(red("Error\n"))
+          return(NULL)
+        }
+      )
+    },
+    .progress = TRUE
+  )
 
   # Update outfield and weekly with results from parallel processing
-  outfield$SBgoals <- map_dbl(outfield_results, ~ .x$SBgoals %||% NA_real_)
-  outfield$SBapp <- map_dbl(outfield_results, ~ .x$SBapp %||% NA_real_)
+  outfield$SBgoals <- map_dbl(outfield_results, ~ .x$SBgoals %||% 0)
+  outfield$SBapp <- map_dbl(outfield_results, ~ .x$SBapp %||% 0)
   weekly <- map_df(outfield_results, "weekly")
   #
   test = outfield |>
@@ -400,62 +416,75 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     )
 
   # Process goalkeepers in parallel
-  gk_results <- future_map(1:nrow(gk), function(i) {
-    if (is.na(gk$team_id[i])) {
-      return(NULL)
-    }
+  gk_results <- future_map(
+    1:nrow(gk),
+    function(i) {
+      if (is.na(gk$team_id[i])) {
+        return(NULL)
+      }
 
-    url <- glue::glue("https://www.soccerbase.com/teams/team.sd?team_id={gk$team_id[i]}&teamTabs=results&season_id=158")
+      url <- glue::glue(
+        "https://www.soccerbase.com/teams/team.sd?team_id={gk$team_id[i]}&teamTabs=results&season_id=158"
+      )
 
-    cat(paste0(gk$club[i], "\n"))
+      cat(paste0(gk$club[i], "\n"))
 
-    tryCatch({
-      sl <- scraplinks2(url)
-      x <- sl |>
-        mutate(rn = row_number()) |>
-        mutate(
-          concede = case_when(
-            status == "W" ~ -min(H, A),
-            status == "D" ~ -H,
-            status == "D*" & str_to_upper(Away) == gk$club[i] ~ -H,
-            status == "D*" ~ -A,
-            status == "L" ~ -max(H, A)
-          ),
-          App = 1,
-          .by = "rn"
-        ) |>
-        filter(comp %in% comps) |>
-        filter(
-          date > gk$bought2[i],
-          date <= gk$sold2[i],
-          # date < as.Date(cut_time),
-          !is.na(H)
-        )
+      tryCatch(
+        {
+          sl <- scraplinks2(url)
+          x <- sl |>
+            mutate(rn = row_number()) |>
+            mutate(
+              concede = case_when(
+                status == "W" ~ -min(H, A),
+                status == "D" ~ -H,
+                status == "D*" & str_to_upper(Away) == gk$club[i] ~ -H,
+                status == "D*" ~ -A,
+                status == "L" ~ -max(H, A)
+              ),
+              App = 1,
+              .by = "rn"
+            ) |>
+            filter(comp %in% comps) |>
+            filter(
+              date > gk$bought2[i],
+              date <= gk$sold2[i],
+              # date < as.Date(cut_time),
+              !is.na(H)
+            )
 
-      x2 <- x |>
-        summarise(Goals = sum(concede, na.rm = TRUE), App = sum(App, na.rm = TRUE))
+          x2 <- x |>
+            summarise(
+              Goals = sum(concede, na.rm = TRUE),
+              App = sum(App, na.rm = TRUE)
+            )
 
-      sb_goals <- x2[[1, "Goals"]]
-      sb_app <- x2[[1, "App"]]
+          sb_goals <- x2[[1, "Goals"]]
+          sb_app <- x2[[1, "App"]]
 
-      cat(blue(paste0(sb_goals, "\n")))
+          cat(blue(paste0(sb_goals, "\n")))
 
-      return(list(
-        SBgoals = sb_goals,
-        SBapp = sb_app,
-        weekly_gk = x |>
-          rename(Goals = concede, Date = date) |>
-          select(Date, Goals, App) |>
-          mutate(team_id = gk$team_id[i])
-      ))
-    }, error = function(e) {
-      cat(red("Error fetching data for ", gk$club[i], "\n"))
-      return(NULL)
-    }, warning = function(w) {
-      cat(red("Warning for ", gk$club[i], "\n"))
-      return(NULL)
-    })
-  }, .progress = TRUE)
+          return(list(
+            SBgoals = sb_goals,
+            SBapp = sb_app,
+            weekly_gk = x |>
+              rename(Goals = concede, Date = date) |>
+              select(Date, Goals, App) |>
+              mutate(team_id = gk$team_id[i])
+          ))
+        },
+        error = function(e) {
+          cat(red("Error fetching data for ", gk$club[i], "\n"))
+          return(NULL)
+        },
+        warning = function(w) {
+          cat(red("Warning for ", gk$club[i], "\n"))
+          return(NULL)
+        }
+      )
+    },
+    .progress = TRUE
+  )
 
   # Update gk and weekly_gk with results
   gk$SBgoals <- map_dbl(gk_results, ~ .x$SBgoals %||% NA_real_)

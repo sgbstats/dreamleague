@@ -15,8 +15,7 @@ library(reactable)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
 googledrive::drive_auth(
-  cache = ".secrets",
-  email = "sebastiangbate@gmail.com"
+  path = "credentials.json"
 )
 googledrive::drive_download(
   googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),
@@ -37,7 +36,7 @@ managers = rbind.data.frame(
 )
 league = managers %>%
   merge(
-    dl %>% group_by(team) %>% summarise(total = sum(SBgoals)),
+    dl %>% group_by(team) %>% summarise(total = sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
   ) %>%
@@ -45,7 +44,7 @@ league = managers %>%
     dl %>%
       filter(position != "GOALKEEPER") %>%
       group_by(team) %>%
-      summarise(gf = sum(SBgoals)),
+      summarise(gf = sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
   ) %>%
@@ -53,7 +52,7 @@ league = managers %>%
     dl %>%
       filter(position == "GOALKEEPER") %>%
       group_by(team) %>%
-      summarise(ga = -sum(SBgoals)),
+      summarise(ga = -sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
   ) %>%
@@ -152,7 +151,7 @@ ui <- dashboardPage(
             imageOutput("img", inline = T),
             htmlOutput("teamtext")
           ),
-          mainPanel(dataTableOutput("team"))
+          mainPanel(dataTableOutput("team_out"))
         )
       ),
       tabItem(
@@ -289,7 +288,7 @@ server <- function(input, output, session) {
       htmltools_value()
   })
 
-  output$team = DT::renderDT(
+  output$team_out = DT::renderDT(
     {
       if (input$current) {
         teams3 = dl %>%
