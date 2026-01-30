@@ -131,7 +131,7 @@ ui <- dashboardPage(
                 )
               )
             ),
-            uiOutput("table", inline = TRUE, style = "margin:0px; padding:0px")
+            reactableOutput("table")
           )
         )
       ),
@@ -270,22 +270,30 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   league_master = reactiveVal("didsbury")
 
-  output$table = renderUI({
-    league |>
-      filter(league == input$league) |>
-      select(-league, -rank) |>
-      flextable() |>
-      set_header_labels(
-        team = "Team",
-        manager = "Manager",
-        total = "Total",
-        gf = "For",
-        ga = "Against"
-      ) |>
-      bg(i = 1:2, bg = c("#FFD700", "#C0C0C0")) |>
-      autofit() |>
-      font(fontname = "Arial", part = "all") |>
-      htmltools_value()
+  output$table <- renderReactable({
+    table_data <- league |>
+      filter(league == input$league)
+
+    reactable(
+      table_data |> select(-league),
+      columns = list(
+        rank = colDef(show = FALSE),
+        team = colDef(name = "Team", width = 200),
+        manager = colDef(name = "Manager", width = 200),
+        total = colDef(name = "Total", width = 70),
+        gf = colDef(name = "For", width = 70),
+        ga = colDef(name = "Against", width = 70)
+      ),
+      defaultPageSize = 15,
+      fullWidth = FALSE,
+      rowStyle = function(index) {
+        if (table_data[index, "rank"] == 1) {
+          list(background = "#FFD700")
+        } else if (table_data[index, "rank"] == 2) {
+          list(background = "#C0C0C0")
+        }
+      }
+    )
   })
 
   output$team_out <- renderReactable({
