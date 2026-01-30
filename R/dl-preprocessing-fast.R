@@ -204,7 +204,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   # merge(team_id |> mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
   player_id2 = player_id |>
     select(player, player_id, team) |>
-    filter(!player_id %in% c(65492, 199362, 209366))
+    filter(!player_id %in% c(65492, 199362, 209366, 197134))
 
   outfield0 = teams3 |>
     filter(position %in% c("DEFENDER", "MIDFIELDER", "FORWARD")) |>
@@ -215,9 +215,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
       method = "jw",
       distance_col = "dist"
     ) |>
-    group_by(player.x) |>
-    slice_min(order_by = dist, n = 1) |>
-    ungroup() |>
+    slice_min(order_by = dist, n = 1, by = player.x) |>
     rename(team = team.x) |>
     select(-team.y) |>
     mutate(
