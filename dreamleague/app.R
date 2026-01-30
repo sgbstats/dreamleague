@@ -31,48 +31,48 @@ names(weeks2) = weekschar
 load("managers.RDa")
 
 managers = rbind.data.frame(
-  managers_d %>% mutate(league = "didsbury"),
-  managers_o %>% mutate(league = "original")
+  managers_d |> mutate(league = "didsbury"),
+  managers_o |> mutate(league = "original")
 )
-league = managers %>%
+league = managers |>
   merge(
-    dl %>% group_by(team) %>% summarise(total = sum(SBgoals, na.rm = T)),
+    dl |> group_by(team) |> summarise(total = sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
-  ) %>%
+  ) |>
   merge(
-    dl %>%
-      filter(position != "GOALKEEPER") %>%
-      group_by(team) %>%
+    dl |>
+      filter(position != "GOALKEEPER") |>
+      group_by(team) |>
       summarise(gf = sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
-  ) %>%
+  ) |>
   merge(
-    dl %>%
-      filter(position == "GOALKEEPER") %>%
-      group_by(team) %>%
+    dl |>
+      filter(position == "GOALKEEPER") |>
+      group_by(team) |>
       summarise(ga = -sum(SBgoals, na.rm = T)),
     by = "team",
     all = T
-  ) %>%
-  arrange(-total, -gf) %>%
+  ) |>
+  arrange(-total, -gf) |>
   mutate(rank = row_number(), .by = "league")
 
-teamslist = (managers %>% arrange(team))$team
+teamslist = (managers |> arrange(team))$team
 names(teamslist) = paste(
-  (league %>% arrange(team))$team,
+  (league |> arrange(team))$team,
   " (",
-  (league %>% arrange(team))$manager,
+  (league |> arrange(team))$manager,
   ")",
   sep = ""
 )
-teamslist_cup = (managers %>% arrange(team))$team
+teamslist_cup = (managers |> arrange(team))$team
 
 names(teamslist_cup) = paste(
-  (managers %>% arrange(team))$team,
+  (managers |> arrange(team))$team,
   " (",
-  (managers %>% arrange(team))$manager,
+  (managers |> arrange(team))$manager,
   ")",
   sep = ""
 )
@@ -84,6 +84,7 @@ ui <- dashboardPage(
   dashboardHeader(title = "DreamLeague"),
   dashboardSidebar(
     sidebarMenu(
+      id = "sidebar",
       menuItem("League", tabName = "league", icon = icon("table")),
       menuItem("Teams", tabName = "teams", icon = icon("shirt")),
       menuItem("BFL Cup", tabName = "cup", icon = icon("trophy")),
@@ -131,7 +132,7 @@ ui <- dashboardPage(
                 )
               )
             ),
-            uiOutput("table", inline = TRUE, style = "margin:0px; padding:0px")
+            reactableOutput("table")
           )
         )
       ),
@@ -149,9 +150,11 @@ ui <- dashboardPage(
             pickerInput("team", "Team", choices = teamslist, selected = NULL),
             checkboxInput("current", "Current team only", value = T),
             imageOutput("img", inline = T),
-            htmlOutput("teamtext")
+            htmlOutput("teamtext"),
+            br(),
+            actionButton("goto_league", "Return to League")
           ),
-          mainPanel(dataTableOutput("team_out"))
+          mainPanel(reactableOutput("team_out"))
         )
       ),
       tabItem(
@@ -167,7 +170,7 @@ ui <- dashboardPage(
             )
           ),
           mainPanel(
-            dataTableOutput("playerstaken")
+            reactableOutput("playerstaken")
           )
         )
       ),
@@ -189,9 +192,9 @@ ui <- dashboardPage(
             "round_cup",
             "Round",
             choices = rounds,
-            selected = cupties %>%
-              filter(comp == "bfl") %>%
-              slice_max(date, with_ties = F) %>%
+            selected = cupties |>
+              filter(comp == "bfl") |>
+              slice_max(date, with_ties = F) |>
               pull(round),
             multiple = F
           )
@@ -270,103 +273,165 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   league_master = reactiveVal("didsbury")
 
-  output$table = renderUI({
-    league %>%
-      filter(league == input$league) %>%
-      select(-league, -rank) %>%
-      flextable() %>%
-      set_header_labels(
-        team = "Team",
-        manager = "Manager",
-        total = "Total",
-        gf = "For",
-        ga = "Against"
-      ) %>%
-      bg(i = 1:2, bg = c("#FFD700", "#C0C0C0")) %>%
-      autofit() %>%
-      font(fontname = "Arial", part = "all") %>%
-      htmltools_value()
+  output$table <- renderReactable({
+    table_data <- league |>
+      filter(league == input$league)
+
+    reactable(
+      table_data |> select(-league),
+      columns = list(
+        rank = colDef(show = FALSE),
+        team = colDef(
+          name = "Team",
+          width = 200,
+          cell = function(value) {
+            escaped_value <- gsub("'", "\\\\'", value)
+            tags$span(
+              style = "cursor: pointer; text-decoration: underline; color: #000000;",
+              onclick = sprintf(
+                "Shiny.setInputValue('goto_team', {team: '%s', nonce: Math.random()})",
+                escaped_value
+              ),
+              value
+            )
+          }
+        ),
+        manager = colDef(name = "Manager", width = 200),
+        total = colDef(name = "Total", width = 70),
+        gf = colDef(name = "For", width = 70),
+        ga = colDef(name = "Against", width = 70)
+      ),
+      defaultPageSize = 15,
+      fullWidth = FALSE,
+      rowStyle = function(index) {
+        if (table_data[index, "rank"] == 1) {
+          list(background = "#FFD700")
+        } else if (table_data[index, "rank"] == 2) {
+          list(background = "#C0C0C0")
+        }
+      }
+    )
   })
 
-  output$team_out = DT::renderDT(
-    {
-      if (input$current) {
-        teams3 = dl %>%
-          filter(team == input$team) %>%
-          filter(is.na(sold)) %>%
-          select(-sold, -bought2, -sold2, -SBapp, -league)
-      } else {
-        teams3 = dl %>%
-          filter(team == input$team) %>%
-          select(-bought2, -sold2, -SBapp, -league)
-      }
+  output$team_out <- renderReactable({
+    if (input$current) {
+      teams3 <- dl |>
+        filter(team == input$team) |>
+        filter(is.na(sold)) |>
+        select(-sold, -bought2, -sold2, -SBapp, -league)
+    } else {
+      teams3 <- dl |>
+        filter(team == input$team) |>
+        select(-bought2, -sold2, -SBapp, -league)
+    }
 
-      teams3 %>%
-        select(-team) %>%
-        select(-goals) %>%
-        rename("Goals" = "SBgoals") %>%
-        rename_with(str_to_title) %>%
-        relocate(Goals, .after = Club)
-    },
-    options = list(
-      autoWidth = TRUE,
-      columnDefs = list(
-        list(width = '100px', targets = c(1, 2)),
-        list(width = '50px', targets = c(0, 3)),
-        list(width = '30px', targets = c(4, 5))
+    table_data_unformatted <- teams3 |>
+      select(-goals)
+
+    table_data <- table_data_unformatted |>
+      select(-team) |>
+      rename("Goals" = "SBgoals") |>
+      rename_with(str_to_title) |>
+      relocate(Goals, .after = Club)
+
+    reactable(
+      table_data,
+      sortable = TRUE,
+      searchable = TRUE,
+      columns = list(
+        Player = colDef(width = 150),
+        Club = colDef(width = 150),
+        Position = colDef(width = 100),
+        Goals = colDef(width = 70),
+        Cost = colDef(width = 70),
+        Bought = colDef(width = 100)
       ),
-      scrollX = T,
-      pageLength = 15
+      defaultPageSize = 15,
+      details = function(index) {
+        player_name <- table_data_unformatted$player[index]
+        team_name <- table_data_unformatted$team[index]
+
+        if (is.na(player_name)) {
+          scoring_history <- daily |>
+            filter(team == team_name, SBgoals != 0, position == "GOALKEEPER") |>
+            select(date = Date, goals = SBgoals) |>
+            arrange(desc(date))
+        } else {
+          scoring_history <- daily |>
+            filter(player == player_name, team == team_name, SBgoals != 0) |>
+            select(date = Date, goals = SBgoals) |>
+            arrange(desc(date))
+        }
+
+        if (nrow(scoring_history) > 0) {
+          htmltools::div(
+            style = "padding: 1rem",
+            reactable(
+              scoring_history,
+              outlined = TRUE,
+              bordered = TRUE,
+              striped = TRUE,
+              fullWidth = FALSE,
+              columns = list(
+                date = colDef(name = "Date", width = 100),
+                goals = colDef(name = "Goals", width = 70)
+              )
+            )
+          )
+        } else {
+          htmltools::div(style = "padding: 1rem", "No goals recorded.")
+        }
+      }
     )
-  )
+  })
 
   output$team_history_out = renderReactable({
-    period = daily %>%
+    period = daily |>
       filter(Date <= as.Date(input$end), Date >= as.Date(input$start))
 
-    league2 = managers %>%
+    league2 = managers |>
       merge(
-        period %>%
+        period |>
           summarise(total = sum(SBgoals), .by = c("team", "league")),
         by = c("team", "league"),
         all = T
-      ) %>%
+      ) |>
       merge(
-        period %>%
-          filter(position != "GOALKEEPER") %>%
+        period |>
+          filter(position != "GOALKEEPER") |>
           summarise(gf = sum(SBgoals), .by = c("team", "league")),
         by = c("team", "league"),
         all = T
-      ) %>%
+      ) |>
       merge(
-        period %>%
-          filter(position == "GOALKEEPER") %>%
+        period |>
+          filter(position == "GOALKEEPER") |>
           summarise(ga = -sum(SBgoals), .by = c("team", "league")),
         by = c("team", "league"),
         all = T
-      ) %>%
-      replace(is.na(.), 0) %>%
-      filter(league == input$league_team_history) %>%
-      select(-league) %>%
+      ) |>
+      replace(is.na(.), 0) |>
+      filter(league == input$league_team_history) |>
+      select(-league) |>
       arrange(-total, -gf)
 
-    scorers2 = period %>%
-      filter(league == input$league_team_history) %>%
-      filter(SBgoals != 0) %>%
+    scorers2 = period |>
+      filter(league == input$league_team_history) |>
+      filter(SBgoals != 0) |>
       summarise(
         SBgoals = sum(SBgoals),
         .by = c("team", "position", "player", "club")
-      ) %>%
+      ) |>
       mutate(
         name = paste0(
           ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)),
           if_else(SBgoals == 1, "", paste0(" (", SBgoals, ")"))
-        ) %>%
+        ) |>
           str_to_title()
-      ) %>%
+      ) |>
       summarise(scorers = paste(name, collapse = ", ", sep = ""), .by = "team")
 
-    res2 = league2 %>% merge(scorers2, all.x = T)
+    res2 = league2 |> merge(scorers2, all.x = T)
     reactable(
       res2[, 1:5],
       columns = list(
@@ -411,15 +476,15 @@ server <- function(input, output, session) {
     outfield = paste(
       "Outfield transfers remaining:",
       8 -
-        dl %>%
-          filter(team == input$team, position != "GOALKEEPER", cost == "") %>%
+        dl |>
+          filter(team == input$team, position != "GOALKEEPER", cost == "") |>
           nrow()
     )
     goalie = paste(
       "Goalkeeper transfers remaining:",
       2 -
-        dl %>%
-          filter(team == input$team, position == "GOALKEEPER", cost == "") %>%
+        dl |>
+          filter(team == input$team, position == "GOALKEEPER", cost == "") |>
           nrow()
     )
     HTML(paste(text1, text2, text3, text4, outfield, goalie, sep = "<br/>"))
@@ -448,33 +513,38 @@ server <- function(input, output, session) {
     deleteFile = F
   )
 
-  output$playerstaken = DT::renderDT(
-    {
-      dl %>%
-        filter(is.na(sold), league == input$league) %>%
-        dplyr::select(team, player, club, position) %>%
-        rename_with(str_to_title)
-    },
-    options = list(
-      autoWidth = TRUE,
-      scrollX = T,
-      pageLength = 15
+  output$playerstaken <- renderReactable({
+    table_data <- dl |>
+      filter(is.na(sold), league == input$league_players) |>
+      dplyr::select(team, player, club, position) |>
+      rename_with(str_to_title)
+
+    reactable(
+      table_data,
+      searchable = TRUE,
+      columns = list(
+        Team = colDef(width = 150),
+        Player = colDef(width = 150),
+        Club = colDef(width = 150),
+        Position = colDef(width = 100)
+      ),
+      defaultPageSize = 15
     )
-  )
+  })
 
   output$diagnostics = DT::renderDT({
-    dl %>%
-      filter(is.na(sold)) %>%
-      dplyr::select(team, player, club, position) %>%
+    dl |>
+      filter(is.na(sold)) |>
+      dplyr::select(team, player, club, position) |>
       mutate(
         position = factor(
           position,
           c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"),
           ordered = T
         )
-      ) %>%
-      count(team, position) %>%
-      pivot_wider(names_from = "position", values_from = "n") %>%
+      ) |>
+      count(team, position) |>
+      pivot_wider(names_from = "position", values_from = "n") |>
       filter(GOALKEEPER != 1 | DEFENDER != 2 | MIDFIELDER != 3 | FORWARD != 5)
   })
 
@@ -490,68 +560,68 @@ server <- function(input, output, session) {
   })
 
   output$cup <- renderReactable({
-    date <- cupties %>%
-      filter(comp == input$comp_cup, round == input$round_cup) %>%
-      pull(date) %>%
+    date <- cupties |>
+      filter(comp == input$comp_cup, round == input$round_cup) |>
+      pull(date) |>
       min(na.rm = TRUE)
 
-    weekend = daily %>%
+    weekend = daily |>
       filter(
         Date >= date,
         Date <= date + lubridate::days(3)
       )
 
-    scorers = weekend %>%
-      filter(SBgoals != 0) %>%
+    scorers = weekend |>
+      filter(SBgoals != 0) |>
       mutate(
         name = paste0(
           ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)),
           if_else(SBgoals == 1, "", paste0(" (", SBgoals, ")"))
-        ) %>%
+        ) |>
           str_to_title()
-      ) %>%
+      ) |>
       summarise(scorers = paste(name, collapse = ", ", sep = ""), .by = "team")
 
-    main <- managers %>%
+    main <- managers |>
       merge(
-        weekend %>%
+        weekend |>
           summarise(total = sum(SBgoals, na.rm = T), .by = "team"),
         by = "team",
         all.x = T
-      ) %>%
+      ) |>
       merge(
-        weekend %>%
-          filter(position != "GOALKEEPER") %>%
+        weekend |>
+          filter(position != "GOALKEEPER") |>
           summarise(gf = sum(SBgoals), .by = "team"),
         by = "team",
         all.x = T
-      ) %>%
+      ) |>
       merge(
-        weekend %>%
-          filter(position == "GOALKEEPER") %>%
+        weekend |>
+          filter(position == "GOALKEEPER") |>
           summarise(ga = -sum(SBgoals), .by = "team"),
         by = "team",
         all.x = T
-      ) %>%
-      merge(scorers, .by = "team", all.x = T) %>%
+      ) |>
+      merge(scorers, .by = "team", all.x = T) |>
       mutate(
         ga = replace(ga, is.na(ga), 0),
         total = replace(total, is.na(total), 0),
         gf = replace(gf, is.na(gf), 0),
         scorers = replace(scorers, is.na(scorers), "")
-      ) %>%
-      arrange(-total, -gf) %>%
+      ) |>
+      arrange(-total, -gf) |>
       mutate(
         team_manager = paste0(team, " (", manager, ")"),
         score = paste0(total, " (", gf, "-", ga, ")")
-      ) %>%
+      ) |>
       dplyr::select(team, team_manager, total, gf, score, scorers)
 
-    res <- cupties %>%
-      mutate(rn = row_number()) %>%
-      filter(comp == input$comp_cup, round == input$round_cup) %>%
-      merge(main, by.x = "team1", by.y = "team") %>%
-      merge(main, by.x = "team2", by.y = "team") %>%
+    res <- cupties |>
+      mutate(rn = row_number()) |>
+      filter(comp == input$comp_cup, round == input$round_cup) |>
+      merge(main, by.x = "team1", by.y = "team") |>
+      merge(main, by.x = "team2", by.y = "team") |>
       mutate(
         winner = case_when(
           total.x > total.y ~ 1,
@@ -559,8 +629,8 @@ server <- function(input, output, session) {
           gf.x > gf.y ~ 1,
           gf.x < gf.y ~ 2
         )
-      ) %>%
-      arrange(rn) %>%
+      ) |>
+      arrange(rn) |>
       dplyr::select(
         team_manager.x,
         score.x,
@@ -648,17 +718,17 @@ server <- function(input, output, session) {
       "league_team_history",
       selected = input$league_teams
     )
-    teamslist = (managers %>%
-      arrange(team) %>%
+    teamslist = (managers |>
+      arrange(team) |>
       filter(league == input$league_teams))$team
 
     names(teamslist) = paste(
-      (managers %>%
-        arrange(team) %>%
+      (managers |>
+        arrange(team) |>
         filter(league == input$league_teams))$team,
       " (",
-      (managers %>%
-        arrange(team) %>%
+      (managers |>
+        arrange(team) |>
         filter(league == input$league_teams))$manager,
       ")",
       sep = ""
@@ -698,11 +768,21 @@ server <- function(input, output, session) {
     updatePickerInput(
       session,
       "comp_cup",
-      selected = cupties %>%
-        filter(comp == input$comp_cup) %>%
-        slice_max(date, with_ties = F) %>%
+      selected = cupties |>
+        filter(comp == input$comp_cup) |>
+        slice_max(date, with_ties = F) |>
         pull(round)
     )
+  })
+
+  observeEvent(input$goto_league, {
+    updateTabItems(session, "sidebar", "league")
+  })
+
+  observeEvent(input$goto_team, {
+    req(input$goto_team)
+    updateTabItems(session, "sidebar", "teams")
+    updatePickerInput(session, "team", selected = input$goto_team$team)
   })
 }
 
