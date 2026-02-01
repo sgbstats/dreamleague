@@ -186,14 +186,14 @@ ui <- dashboardPage(
               "Didsbury Cup" = "didsbury",
               "Original Cup" = "original"
             ),
-            selected = "bfl"
+            selected = "didsbury"
           ),
           pickerInput(
             "round_cup",
             "Round",
             choices = rounds,
             selected = cupties |>
-              filter(comp == "bfl") |>
+              filter(comp == "didsbury") |>
               slice_max(date, with_ties = F) |>
               pull(round),
             multiple = F
@@ -764,10 +764,10 @@ server <- function(input, output, session) {
     # updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
   })
 
-  observeEvent(input$round_cup, {
+  observeEvent(input$comp_cup, {
     updatePickerInput(
       session,
-      "comp_cup",
+      "round_cup",
       selected = cupties |>
         filter(comp == input$comp_cup) |>
         slice_max(date, with_ties = F) |>
