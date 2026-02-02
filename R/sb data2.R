@@ -118,11 +118,12 @@ player_id = player_id0 |>
   slice_min(team, with_ties = F) |>
   filter(!player_id %in% c(116945, 107014, 69468, 188923)) |>
   rbind.data.frame(tribble(
-    ~"player"          , ~"n" , ~"player_id" , ~"team"    , ~"team_id" ,
-    "BORJA SAINZ"      ,    1 ,       124408 , "FC Porto" ,        978 ,
-    "THELO AASGAARD"   ,    1 ,       133855 , "Rangers"  ,       2104 ,
-    "ARMAND LAURIENTE" ,    1 ,       111761 , "Sassuolo" ,       4692 ,
-    "HEUNG-MIN SON"    ,    1 ,        57526 , "LA FC"    ,       6693 ,
+    ~"player"          , ~"n" , ~"player_id" , ~"team"      , ~"team_id" ,
+    "BORJA SAINZ"      ,    1 ,       124408 , "FC Porto"   ,        978 ,
+    "THELO AASGAARD"   ,    1 ,       133855 , "Rangers"    ,       2104 ,
+    "ARMAND LAURIENTE" ,    1 ,       111761 , "Sassuolo"   ,       4692 ,
+    "HEUNG-MIN SON"    ,    1 ,        57526 , "LA FC"      ,       6693 ,
+    "BEN CHILWELL"     ,    1 ,        87733 , "STRASBOURG" ,       2248 ,
   ))
 
 

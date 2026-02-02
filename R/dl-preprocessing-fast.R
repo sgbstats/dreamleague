@@ -339,7 +339,10 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
   outfield$SBgoals <- map_dbl(outfield_results, ~ .x$SBgoals %||% 0)
   outfield$SBapp <- map_dbl(outfield_results, ~ .x$SBapp %||% 0)
   weekly <- map_df(outfield_results, "weekly")
-  #
+
+  outfield = outfield |>
+    mutate(SBgoals = if_else(player == "NICOLAS JACKSON", 0, SBgoals))
+
   test = outfield |>
     filter(goals != SBgoals, !is.na(player_id)) |>
     select(position, player, team, goals, SBgoals, player_id) |>
