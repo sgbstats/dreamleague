@@ -292,7 +292,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           filter(
             Date > outfield$bought2[i],
             Date <= outfield$sold2[i],
-            Date < as.Date(cut_time)
+            Date <= as.Date(cut_time)
           ) |>
           mutate(
             Goals = as.numeric(V7),
@@ -435,7 +435,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           filter(
             date > gk$bought2[i],
             date <= gk$sold2[i],
-            # date < as.Date(cut_time),
+            date <= as.Date(cut_time),
             !is.na(H)
           )
 
