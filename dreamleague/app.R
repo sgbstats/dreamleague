@@ -568,7 +568,9 @@ server <- function(input, output, session) {
     weekend = daily |>
       filter(
         Date >= date,
-        Date <= date + lubridate::days(3)
+        Date <= date + lubridate::days(3),
+        Date >= bought2,
+        Date <= sold2
       )
 
     scorers = weekend |>
