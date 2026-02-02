@@ -3,35 +3,36 @@ library(tidyverse)
 library(RCurl)
 library(readxl)
 library(openxlsx)
-# library(beepr)
-# library(chron)
 library(tibble)
 library(chron)
 library(googlesheets4)
 library(rvest)
-`%notin%` = Negate(`%in%`)
+library(doFuture)
+library(future)
+library(foreach)
+
 
 scraplinks <- function(url) {
   # Create an html document from the url
   webpage <- xml2::read_html(url)
   # Extract the URLs
-  url_ <- webpage %>%
-    rvest::html_nodes("a") %>%
+  url_ <- webpage |>
+    rvest::html_nodes("a") |>
     rvest::html_attr("href")
   # Extract the link text
-  link_ <- webpage %>%
-    rvest::html_nodes("a") %>%
+  link_ <- webpage |>
+    rvest::html_nodes("a") |>
     rvest::html_text()
   return(tibble(link = link_, url = url_))
 }
 
-team_id = scraplinks("https://www.soccerbase.com/teams/home.sd") %>%
-  filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) %>%
+team_id = scraplinks("https://www.soccerbase.com/teams/home.sd") |>
+  filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) |>
   mutate(
     team_id = as.numeric(stringi::stri_extract_first_regex(url, "[0-9]+"))
-  ) %>%
-  select(-url) %>%
-  rename("team" = "link") %>%
+  ) |>
+  select(-url) |>
+  rename("team" = "link") |>
   mutate(
     team = case_when(
       team == "AFC W'bledon" ~ "Wimbledon",
@@ -53,54 +54,47 @@ team_id = scraplinks("https://www.soccerbase.com/teams/home.sd") %>%
     )
   )
 
-t = 0
-player_id0 = tribble(
-  ~player , ~player_id , ~team , ~team_id
-)
-for (i in 1:nrow(team_id)) {
-  skip_to_next <- FALSE
+plan(multisession, workers = availableCores() / 2)
 
-  cat(paste0(team_id$team[i], "\n"))
-  tryCatch(
-    {
-      url = paste(
-        "https://www.soccerbase.com/teams/team.sd?team_id=",
-        team_id$team_id[i],
-        sep = ""
-      )
-      players0 = scraplinks(url = url) %>%
-        mutate(n = row_number())
+player_id0 <- foreach(i = 1:nrow(team_id), .combine = 'rbind') %dopar%
+  {
+    cat(paste0(team_id$team[i], "\n"))
 
-      #find where the junk starts
-      rn = (players0 %>%
-        filter(grepl("tourn_id", url, ignore.case = T)) %>%
-        slice_min(n))$n
-      players = players0 %>%
-        filter(n < rn, grepl("player_id", url), !is.na(link)) %>%
-        mutate(
-          player_id = as.numeric(stringi::stri_extract_first_regex(
-            url,
-            "[0-9]+"
-          ))
-        ) %>%
-        select(-url) %>%
-        rename("player" = "link")
-    },
-    error = function(e) {
-      skip_to_next <<- TRUE
-    }
-  )
+    players <- tryCatch(
+      {
+        url <- paste0(
+          "https://www.soccerbase.com/teams/team.sd?team_id=",
+          team_id$team_id[i]
+        )
 
-  if (skip_to_next) {
-    next
-  }
-  player_id0 = player_id0 %>%
-    rbind.data.frame(
-      players %>% mutate(team = team_id$team[i], team_id = team_id$team_id[i])
+        players0 <- scraplinks(url = url) |>
+          mutate(n = row_number())
+
+        rn <- (players0 |>
+          filter(grepl("tourn_id", url, ignore.case = TRUE)) |>
+          slice_min(n))$n
+
+        players0 |>
+          filter(n < rn, grepl("player_id", url), !is.na(link)) |>
+          mutate(
+            player_id = as.numeric(stringi::stri_extract_first_regex(
+              url,
+              "[0-9]+"
+            ))
+          ) |>
+          select(-url) |>
+          rename("player" = "link") |>
+          mutate(team = team_id$team[i], team_id = team_id$team_id[i])
+      },
+      error = function(e) {
+        NULL
+      }
     )
-}
 
-player_id = player_id0 %>%
+    players
+  }
+
+player_id = player_id0 |>
   mutate(
     player = case_when(
       player == "Ali Ibrahim Ali Al Hamadi" ~ "Ali Al Hamadi",
@@ -112,17 +106,17 @@ player_id = player_id0 %>%
       player_id == 151107 ~ "IGOR THIAGO",
       T ~ player
     )
-  ) %>%
-  mutate(player = str_to_upper(player)) %>%
-  mutate(team = str_to_upper(team)) %>%
+  ) |>
+  mutate(player = str_to_upper(player)) |>
+  mutate(team = str_to_upper(team)) |>
   # rbind(tribble(~"player", ~"n", ~"player_id", ~"team", ~"team_id",
   #               "HARRY KANE", NA_integer_, 52657, "BAYERN MUNICH", 469,
   #               "CHUBA AKPOM", NA_integer_, 68532, "AJAX", 80,
   #               "NATHAN TELLA", NA_integer_, 107792, "BAYER LEVERKUSEN", 468,
-  #               "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) %>%
-  group_by(player_id) %>%
-  slice_min(team, with_ties = F) %>%
-  filter(player_id %notin% c(116945, 107014, 69468, 188923)) %>%
+  #               "OSCAR ESTUPINAN", NA_integer_, 104942, "METZ", 1772)) |>
+  group_by(player_id) |>
+  slice_min(team, with_ties = F) |>
+  filter(!player_id %in% c(116945, 107014, 69468, 188923)) |>
   rbind.data.frame(tribble(
     ~"player"          , ~"n" , ~"player_id" , ~"team"    , ~"team_id" ,
     "BORJA SAINZ"      ,    1 ,       124408 , "FC Porto" ,        978 ,
@@ -132,7 +126,7 @@ player_id = player_id0 %>%
   ))
 
 
-team_id = team_id %>% mutate(team = str_to_upper(team))
+team_id = team_id |> mutate(team = str_to_upper(team))
 
 
 mostrecent = max(list.files(
@@ -148,11 +142,11 @@ mostrecent = max(list.files(
 
 load(paste("data/legacy/playerdata/", mostrecent, sep = ""))
 
-player_id = player_id %>%
-  rbind.data.frame(legacy) %>%
-  group_by(player_id) %>%
-  slice_min(team, with_ties = F) %>%
-  filter(player_id %notin% c())
+player_id = player_id |>
+  # rbind.data.frame(legacy) |>
+  group_by(player_id) |>
+  slice_min(team, with_ties = F) |>
+  filter(!player_id %in% c())
 
 legacy = player_id
 save(

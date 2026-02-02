@@ -4,9 +4,12 @@ library(RCurl)
 library(XML)
 library(googlesheets4)
 library(fuzzyjoin)
-`%notin%` = Negate(`%in%`)
+library(furrr)
+library(future)
+library(crayon)
+
+
 # setwd("C:/R/git/dreamleague")
-tictoc::tic()
 
 load("data/ids.RDa")
 
@@ -47,32 +50,25 @@ comps <<- c(
   "English Div 1 \\(old\\)",
   "Charity Shield"
 )
-for (i in 1:nrow(player_id2)) {
-  # for(i in 1:100)
-  skip_to_next <- FALSE
-  # if(is.na(player_id2$id[i])){next}
+plan(multisession, workers = availableCores() / 2)
 
-  url = paste(
-    "https://www.soccerbase.com/players/player.sd?player_id=",
-    player_id2$player_id[i],
-    "&season_id=158",
-    sep = ""
+results <- furrr::future_map(1:nrow(player_id2), .f = function(i) {
+  url = glue::glue(
+    "https://www.soccerbase.com/players/player.sd?player_id={player_id2$player_id[i]}&season_id=158"
   )
   link = RCurl::getURL(url)
   cat(paste(i, player_id$player[i], "\n"))
+
+  position <- NA
+  SBgoals <- NA
+  SBapp <- NA
+  weekly_report_rows <- NULL
+
   tryCatch(
     {
       tables = readHTMLTable(link)
-      player_id2$position[i] = stringr::word(tables[[1]], 1)
-      # if(player_id2$player_id[i]==75804)
-      # {
-      #   tables$tpg$V7[5]="1"
-      # }
-      #
-      # if(player_id2$player_id[i]==52657)
-      # {
-      #   tables$tpg$V7=""
-      # }
+      position = stringr::word(tables[[1]], 1)
+
       appgoals = (tables$tpg) |>
         filter(V1 %in% comps) |>
         mutate(Date = as.Date(substr(V2, 4, 13), "%d%b %Y")) |>
@@ -87,27 +83,45 @@ for (i in 1:nrow(player_id2)) {
       appgoals2 = appgoals |>
         summarise(App = sum(App, na.rm = T), Goals = sum(Goals, na.rm = T))
 
-      player_id2$SBgoals[i] = appgoals2[1, 2]
+      SBgoals = appgoals2[1, 2]
+      SBapp = appgoals2[1, 1]
 
-      player_id2$SBapp[i] = appgoals2[1, 1]
+      weekly_report_rows = appgoals |>
+        select(player_id, Date, Goals, App, team)
 
-      weeklyreport = rbind(
-        weeklyreport,
-        appgoals |> select(player_id, Date, Goals, App, team)
-      )
-
-      cat(paste(player_id2$SBgoals[i], "\n"))
+      cat(paste(SBgoals, "\n"))
     },
     error = function(e) {
-      skip_to_next <<- TRUE
       warning("Error")
     }
   )
 
-  if (skip_to_next) {
-    next
-  }
+  list(
+    player_update = data.frame(
+      i = i,
+      position = position,
+      SBgoals = SBgoals,
+      SBapp = SBapp
+    ),
+    weekly_report_rows = weekly_report_rows
+  )
+})
+
+player_updates <- dplyr::bind_rows(lapply(results, `[[`, "player_update"))
+weekly_report_rows <- dplyr::bind_rows(lapply(
+  results,
+  `[[`,
+  "weekly_report_rows"
+))
+
+if (nrow(player_updates) > 0) {
+  player_id2$position[player_updates$i] <- player_updates$position
+  player_id2$SBgoals[player_updates$i] <- player_updates$SBgoals
+  player_id2$SBapp[player_updates$i] <- player_updates$SBapp
 }
+
+weeklyreport <- weekly_report_rows
+
 
 load("dreamleague/data.RDa")
 
@@ -126,21 +140,19 @@ tictoc::toc()
 
 save(player_id_scout, file = "data/scouting/scoutingdata.RDa")
 
-source("R/dl-preprocessing.R")
+source("R/dl-preprocessing-fast.R")
 team_id$SBgoals = NA_integer_
 team_id$SBapp = NA_integer_
-for (i in 1:nrow(team_id)) {
-  skip_to_next <- FALSE
-  # if(is.na(outfield$id[i])){next}
-
-  url = paste(
-    "https://www.soccerbase.com/teams/team.sd?team_id=",
-    team_id$team_id[i],
-    "&teamTabs=results&season_id=158",
-    sep = ""
+team_updates <- furrr::future_map_dfr(1:nrow(team_id), .f = function(i) {
+  url = glue::glue(
+    "https://www.soccerbase.com/teams/team.sd?team_id={team_id$team_id[i]}&teamTabs=results&season_id=158"
   )
 
   cat(paste0(team_id$team[i], "\n"))
+
+  SBgoals <- NA
+  SBapp <- NA
+
   tryCatch(
     {
       sl = scraplinks2(url)
@@ -161,21 +173,25 @@ for (i in 1:nrow(team_id)) {
 
       x2 = x |>
         summarise(Goals = sum(concede, na.rm = T), App = sum(App, na.rm = T))
-      team_id$SBgoals[i] = x2[1, 1]
-      team_id$SBapp[i] = x2[1, 2]
+
+      SBgoals = x2[1, 1]
+      SBapp = x2[1, 2]
 
       cat(blue(paste0(x2[1, 1], "\n")))
     },
     error = function(e) {
-      skip_to_next <<- TRUE
       cat(red("Error\n"))
     }
   )
 
-  if (skip_to_next) {
-    next
-  }
+  data.frame(i = i, SBgoals = SBgoals, SBapp = SBapp)
+})
+
+if (nrow(team_updates) > 0) {
+  team_id$SBgoals[team_updates$i] <- team_updates$SBgoals
+  team_id$SBapp[team_updates$i] <- team_updates$SBapp
 }
+
 
 team_id |>
   arrange(-SBgoals) |>
