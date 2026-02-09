@@ -197,7 +197,8 @@ ui <- dashboardPage(
               slice_max(date, with_ties = F) |>
               pull(round),
             multiple = F
-          )
+          ),
+          uiOutput("round_date2")
         ),
         mainPanel(
           tags$div(
@@ -702,6 +703,22 @@ server <- function(input, output, session) {
       },
       defaultColDef = colDef(header = NULL)
     )
+  })
+
+  output$round_date2 <- renderUI({
+    rd <- cupties |>
+      dplyr::filter(round == input$round_cup, comp == input$comp_cup) |>
+      dplyr::slice_head(n = 1) |>
+      dplyr::pull(date)
+
+    req(rd)
+
+    HTML(paste0(
+      "Round date: ",
+      format(rd, format = "%d"),
+      "-",
+      format(rd + 3, format = "%d %b")
+    ))
   })
   # maintaining pickers across tabs
   observeEvent(input$league, {
