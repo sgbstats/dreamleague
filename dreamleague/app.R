@@ -191,12 +191,16 @@ ui <- dashboardPage(
           pickerInput(
             "round_cup",
             "Round",
-            choices = rounds,
-            selected = cupties |>
-              filter(comp == "didsbury") |>
-              slice_max(date, with_ties = F) |>
+            choices = cupties %>%
+              filter(comp == "didsbury") %>%
+              arrange(date) %>%
+              pull(round) %>%
+              unique(),
+            selected = cupties %>%
+              filter(comp == "didsbury") %>%
+              slice_max(date, with_ties = FALSE) %>%
               pull(round),
-            multiple = F
+            multiple = FALSE
           ),
           uiOutput("round_date2")
         ),
@@ -712,13 +716,21 @@ server <- function(input, output, session) {
       dplyr::pull(date)
 
     req(rd)
-
-    HTML(paste0(
-      "Round date: ",
-      format(rd, format = "%d"),
-      "-",
-      format(rd + 3, format = "%d %b")
-    ))
+    if (month(rd) == month(rd + 3)) {
+      HTML(paste0(
+        "Round date: ",
+        format(rd, format = "%d"),
+        "-",
+        format(rd + 3, format = "%d %b")
+      ))
+    } else {
+      HTML(paste0(
+        "Round date: ",
+        format(rd, format = "%d %b"),
+        "-",
+        format(rd + 3, format = "%d %b")
+      ))
+    }
   })
   # maintaining pickers across tabs
   observeEvent(input$league, {
@@ -784,13 +796,24 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$comp_cup, {
+    rounds_for_comp <- cupties %>%
+      filter(comp == input$comp_cup) %>%
+      arrange(date) %>%
+      pull(round) %>%
+      unique()
+
+    # pick the most recent round as default (if any)
+    selected_round <- if (length(rounds_for_comp) > 0) {
+      rounds_for_comp[length(rounds_for_comp)]
+    } else {
+      NULL
+    }
+
     updatePickerInput(
       session,
       "round_cup",
-      selected = cupties |>
-        filter(comp == input$comp_cup) |>
-        slice_max(date, with_ties = F) |>
-        pull(round)
+      choices = rounds_for_comp,
+      selected = selected_round
     )
   })
 
