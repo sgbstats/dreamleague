@@ -118,12 +118,17 @@ player_id = player_id0 |>
   slice_min(team, with_ties = F) |>
   filter(!player_id %in% c(116945, 107014, 69468, 188923)) |>
   rbind.data.frame(tribble(
-    ~"player"          , ~"n" , ~"player_id" , ~"team"      , ~"team_id" ,
-    "BORJA SAINZ"      ,    1 ,       124408 , "FC Porto"   ,        978 ,
-    "THELO AASGAARD"   ,    1 ,       133855 , "Rangers"    ,       2104 ,
-    "ARMAND LAURIENTE" ,    1 ,       111761 , "Sassuolo"   ,       4692 ,
-    "HEUNG-MIN SON"    ,    1 ,        57526 , "LA FC"      ,       6693 ,
-    "BEN CHILWELL"     ,    1 ,        87733 , "STRASBOURG" ,       2248 ,
+    ~"player"            , ~"n" , ~"player_id" , ~"team"            , ~"team_id"  ,
+    "BORJA SAINZ"        ,    1 ,       124408 , "FC Porto"         ,         978 ,
+    "THELO AASGAARD"     ,    1 ,       133855 , "Rangers"          ,        2104 ,
+    "ARMAND LAURIENTE"   ,    1 ,       111761 , "Sassuolo"         ,        4692 ,
+    "HEUNG-MIN SON"      ,    1 ,        57526 , "LA FC"            ,        6693 ,
+    "BEN CHILWELL"       ,    1 ,        87733 , "STRASBOURG"       ,        2248 ,
+    "JOSH BROWNHILL"     ,    1 ,        73078 , "AL SHABAB"        , NA_integer_ ,
+    "CHRISTOPHER NKUNKU" ,    1 ,        85336 , "MILAN"            ,          41 ,
+    "JAKE TABOR"         ,    1 ,       207149 , "EASTLEIGH"        ,        4252 ,
+    "NICOLAS JACKSON"    ,    1 ,       134733 , "BAYERN MUNICH"    ,         469 ,
+    "RUEL SOTIRIOU"      ,    1 ,       108565 , "HAPOEL JERUSALEM" ,        7276
   ))
 
 
@@ -144,7 +149,7 @@ mostrecent = max(list.files(
 load(paste("data/legacy/playerdata/", mostrecent, sep = ""))
 
 player_id = player_id |>
-  # rbind.data.frame(legacy) |>
+  rbind.data.frame(legacy) |>
   group_by(player_id) |>
   slice_min(team, with_ties = F) |>
   filter(!player_id %in% c())

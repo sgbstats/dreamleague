@@ -178,7 +178,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         player == "DAN JAMES" ~ "DANIEL JAMES",
         player == "MANNY MONTHE" ~ "EMMANUEL MONTHE",
         player == "STRAND LARSEN" ~ "JORGEN STRAND LARSEN",
-        player == "ELI KROUPI" ~ "JUNIOR KROUPI",
+        player == "ELI JUNIOR KROUPI" ~ "JUNIOR KROUPI",
         T ~ player
       )
     )

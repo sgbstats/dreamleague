@@ -191,14 +191,14 @@ ui <- dashboardPage(
           pickerInput(
             "round_cup",
             "Round",
-            choices = cupties %>%
-              filter(comp == "didsbury") %>%
-              arrange(date) %>%
-              pull(round) %>%
+            choices = cupties |>
+              filter(comp == "didsbury") |>
+              arrange(date) |>
+              pull(round) |>
               unique(),
-            selected = cupties %>%
-              filter(comp == "didsbury") %>%
-              slice_max(date, with_ties = FALSE) %>%
+            selected = cupties |>
+              filter(comp == "didsbury") |>
+              slice_max(date, with_ties = FALSE) |>
               pull(round),
             multiple = FALSE
           ),
@@ -796,10 +796,10 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$comp_cup, {
-    rounds_for_comp <- cupties %>%
-      filter(comp == input$comp_cup) %>%
-      arrange(date) %>%
-      pull(round) %>%
+    rounds_for_comp <- cupties |>
+      filter(comp == input$comp_cup) |>
+      arrange(date) |>
+      pull(round) |>
       unique()
 
     # pick the most recent round as default (if any)
