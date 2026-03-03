@@ -5,6 +5,6 @@ account: sgbstats
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 14010720
-bundleId: 11629124
+bundleId: 11654681
 url: https://sgbstats.shinyapps.io/dreamleague/
 version: 1
