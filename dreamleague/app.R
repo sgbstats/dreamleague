@@ -402,7 +402,7 @@ server <- function(input, output, session) {
           summarise(total = sum(SBgoals), .by = c("team", "league")),
         by = c("team", "league"),
         all = TRUE
-      ) |
+      ) |>
       merge(
         period |>
           filter(position != "GOALKEEPER") |>
@@ -410,17 +410,17 @@ server <- function(input, output, session) {
         by = c("team", "league"),
         all = TRUE
       ) |>
-        merge(
-          period |>
-            filter(position == "GOALKEEPER") |>
-            summarise(ga = -sum(SBgoals), .by = c("team", "league")),
-          by = c("team", "league"),
-          all = TRUE
-        ) |>
-        mutate(across(where(is.numeric), ~ tidyr::replace_na(., 0))) |>
-        filter(league == input$league_team_history) |>
-        select(-league) |>
-        arrange(-total, -gf)
+      merge(
+        period |>
+          filter(position == "GOALKEEPER") |>
+          summarise(ga = -sum(SBgoals), .by = c("team", "league")),
+        by = c("team", "league"),
+        all = TRUE
+      ) |>
+      mutate(across(where(is.numeric), ~ tidyr::replace_na(., 0))) |>
+      filter(league == input$league_team_history) |>
+      select(-league) |>
+      arrange(-total, -gf)
 
     scorers2 = period |>
       filter(league == input$league_team_history) |>
