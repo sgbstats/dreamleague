@@ -12,6 +12,7 @@ library(dplyr)
 library(DT)
 library(shinyjs)
 library(reactable)
+library(glue)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
 googledrive::drive_auth(
@@ -170,6 +171,7 @@ ui <- dashboardPage(
             )
           ),
           mainPanel(
+            uiOutput("player_warning"),
             reactableOutput("playerstaken")
           )
         )
@@ -562,6 +564,31 @@ server <- function(input, output, session) {
       "<br>Original: ",
       format(time$mod_o, format = "%Y-%m-%d %H:%M:%S")
     ))
+  })
+
+  output$player_warning <- renderUI({
+    req(time, input$league_players)
+    last_mod <- if (isTRUE(input$league_players == "didsbury")) {
+      time$mod_d
+    } else {
+      time$mod_o
+    }
+
+    tags$div(
+      class = "alert alert-warning alert-dismissible",
+      role = "alert",
+      style = "margin:0; padding:8px 12px;",
+      HTML(glue::glue(
+        "This table was last updated on {format(last_mod, '%Y-%m-%d %H:%M:%S')}; transfers since then will not be reflected here."
+      )),
+      tags$button(
+        type = "button",
+        class = "close",
+        `data-dismiss` = "alert",
+        `aria-label` = "Close",
+        tags$span(`aria-hidden` = "true", HTML("&times;"))
+      )
+    )
   })
 
   output$cup <- renderReactable({
