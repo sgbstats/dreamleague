@@ -9,6 +9,7 @@ library(furrr)
 library(future)
 library(rvest)
 library(httr)
+library(glue)
 
 scraplinks2 <- function(url) {
   headers = c(
@@ -25,7 +26,7 @@ scraplinks2 <- function(url) {
 
   x = tables[[2]] |> html_table()
 
-  x <- x[-1:-2, ]
+  # x <- x[-1:-2, ]
   names(x) <- c(
     "Competition",
     "date",
@@ -51,9 +52,10 @@ scraplinks2 <- function(url) {
     mutate(
       Home = str_trim(str_extract(Home, "^([^0-9]+)")),
       Away = str_trim(str_extract(Away, "^([^0-9]+)")),
-      date = substr(date, 14, 24) |>
-        as.Date()
+      date = substr(date, 14, 23)
     ) |>
+    filter(grepl("^\\d{4}-\\d{2}-\\d{2}$", date)) |>
+    mutate(date = as.Date(date)) |>
     separate(score, into = c("H", "A"), sep = "-") |>
     drop_na(date) |>
     filter(!grepl("P", H)) |>
@@ -67,7 +69,13 @@ scraplinks2 <- function(url) {
 }
 
 #use cuttime to allow roll back of goals to check for mistaches
-dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
+dl_process = function(
+  dl,
+  managers,
+  league,
+  cut_time = Sys.Date(),
+  season_id = 159
+) {
   # tictoc::tic()
   comps <<- c(
     "English premier",
@@ -222,15 +230,15 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         case_when(
           grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought) ~ paste(
             bought,
-            "-2025",
+            glue("-{season_id+1867}"),
             sep = ""
           ),
           grepl("Jan|Feb|Mar|Apr|May|Jun", bought) ~ paste(
             bought,
-            "-2026",
+            glue("-{season_id+1868}"),
             sep = ""
           ),
-          T ~ "01-Jul-2025"
+          T ~ glue("01-Jul-{season_id+1867}")
         ),
         "%d-%b-%Y"
       ),
@@ -238,15 +246,15 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         case_when(
           grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold) ~ paste(
             sold,
-            "-2025",
+            glue("-{season_id+1867}"),
             sep = ""
           ),
           grepl("Jan|Feb|Mar|Apr|May|Jun", sold) ~ paste(
             sold,
-            "-2026",
+            glue("-{season_id+1868}"),
             sep = ""
           ),
-          T ~ "30-Jun-2026"
+          T ~ glue("30-Jun-{season_id+1868}")
         ),
         "%d-%b-%Y"
       )
@@ -280,7 +288,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
       }
 
       url <- glue::glue(
-        "https://www.soccerbase.com/players/player.sd?player_id={outfield$player_id[i]}&season_id=158"
+        "https://www.soccerbase.com/players/player.sd?player_id={outfield$player_id[i]}&season_id={season_id}"
       )
 
       cat(paste0(outfield$player[i], "\n"))
@@ -349,7 +357,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     rename("BCgoals" = "goals") |>
     mutate(
       url = glue::glue(
-        "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id=158"
+        "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id={season_id}"
       )
     )
   # load("Data/team_id.RDa")
@@ -385,15 +393,15 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         case_when(
           grepl("Jul|Aug|Sep|Oct|Nov|Dec", bought) ~ paste(
             bought,
-            "-2025",
+            glue("-{season_id+1867}"),
             sep = ""
           ),
           grepl("Jan|Feb|Mar|Apr|May|Jun", bought) ~ paste(
             bought,
-            "-2026",
+            glue("-{season_id+1868}"),
             sep = ""
           ),
-          T ~ "01-Jul-2025"
+          T ~ glue("01-Jul-{season_id+1867}")
         ),
         "%d-%b-%Y"
       ),
@@ -401,15 +409,15 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
         case_when(
           grepl("Jul|Aug|Sep|Oct|Nov|Dec", sold) ~ paste(
             sold,
-            "-2025",
+            glue("-{season_id+1867}"),
             sep = ""
           ),
           grepl("Jan|Feb|Mar|Apr|May|Jun", sold) ~ paste(
             sold,
-            "-2026",
+            glue("-{season_id+1868}"),
             sep = ""
           ),
-          T ~ "30-Jun-2026"
+          T ~ glue("30-Jun-{season_id+1868}")
         ),
         "%d-%b-%Y"
       )
@@ -424,7 +432,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
       }
 
       url <- glue::glue(
-        "https://www.soccerbase.com/teams/team.sd?team_id={gk$team_id[i]}&teamTabs=results&season_id=158"
+        "https://www.soccerbase.com/teams/team.sd?team_id={gk$team_id[i]}&teamTabs=results&season_id={season_id}"
       )
 
       cat(paste0(gk$club[i], "\n"))
@@ -478,8 +486,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
           return(NULL)
         },
         warning = function(w) {
-          cat(red("Warning for ", gk$club[i], "\n"))
-          return(NULL)
+          cat(red("Warning for", gk$club[i], "\n"))
         }
       )
     },
@@ -498,7 +505,7 @@ dl_process = function(dl, managers, league, cut_time = Sys.Date()) {
     rename("BCgoals" = "goals") |>
     mutate(
       url = glue::glue(
-        "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id=158"
+        "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id={season_id}"
       )
     )
 
