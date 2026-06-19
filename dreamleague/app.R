@@ -14,22 +14,30 @@ library(shinyjs)
 library(reactable)
 library(glue)
 
-options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
-googledrive::drive_auth(
-  path = "credentials.json"
-)
-googledrive::drive_download(
-  googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),
-  path = "data.RDa",
-  overwrite = T
-)
-load("data.RDa")
+if (nzchar(Sys.getenv("SHINY_TEST_MODE"))) {
+  load("tests/testthat/fixtures/data.RDa")
+} else {
+  options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
+  googledrive::drive_auth(
+    path = "credentials.json"
+  )
+  googledrive::drive_download(
+    googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),
+    path = "data.RDa",
+    overwrite = T
+  )
+  load("data.RDa")
+}
 weeks = seq.Date(as.Date("2025-07-28"), by = 7, length.out = 52)
 weeks2 = weeks[weeks <= Sys.Date()]
 weekschar = format(weeks2, format = "%d-%b")
 names(weeks2) = weekschar
 
-load("managers.RDa")
+if (nzchar(Sys.getenv("SHINY_TEST_MODE"))) {
+  load("tests/testthat/fixtures/managers.RDa")
+} else {
+  load("managers.RDa")
+}
 
 managers = rbind.data.frame(
   managers_d |> mutate(league = "didsbury"),
