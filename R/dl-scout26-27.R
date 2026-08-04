@@ -9,6 +9,7 @@ library(tibble)
 library(chron)
 library(googlesheets4)
 library(rvest)
+library(future.apply)
 
 
 scraplinks <- function(url) {
@@ -117,6 +118,7 @@ player_id <- player_id0 |>
       player == "Joshua Sargent" ~ "Josh Sargent",
       player == "Mo Eisa" ~ "Mohamed Eisa",
       player == "Iyenoma Destiny Udogie" ~ "Destiny Udogie",
+      player == "Gabriel" ~ "Gabriel Magalhaes",
       T ~ player
     )
   ) |>
@@ -187,6 +189,7 @@ data3 <- data2 |>
     gk |>
       janitor::clean_names() |>
       dplyr::select(-total, -pos) |>
+      mutate(club = str_trim(club)) |>
       rename("team" = "club"),
     by = "team"
   ) |>
@@ -213,24 +216,25 @@ data1 |> count(player, club, pos) |> filter(n > 1)
 player_id2 <- player_id |>
   mutate(position = "", SBgoals = 0, SBapp = 0)
 
-for (i in 1:nrow(player_id2)) {
-  # for(i in 1:100)
+future::plan(future::multisession)
+
+scrape_player <- function(i) {
   skip_to_next <- FALSE
-  # if(is.na(player_id2$id[i])){next}
 
   url <- paste(
     "https://www.soccerbase.com/players/player.sd?player_id=",
     player_id2$player_id[i],
-    "&season_id=157",
+    "&season_id=158",
     sep = ""
   )
   link <- RCurl::getURL(url)
 
-  cat(paste(i, player_id$player[i], "\n"))
+  message(i, " ", player_id$player[i])
+
   tryCatch(
     {
       tables <- readHTMLTable(link)
-      player_id2$position[i] <- stringr::word(tables[[1]], 1)
+      position <- stringr::word(tables[[1]], 1)
       if (player_id2$player_id[i] == 75804) {
         tables$tpg$V7[5] <- "1"
       }
@@ -276,32 +280,44 @@ for (i in 1:nrow(player_id2)) {
       appgoals2 <- appgoals |>
         summarise(App = sum(App, na.rm = T), Goals = sum(Goals, na.rm = T))
 
-      player_id2$SBgoals[i] <- appgoals2[1, 2]
-
-      player_id2$SBapp[i] <- appgoals2[1, 1]
-
-      weeklyreport <- rbind(
-        weeklyreport,
-        appgoals |> select(player_id, Date, Goals, App, team)
+      list(
+        i = i,
+        position = position,
+        SBgoals = appgoals2[1, 2],
+        SBapp = appgoals2[1, 1],
+        weeklyreport = appgoals |> select(player_id, Date, Goals, App, team)
       )
-
-      print(player_id2$SBgoals[i])
     },
     error = function(e) {
-      skip_to_next <<- TRUE
       warning("Error")
+      list(
+        i = i,
+        position = NA_character_,
+        SBgoals = NA_real_,
+        SBapp = NA_real_,
+        weeklyreport = tibble()
+      )
     }
   )
-
-  if (skip_to_next) {
-    next
-  }
 }
+
+results <- future.apply::future_lapply(seq_len(nrow(player_id2)), scrape_player)
+
+for (res in results) {
+  player_id2$position[res$i] <- res$position
+  player_id2$SBgoals[res$i] <- res$SBgoals
+  player_id2$SBapp[res$i] <- res$SBapp
+}
+
+weeklyreport <- bind_rows(lapply(results, `[[`, "weeklyreport"))
+
+
 save(player_id2, file = "data/sbdata.RDa")
 data1 <- union_all(def, mid) |>
   union(forwards) |>
   janitor::clean_names() |>
   mutate(rn = row_number())
+
 data2 <- player_id2 |>
   filter(position != "Goalkeeper") |>
   fuzzyjoin::stringdist_join(
@@ -312,7 +328,10 @@ data2 <- player_id2 |>
     distance_col = "dist"
   ) |>
   ungroup() |>
-  slice_min(order_by = dist, n = 1, by = "player.x")
+  slice_min(order_by = dist, n = 1, by = "player.y") |>
+  arrange(rn)
+
+
 data3 <- data2 |>
   filter(SBgoals > 0, position != "Goalkeeper") |>
   mutate(
@@ -323,6 +342,36 @@ data3 <- data2 |>
     ),
     pos = factor(pos, levels = c("D", "M", "F"), ordered = T)
   ) |>
-  arrange(pos, rn, -total)
+  arrange(pos, rn, -total) |>
+  select(-SBgoals) |>
+  mutate(team = str_to_title(team), club = str_to_title(club)) |>
+  merge(
+    gk |>
+      janitor::clean_names() |>
+      dplyr::select(-total, -pos) |>
+      mutate(club = str_trim(club) |> str_to_title()),
+    by = "club",
+    all.x = T
+  ) |>
+  arrange(rn) |>
+  mutate(
+    check_needed = dist > 0 & team != club,
+    pos_mismatch = if_else(!check_needed & position != pos, TRUE, NA),
+    new_team = if_else(!check_needed & club != team, team, NA_character_)
+  ) |>
+  select(
+    pos,
+    player.y,
+    club,
+    total,
+    league,
+    notes,
+    new_team,
+    SBapp,
+    player_id,
+    check_needed,
+    pos_mismatch
+  ) |>
+  mutate(check_needed = if_else(check_needed, T, NA))
 
-write.csv(data3, "data/sbdata2526.csv")
+write.csv(data3, "data/sbdata2627.csv", na = "", row.names = FALSE)

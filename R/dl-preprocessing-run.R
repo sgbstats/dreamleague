@@ -35,7 +35,7 @@ managers_d = readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
 
 mod_d = file.info(file_d)$mtime
 cat("Didsbury\n")
-out_d = dl_process(dl_d, managers_d, "Didsbury")
+out_d = dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
 file_o = "data/DL25-26.xlsx"
