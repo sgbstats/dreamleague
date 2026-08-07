@@ -35,7 +35,9 @@ managers_d <- readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
 
 mod_d <- file.info(file_d)$mtime
 cat("Didsbury\n")
-out_d <- dl_process(dl_d, managers_d, "Didsbury")
+
+out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 158)
+
 
 
 file_o <- "data/DL25-26.xlsx"
@@ -71,7 +73,9 @@ dl_o <- dl_o |>
   )
 
 
-out_o <- dl_process(dl_o, managers_o, "Original")
+
+out_o <- dl_process(dl_o, managers_o, "Original", season_id = 158)
+
 
 dl_d <- out_d$scores
 dl_o <- out_o$scores
@@ -83,40 +87,112 @@ cupties <- read.csv("data/cupties.csv") |>
   mutate(date = as.Date(date, format = "%d/%m/%Y")) |>
   mutate(across(where(is.character), trimws))
 
+managers <- rbind.data.frame(
+  managers_d |> mutate(league = "didsbury"),
+  managers_o |> mutate(league = "original")
+)
+save(managers_d, managers_o, file = "dreamleague/managers.RDa")
+
+googledrive::drive_auth(
+  # email = TRUE,
+  path = "credentials.json",
+  subject = NULL,
+  scopes = "drive",
+  cache = gargle::gargle_oauth_cache(),
+  use_oob = gargle::gargle_oob_default(),
+  token = NULL
+)
+
+shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
+shared_drive_path <- if (nzchar(shared_drive_target)) {
+  if (grepl("^[A-Za-z0-9_-]{20,}$", shared_drive_target)) {
+    googledrive::as_id(shared_drive_target)
+  } else {
+    googledrive::drive_get(shared_drive_target)
+  }
+} else {
+  warning(
+    "DREAMLEAGUE_SHARED_DRIVE_TARGET is not set; skipping Drive upload.",
+    call. = FALSE
+  )
+  NULL
+}
+
+upload_to_drive <- function(local_file, remote_name) {
+  if (is.null(shared_drive_path)) {
+    return(invisible(NULL))
+  }
+
+  existing <- tryCatch(
+    googledrive::drive_ls(shared_drive_path) |>
+      dplyr::filter(.data$name == remote_name) |>
+      dplyr::slice_head(n = 1),
+    error = function(e) NULL
+  )
+
+  tryCatch(
+    if (!is.null(existing) && nrow(existing) > 0) {
+      googledrive::drive_update(existing[1, ], media = local_file)
+    } else {
+      googledrive::drive_upload(
+        local_file,
+        path = shared_drive_path,
+        name = remote_name
+      )
+    },
+    error = function(e) {
+      if (
+        grepl(
+          "storageQuotaExceeded|Service Accounts do not have storage quota",
+          conditionMessage(e)
+        )
+      ) {
+        warning(
+          paste0(
+            "Skipping Drive upload for ",
+            remote_name,
+            ": ",
+            conditionMessage(e),
+            " Use a shared drive target or OAuth delegation instead."
+          ),
+          call. = FALSE
+        )
+        return(invisible(NULL))
+      }
+      stop(e)
+    }
+  )
+}
+
+
 if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   dl <- rbind.data.frame(
     out_d$scores |> mutate(league = "didsbury"),
     out_o$scores |> mutate(league = "original")
   )
-  managers <- rbind.data.frame(
-    managers_d |> mutate(league = "didsbury"),
-    managers_o |> mutate(league = "original")
-  )
+
   daily <- rbind.data.frame(
     out_d$daily |> mutate(league = "didsbury"),
     out_o$daily |> mutate(league = "original")
   )
 
+
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
   source("R/export-dreamleague-json.R")
+
+  save(dl = dl, file = "dreamleague/teams.RDa")
+  save(daily = daily, time = time, file = "dreamleague/daily.RDa")
+  save(cupties = cupties, file = "dreamleague/cupties.RDa")
+
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
     write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
-  googledrive::drive_auth(
-    # email = TRUE,
-    path = "credentials.json",
-    subject = NULL,
-    scopes = "drive",
-    cache = gargle::gargle_oauth_cache(),
-    use_oob = gargle::gargle_oob_default(),
-    token = NULL
-  )
 
-  googledrive::drive_update(
-    media = "dreamleague/data.RDa",
-    file = googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh")
-  )
+  upload_to_drive("dreamleague/managers.RDa", "managers.RDa")
+  upload_to_drive("dreamleague/teams.RDa", "teams.RDa")
+  upload_to_drive("dreamleague/daily.RDa", "daily.RDa")
+  upload_to_drive("dreamleague/cupties.RDa", "cupties.RDa")
 }
 b <- Sys.time()
 

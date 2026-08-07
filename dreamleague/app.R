@@ -18,24 +18,89 @@ options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
 googledrive::drive_auth(
   path = "credentials.json"
 )
-googledrive::drive_download(
-  googledrive::as_id("108pNlDYjniFZiPU3PG82bIdChZmZGqUh"),
-  path = "data.RDa",
-  overwrite = T
+
+cache_dir <- tools::R_user_dir("dreamleague", which = "cache")
+dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+
+file_managers <- file.path(cache_dir, "managers.RDa")
+file_teams <- file.path(cache_dir, "teams.RDa")
+file_daily <- file.path(cache_dir, "daily.RDa")
+file_cupties <- file.path(cache_dir, "cupties.RDa")
+
+bootstrap_cache <- function() {
+  if (
+    all(file.exists(c(file_managers, file_teams, file_daily, file_cupties)))
+  ) {
+    return(invisible(TRUE))
+  }
+
+  load("data.RDa")
+  load("managers.RDa")
+
+  save(managers_d, managers_o, file = file_managers)
+  save(dl, file = file_teams)
+  save(daily, file = file_daily)
+  save(cupties, file = file_cupties)
+
+  invisible(TRUE)
+}
+
+bootstrap_cache()
+
+ensure_drive_cache <- function(remote_name, local_path) {
+  remote <- tryCatch(
+    googledrive::drive_find(pattern = paste0("^", remote_name, "$")) |>
+      dplyr::slice_max(modified_time, n = 1, with_ties = FALSE),
+    error = function(e) NULL
+  )
+
+  if (is.null(remote) || nrow(remote) == 0) {
+    return(invisible(local_path))
+  }
+
+  remote_mtime <- remote$modified_time[[1]]
+  local_mtime <- if (file.exists(local_path)) {
+    file.info(local_path)$mtime
+  } else {
+    as.POSIXct(0, tz = "UTC")
+  }
+
+  if (
+    !file.exists(local_path) || is.na(local_mtime) || local_mtime < remote_mtime
+  ) {
+    googledrive::drive_download(remote, path = local_path, overwrite = TRUE)
+  }
+
+  invisible(local_path)
+}
+
+ensure_drive_cache("managers.RDa", file_managers)
+ensure_drive_cache("teams.RDa", file_teams)
+ensure_drive_cache("daily.RDa", file_daily)
+ensure_drive_cache("cupties.RDa", file_cupties)
+
+load(file_managers)
+load(file_teams)
+load(file_daily)
+load(file_cupties)
+
+file_updates <- list(
+  managers = file.info(file_managers)$mtime,
+  teams = file.info(file_teams)$mtime,
+  daily = file.info(file_daily)$mtime,
+  cupties = file.info(file_cupties)$mtime
 )
-load("data.RDa")
-weeks = seq.Date(as.Date("2025-07-28"), by = 7, length.out = 52)
-weeks2 = weeks[weeks <= Sys.Date()]
-weekschar = format(weeks2, format = "%d-%b")
-names(weeks2) = weekschar
 
-load("managers.RDa")
+weeks <- seq.Date(as.Date("2025-07-28"), by = 7, length.out = 52)
+weeks2 <- weeks[weeks <= Sys.Date()]
+weekschar <- format(weeks2, format = "%d-%b")
+names(weeks2) <- weekschar
 
-managers = rbind.data.frame(
+managers <- rbind.data.frame(
   managers_d |> mutate(league = "didsbury"),
   managers_o |> mutate(league = "original")
 )
-league = managers |>
+league <- managers |>
   merge(
     dl |> group_by(team) |> summarise(total = sum(SBgoals, na.rm = T)),
     by = "team",
@@ -60,17 +125,17 @@ league = managers |>
   arrange(-total, -gf) |>
   mutate(rank = row_number(), .by = "league")
 
-teamslist = (managers |> arrange(team))$team
-names(teamslist) = paste(
+teamslist <- (managers |> arrange(team))$team
+names(teamslist) <- paste(
   (league |> arrange(team))$team,
   " (",
   (league |> arrange(team))$manager,
   ")",
   sep = ""
 )
-teamslist_cup = (managers |> arrange(team))$team
+teamslist_cup <- (managers |> arrange(team))$team
 
-names(teamslist_cup) = paste(
+names(teamslist_cup) <- paste(
   (managers |> arrange(team))$team,
   " (",
   (managers |> arrange(team))$manager,
@@ -78,7 +143,7 @@ names(teamslist_cup) = paste(
   sep = ""
 )
 
-rounds = unique(cupties$round)
+rounds <- unique(cupties$round)
 ui <- dashboardPage(
   skin = "red",
   # md = TRUE,
@@ -278,7 +343,7 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output, session) {
-  league_master = reactiveVal("didsbury")
+  league_master <- reactiveVal("didsbury")
 
   output$table <- renderReactable({
     table_data <- league |>
@@ -392,11 +457,11 @@ server <- function(input, output, session) {
     )
   })
 
-  output$team_history_out = renderReactable({
-    period = daily |>
+  output$team_history_out <- renderReactable({
+    period <- daily |>
       filter(Date <= as.Date(input$end), Date >= as.Date(input$start))
 
-    league2 = managers |>
+    league2 <- managers |>
       merge(
         period |>
           summarise(total = sum(SBgoals), .by = c("team", "league")),
@@ -422,7 +487,7 @@ server <- function(input, output, session) {
       select(-league) |>
       arrange(-total, -gf)
 
-    scorers2 = period |>
+    scorers2 <- period |>
       filter(league == input$league_team_history) |>
       filter(SBgoals != 0) |>
       summarise(
@@ -438,7 +503,7 @@ server <- function(input, output, session) {
       ) |>
       summarise(scorers = paste(name, collapse = ", ", sep = ""), .by = "team")
 
-    res2 = league2 |> merge(scorers2, all.x = T)
+    res2 <- league2 |> merge(scorers2, all.x = T)
     reactable(
       res2[, 1:5],
       columns = list(
@@ -459,35 +524,35 @@ server <- function(input, output, session) {
     )
   })
 
-  output$teamtext = renderUI({
-    text1 = paste(
+  output$teamtext <- renderUI({
+    text1 <- paste(
       "<b>League position:",
       league$rank[which(league$team == input$team)],
       "</b>"
     )
-    text2 = paste(
+    text2 <- paste(
       "<b>Score:",
       league$total[which(league$team == input$team)],
       "</b>"
     )
-    text3 = paste(
+    text3 <- paste(
       "<font color=\"#4DAF4A\">For:",
       league$gf[which(league$team == input$team)],
       "</font>"
     )
-    text4 = paste(
+    text4 <- paste(
       "<font color=\"#E41A1C\">Against:",
       league$ga[which(league$team == input$team)],
       "</font>"
     )
-    outfield = paste(
+    outfield <- paste(
       "Outfield transfers remaining:",
       8 -
         dl |>
           filter(team == input$team, position != "GOALKEEPER", cost == "") |>
           nrow()
     )
-    goalie = paste(
+    goalie <- paste(
       "Goalkeeper transfers remaining:",
       2 -
         dl |>
@@ -497,15 +562,15 @@ server <- function(input, output, session) {
     HTML(paste(text1, text2, text3, text4, outfield, goalie, sep = "<br/>"))
   })
 
-  output$img = renderImage(
+  output$img <- renderImage(
     {
-      outfile = paste(
+      outfile <- paste(
         "img/",
         str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")),
         ".png",
         sep = ""
       )
-      hold = magick::image_read(outfile)
+      hold <- magick::image_read(outfile)
 
       list(
         src = outfile,
@@ -539,7 +604,7 @@ server <- function(input, output, session) {
     )
   })
 
-  output$diagnostics = DT::renderDT({
+  output$diagnostics <- DT::renderDT({
     dl |>
       filter(is.na(sold)) |>
       dplyr::select(team, player, club, position) |>
@@ -555,7 +620,7 @@ server <- function(input, output, session) {
       filter(GOALKEEPER != 1 | DEFENDER != 2 | MIDFIELDER != 3 | FORWARD != 5)
   })
 
-  output$update_time = renderUI({
+  output$update_time <- renderUI({
     HTML(paste0(
       "Last score update: ",
       format(time$update_time, format = "%Y-%m-%d %H:%M:%S"),
@@ -567,12 +632,8 @@ server <- function(input, output, session) {
   })
 
   output$player_warning <- renderUI({
-    req(time, input$league_players)
-    last_mod <- if (isTRUE(input$league_players == "didsbury")) {
-      time$mod_d
-    } else {
-      time$mod_o
-    }
+    req(input$league_players)
+    last_mod <- file_updates$teams
 
     tags$div(
       class = "alert alert-warning alert-dismissible",
@@ -597,7 +658,7 @@ server <- function(input, output, session) {
       pull(date) |>
       min(na.rm = TRUE)
 
-    weekend = daily |>
+    weekend <- daily |>
       filter(
         Date >= date,
         Date <= date + lubridate::days(3),
@@ -605,7 +666,7 @@ server <- function(input, output, session) {
         Date <= sold2
       )
 
-    scorers = weekend |>
+    scorers <- weekend |>
       filter(SBgoals != 0) |>
       mutate(
         name = paste0(
@@ -776,11 +837,11 @@ server <- function(input, output, session) {
       "league_team_history",
       selected = input$league_teams
     )
-    teamslist = (managers |>
+    teamslist <- (managers |>
       arrange(team) |>
       filter(league == input$league_teams))$team
 
-    names(teamslist) = paste(
+    names(teamslist) <- paste(
       (managers |>
         arrange(team) |>
         filter(league == input$league_teams))$team,
