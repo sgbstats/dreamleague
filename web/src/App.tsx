@@ -57,6 +57,7 @@ function App() {
   const [expandedHistoryTeam, setExpandedHistoryTeam] = useState<string | null>(null);
   const [expandedCupIndex, setExpandedCupIndex] = useState<number | null>(null);
   const [playerSearch, setPlayerSearch] = useState('');
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false);
 
   useEffect(() => {
     loadBundle()
@@ -77,6 +78,10 @@ function App() {
       setTeam(teams[0].team);
     }
   }, [team, teams]);
+
+  useEffect(() => {
+    setTeamPickerOpen(false);
+  }, [league, team]);
 
   const rounds = useMemo(() => (bundle ? getRounds(bundle, comp) : []), [bundle, comp]);
   const selectedRound = round && rounds.includes(round) ? round : rounds[rounds.length - 1] ?? '';
@@ -100,6 +105,7 @@ function App() {
     return <div className="app-shell"><p>Loading DreamLeague data…</p></div>;
   }
 
+  const selectedTeamOption = teams.find((item) => item.team === team) ?? null;
   const teamRows = team ? getTeamRows(bundle, league, team, currentOnly) : [];
   const teamSummary = team ? getTeamSummary(bundle, league, leagueRows, team) : null;
   const playersTaken = getPlayersTaken(bundle, league);
@@ -199,11 +205,42 @@ function App() {
                 <LeagueSelector league={league} onChange={setLeague} />
                 <label>
                   Team
-                  <select className="team-select" value={team} onChange={(event) => setTeam(event.target.value)}>
-                    {teams.map((item) => (
-                      <option key={item.team} value={item.team}>{item.team} ({item.manager})</option>
-                    ))}
-                  </select>
+                  <div className="team-picker">
+                    <button
+                      type="button"
+                      className="team-picker-trigger"
+                      onClick={() => setTeamPickerOpen((open) => !open)}
+                      aria-haspopup="listbox"
+                      aria-expanded={teamPickerOpen}
+                    >
+                      <span className="team-picker-label">
+                        {selectedTeamOption ? `${selectedTeamOption.team} (${selectedTeamOption.manager})` : 'Select team'}
+                      </span>
+                      <span className="team-picker-caret" aria-hidden="true">▾</span>
+                    </button>
+                    {teamPickerOpen && (
+                      <div className="team-picker-menu" role="listbox" aria-label="Team">
+                        {teams.map((item) => {
+                          const selected = item.team === team;
+                          return (
+                            <button
+                              key={item.team}
+                              type="button"
+                              role="option"
+                              aria-selected={selected}
+                              className={selected ? 'team-picker-option selected' : 'team-picker-option'}
+                              onClick={() => {
+                                setTeam(item.team);
+                                setTeamPickerOpen(false);
+                              }}
+                            >
+                              {item.team} ({item.manager})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </label>
                 <label className="checkbox-row">
                   <input type="checkbox" checked={currentOnly} onChange={(event) => setCurrentOnly(event.target.checked)} />

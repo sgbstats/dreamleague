@@ -36,8 +36,7 @@ managers_d <- readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
 mod_d <- file.info(file_d)$mtime
 cat("Didsbury\n")
 
-out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 158)
-
+out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
 file_o <- "data/DL25-26.xlsx"
@@ -73,8 +72,7 @@ dl_o <- dl_o |>
   )
 
 
-
-out_o <- dl_process(dl_o, managers_o, "Original", season_id = 158)
+out_o <- dl_process(dl_o, managers_o, "Original", season_id = 159)
 
 
 dl_d <- out_d$scores
@@ -175,7 +173,6 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
     out_d$daily |> mutate(league = "didsbury"),
     out_o$daily |> mutate(league = "original")
   )
-
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
   source("R/export-dreamleague-json.R")

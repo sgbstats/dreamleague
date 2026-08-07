@@ -158,11 +158,67 @@ fieldset {
   align-items: center;
 }
 
-.team-select {
+.team-picker {
+  position: relative;
+}
+
+.team-picker-trigger {
   width: 100%;
-  height: auto;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: white;
+  color: #111827;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.team-picker-label {
   white-space: normal;
   overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.team-picker-caret {
+  align-self: start;
+}
+
+.team-picker-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.12);
+  padding: 0.25rem;
+}
+
+.team-picker-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0.55rem 0.6rem;
+  border-radius: 0.35rem;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  color: #111827;
+  cursor: pointer;
+}
+
+.team-picker-option:hover,
+.team-picker-option.selected {
+  background: #f3f4f6;
 }
 
 .team-logo {
