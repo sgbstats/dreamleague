@@ -12,19 +12,19 @@ library(httr)
 library(glue)
 
 scraplinks2 <- function(url) {
-  headers = c(
+  headers <- c(
     `User-Agent` = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
     `Accept` = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     `Accept-Language` = "en-US,en;q=0.9",
     `Connection` = "keep-alive"
   )
 
-  response = GET(url, add_headers(.headers = headers), timeout(15))
+  response <- GET(url, add_headers(.headers = headers), timeout(15))
 
   html <- content(response, as = "text", encoding = "UTF-8") |> read_html()
   tables <- html |> html_elements("table")
 
-  x = tables[[2]] |> html_table()
+  x <- tables[[2]] |> html_table()
 
   # x <- x[-1:-2, ]
   names(x) <- c(
@@ -40,9 +40,9 @@ scraplinks2 <- function(url) {
     "foo2"
   )
 
-  lg = paste(comps, collapse = "|")
+  lg <- paste(comps, collapse = "|")
 
-  x2 = x |>
+  x2 <- x |>
     as.data.frame() |>
     mutate(rn = row_number()) |>
     mutate(comp = str_extract(Competition, lg), .by = "rn") |>
@@ -69,7 +69,7 @@ scraplinks2 <- function(url) {
 }
 
 #use cuttime to allow roll back of goals to check for mistaches
-dl_process = function(
+dl_process <- function(
   dl,
   managers,
   league,
@@ -111,7 +111,7 @@ dl_process = function(
   )
 
   if (league == "Didsbury") {
-    teams = dl |>
+    teams <- dl |>
       rename(
         position = 1,
         player = 2,
@@ -126,13 +126,13 @@ dl_process = function(
         cost = gsub("TRANSFER|TRASNFER", "", cost, ignore.case = T)
       )
 
-    managers = managers |>
+    managers <- managers |>
       rbind.data.frame(tribble(
         ~"manager"   , ~"team"   ,
         "WILL SMITH" , "I ROBOT"
       ))
   } else if (league == "Original") {
-    teams = dl |>
+    teams <- dl |>
       rename(
         position = 1,
         player = 2,
@@ -148,26 +148,26 @@ dl_process = function(
       )
   }
 
-  teams2 = teams
+  teams2 <- teams
   for (i in 1:nrow(teams)) {
     if (teams$player[i] %in% managers$team) {
-      team = teams$player[i]
+      team <- teams$player[i]
     }
     if (
       teams$position[i] %in%
         c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")
     ) {
-      teams2$team[i] = team
+      teams2$team[i] <- team
     }
   }
 
   teams2 <- teams2 |> filter(team != "I ROBOT")
-  managers = managers |> filter(team != "I ROBOT")
+  managers <- managers |> filter(team != "I ROBOT")
 
   # sb_id=read.csv("data/sb_id.csv")
   load("data/ids.RDa")
 
-  teams3a = teams2 |>
+  teams3a <- teams2 |>
     filter(
       position %in% c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD")
     ) |>
@@ -192,16 +192,16 @@ dl_process = function(
     )
 
   if (league == "Didsbury") {
-    teams3 = teams3a |>
+    teams3 <- teams3a |>
       mutate(
         bought = format(as.Date(bought), "%d-%b"),
         sold = format(as.Date(sold), "%d-%b")
       )
   } else if (league == "Original") {
     for (i in 1:(nrow(teams3a) - 1)) {
-      teams3a$sold[i] = teams3a$bought[i + 1]
+      teams3a$sold[i] <- teams3a$bought[i + 1]
     }
-    teams3 = teams3a |>
+    teams3 <- teams3a |>
       mutate(
         bought = format(openxlsx::convertToDate(bought) - 1, "%d-%b"),
         sold = format(openxlsx::convertToDate(sold) - 1, "%d-%b")
@@ -209,11 +209,11 @@ dl_process = function(
   }
 
   # merge(team_id |> mutate(team=str_to_upper(team)), by.x = "club", by.y="team", all.x = T)
-  player_id2 = player_id |>
+  player_id2 <- player_id |>
     select(player, player_id, team) |>
     filter(!player_id %in% c(65492, 199362, 209366, 197134))
 
-  outfield0 = teams3 |>
+  outfield0 <- teams3 |>
     filter(position %in% c("DEFENDER", "MIDFIELDER", "FORWARD")) |>
     fuzzyjoin::stringdist_join(
       player_id2,
@@ -260,13 +260,13 @@ dl_process = function(
       )
     )
 
-  mismatch = outfield0 |>
+  mismatch <- outfield0 |>
     filter(dist != 0 | is.na(dist)) |>
     select(team, player.x, club, player.y, dist, player_id)
 
-  duplicates = outfield0 |> count(player.y) |> filter(n > 1)
+  duplicates <- outfield0 |> count(player.y) |> filter(n > 1)
 
-  outfield = outfield0 |>
+  outfield <- outfield0 |>
     group_by(player_id, team, bought2) |>
     slice_min(team, n = 1, with_ties = F) |>
     ungroup() |>
@@ -348,10 +348,10 @@ dl_process = function(
   outfield$SBapp <- map_dbl(outfield_results, ~ .x$SBapp %||% 0)
   weekly <- map_df(outfield_results, "weekly")
 
-  outfield = outfield |>
+  outfield <- outfield |>
     mutate(SBgoals = if_else(player == "NICOLAS JACKSON", 0, SBgoals))
 
-  test = outfield |>
+  test <- outfield |>
     filter(goals != SBgoals, !is.na(player_id)) |>
     select(position, player, team, goals, SBgoals, player_id) |>
     rename("BCgoals" = "goals") |>
@@ -362,7 +362,7 @@ dl_process = function(
     )
   # load("Data/team_id.RDa")
 
-  gk = teams3 |>
+  gk <- teams3 |>
     filter(!position %in% c("DEFENDER", "MIDFIELDER", "FORWARD")) |>
     merge(
       team_id |> #rename(team_id=id) |>
@@ -497,9 +497,9 @@ dl_process = function(
   gk$SBgoals <- map_dbl(gk_results, ~ .x$SBgoals %||% NA_real_)
   gk$SBapp <- map_dbl(gk_results, ~ .x$SBapp %||% NA_real_)
   weekly_gk <- map_df(gk_results, "weekly_gk")
-  gk$SBgoals = as.numeric(gk$SBgoals)
+  gk$SBgoals <- as.numeric(gk$SBgoals)
 
-  testgk = gk |>
+  testgk <- gk |>
     filter(goals != SBgoals, !is.na(team_id)) |>
     select(position, club, team, goals, SBgoals, team_id) |>
     rename("BCgoals" = "goals") |>
@@ -509,7 +509,7 @@ dl_process = function(
       )
     )
 
-  team_score = rbind(
+  team_score <- rbind(
     outfield |> ungroup() |> dplyr::select(-player_id),
     gk |>
       dplyr::select(-team_id) |>
@@ -529,14 +529,14 @@ dl_process = function(
 
   # gs4_deauth()
 
-  weekly2 = weekly |>
+  weekly2 <- weekly |>
     merge(outfield |> select(-SBgoals, -SBapp), by = c("player_id", "team"))
-  weekly_gk2 = weekly_gk |>
+  weekly_gk2 <- weekly_gk |>
     merge(gk |> select(-SBgoals, -SBapp), by = "team_id")
 
   #seq.Date(as.Date("2023-07-26"), by=7, length.out = 52)
 
-  team_score_daily = rbind.data.frame(
+  team_score_daily <- rbind.data.frame(
     weekly2 |> select(-player_id),
     weekly_gk2 |> select(-team_id)
   ) |>
