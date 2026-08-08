@@ -26,8 +26,9 @@ scraplinks <- function(url) {
   return(tibble(link = link_, url = url_))
 }
 
-team_id = scraplinks("https://www.soccerbase.com/teams/home.sd") |>
-  filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) |>
+team_id <- scraplinks("https://www.soccerbase.com/teams/home.sd") |>
+  # filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) |>
+  filter(grepl("team_id", url)) |>
   mutate(
     team_id = as.numeric(stringi::stri_extract_first_regex(url, "[0-9]+"))
   ) |>
@@ -94,7 +95,7 @@ player_id0 <- foreach(i = 1:nrow(team_id), .combine = 'rbind') %dopar%
     players
   }
 
-player_id = player_id0 |>
+player_id <- player_id0 |>
   mutate(
     player = case_when(
       player == "Ali Ibrahim Ali Al Hamadi" ~ "Ali Al Hamadi",
@@ -132,10 +133,10 @@ player_id = player_id0 |>
   ))
 
 
-team_id = team_id |> mutate(team = str_to_upper(team))
+team_id <- team_id |> mutate(team = str_to_upper(team))
 
 
-mostrecent = max(list.files(
+mostrecent <- max(list.files(
   path = "data/legacy/playerdata/",
   pattern = NULL,
   all.files = FALSE,
@@ -148,13 +149,13 @@ mostrecent = max(list.files(
 
 load(paste("data/legacy/playerdata/", mostrecent, sep = ""))
 
-player_id = player_id |>
+player_id <- player_id |>
   rbind.data.frame(legacy) |>
   group_by(player_id) |>
   slice_min(team, with_ties = F) |>
   filter(!player_id %in% c())
 
-legacy = player_id
+legacy <- player_id
 save(
   legacy,
   file = paste("data/legacy/playerdata/ids", Sys.Date(), ".RDa", sep = "")
