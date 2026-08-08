@@ -44,3 +44,5 @@ data/diagnostics/*
 web/node_modules/
 web/dist/
 web/public/data/*.json
+.vercel
+.env*
