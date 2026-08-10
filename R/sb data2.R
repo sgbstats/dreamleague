@@ -27,8 +27,8 @@ scraplinks <- function(url) {
 }
 
 team_id <- scraplinks("https://www.soccerbase.com/teams/home.sd") |>
-  # filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) |>
-  filter(grepl("team_id", url)) |>
+  filter(grepl("comp_id=[1-4]$", url), grepl("team_id", url)) |>
+  # filter(grepl("team_id", url)) |>
   mutate(
     team_id = as.numeric(stringi::stri_extract_first_regex(url, "[0-9]+"))
   ) |>
@@ -105,6 +105,9 @@ player_id <- player_id0 |>
       player == "Iyenoma Destiny Udogie" ~ "Destiny Udogie",
       player == "Manny Monthe" ~ "EMMANUEL MONTHE",
       player_id == 151107 ~ "IGOR THIAGO",
+      player == "Valentin Castellanos" ~ "Taty Castellanos",
+      player == "Dan Ballard" ~ "Daniel Ballard",
+      player == "Gabriel Magalhaes" ~ "Gabriel",
       T ~ player
     )
   ) |>
@@ -119,19 +122,23 @@ player_id <- player_id0 |>
   slice_min(team, with_ties = F) |>
   filter(!player_id %in% c(116945, 107014, 69468, 188923)) |>
   rbind.data.frame(tribble(
-    ~"player"            , ~"n" , ~"player_id" , ~"team"            , ~"team_id"  ,
-    "BORJA SAINZ"        ,    1 ,       124408 , "FC Porto"         ,         978 ,
-    "THELO AASGAARD"     ,    1 ,       133855 , "Rangers"          ,        2104 ,
-    "ARMAND LAURIENTE"   ,    1 ,       111761 , "Sassuolo"         ,        4692 ,
-    "HEUNG-MIN SON"      ,    1 ,        57526 , "LA FC"            ,        6693 ,
-    "BEN CHILWELL"       ,    1 ,        87733 , "STRASBOURG"       ,        2248 ,
-    "JOSH BROWNHILL"     ,    1 ,        73078 , "AL SHABAB"        , NA_integer_ ,
-    "CHRISTOPHER NKUNKU" ,    1 ,        85336 , "MILAN"            ,          41 ,
-    "JAKE TABOR"         ,    1 ,       207149 , "EASTLEIGH"        ,        4252 ,
-    "NICOLAS JACKSON"    ,    1 ,       134733 , "BAYERN MUNICH"    ,         469 ,
-    "RUEL SOTIRIOU"      ,    1 ,       108565 , "HAPOEL JERUSALEM" ,        7276
+    ~"player"               , ~"n" , ~"player_id" , ~"team"               , ~"team_id"  ,
+    "BORJA SAINZ"           ,    1 ,       124408 , "FC Porto"            ,         978 ,
+    "THELO AASGAARD"        ,    1 ,       133855 , "Rangers"             ,        2104 ,
+    "ARMAND LAURIENTE"      ,    1 ,       111761 , "Sassuolo"            ,        4692 ,
+    "HEUNG-MIN SON"         ,    1 ,        57526 , "LA FC"               ,        6693 ,
+    "BEN CHILWELL"          ,    1 ,        87733 , "STRASBOURG"          ,        2248 ,
+    "JOSH BROWNHILL"        ,    1 ,        73078 , "AL SHABAB"           , NA_integer_ ,
+    "CHRISTOPHER NKUNKU"    ,    1 ,        85336 , "MILAN"               ,          41 ,
+    "JAKE TABOR"            ,    1 ,       207149 , "EASTLEIGH"           ,        4252 ,
+    "NICOLAS JACKSON"       ,    1 ,       134733 , "BAYERN MUNICH"       ,         469 ,
+    "RUEL SOTIRIOU"         ,    1 ,       108565 , "HAPOEL JERUSALEM"    ,        7276 ,
+    "MALACHI FAGAN-WALCOTT" ,    1 ,       115840 , "HEART OF MIDLOTHIAN" ,        1289 ,
+    "TROY PARROTT"          ,    1 ,       115837 , "AZ ALKMAAR"          ,         190 ,
+    "HARRY KANE"            ,    1 ,        52657 , "BAYERN MUNICH"       ,         469 ,
+    "VINICIOUS JNR"         ,    1 ,       114115 , "REAL MADRID"         ,        2165 ,
+    "OLLIE PEARCE"          ,    1 ,       106633 , "YORK"                ,        2910 ,
   ))
-
 
 team_id <- team_id |> mutate(team = str_to_upper(team))
 

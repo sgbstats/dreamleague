@@ -12,11 +12,32 @@ suppressPackageStartupMessages({
 a <- Sys.time()
 
 source("R/dl-preprocessing-fast.R")
-gs4_auth(
-  path = "credentials.json"
+credentials_path <- Sys.getenv(
+  "DREAMLEAGUE_GOOGLE_CREDENTIALS",
+  "credentials.json"
 )
 
-file_d <- "data/DreamLeague25-26.xlsx"
+safe_gs4_auth <- function(path = credentials_path) {
+  if (!file.exists(path)) {
+    message("Google Sheets auth unavailable; credentials file not found.")
+    return(invisible(NULL))
+  }
+
+  tryCatch(
+    gs4_auth(path = path),
+    error = function(e) {
+      message(
+        "Google Sheets auth unavailable; continuing without auth. ",
+        conditionMessage(e)
+      )
+      invisible(NULL)
+    }
+  )
+}
+
+safe_gs4_auth()
+
+file_d <- "data/DreamLeague26-27.xlsx"
 dl_d <- readxl::read_excel(
   file_d,
   na = c("SOLD"),
@@ -39,7 +60,7 @@ cat("Didsbury\n")
 out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
-file_o <- "data/DL25-26.xlsx"
+file_o <- "data/DL26-27.xlsx"
 dl_o <- readxl::read_excel(
   file_o,
   na = c(""),
@@ -186,6 +207,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
 
+  upload_to_drive("dreamleague/data.RDa", "data.RDa")
   upload_to_drive("dreamleague/managers.RDa", "managers.RDa")
   upload_to_drive("dreamleague/teams.RDa", "teams.RDa")
   upload_to_drive("dreamleague/daily.RDa", "daily.RDa")
