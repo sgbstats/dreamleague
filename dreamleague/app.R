@@ -79,6 +79,9 @@ file_data <- file.path(cache_dir, "data.RDa")
 file_daily <- file.path(cache_dir, "daily.RDa")
 file_cupties <- file.path(cache_dir, "cupties.RDa")
 
+cache_pull_source <- "cache"
+cache_last_updated <- NA
+
 bootstrap_cache <- function() {
   if (
     all(file.exists(c(
@@ -133,6 +136,17 @@ ensure_drive_cache <- function(
   remote_listing = remote_drive_listing,
   stale_after = lubridate::hours(1)
 ) {
+  local_info <- file.info(local_path)
+  local_age <- if (is.na(local_info$mtime[[1]])) {
+    Inf
+  } else {
+    difftime(Sys.time(), local_info$mtime[[1]], units = "secs")
+  }
+
+  if (!is.na(local_age) && local_age <= stale_after) {
+    return(invisible(local_path))
+  }
+
   remote <- tryCatch(
     remote_listing |>
       dplyr::filter(.data$name == remote_name) |>
@@ -144,12 +158,8 @@ ensure_drive_cache <- function(
     return(invisible(local_path))
   }
 
-  remote_mtime <- remote$modified_time[[1]]
-  remote_age <- difftime(Sys.time(), remote_mtime, units = "secs")
-
-  if (is.na(remote_age) || remote_age > stale_after) {
-    googledrive::drive_download(remote, path = local_path, overwrite = TRUE)
-  }
+  googledrive::drive_download(remote, path = local_path, overwrite = TRUE)
+  cache_pull_source <<- "google remote"
 
   invisible(local_path)
 }
@@ -159,6 +169,11 @@ ensure_drive_cache("data.RDa", file_data)
 # ensure_drive_cache("teams.RDa", file_teams)
 ensure_drive_cache("daily.RDa", file_daily)
 ensure_drive_cache("cupties.RDa", file_cupties)
+
+cache_last_updated <- max(
+  file.info(c(file_data, file_daily, file_cupties))$mtime,
+  na.rm = TRUE
+)
 
 load(file_data)
 # load(file_managers)
@@ -401,9 +416,13 @@ ui <- dashboardPage(
       tabItem(
         tabName = "diagnostics",
         fluid = T,
-        sidebarPanel(),
-        mainPanel(
-          dataTableOutput("diagnostics")
+        sidebarLayout(
+          sidebarPanel(
+            uiOutput("diagnostics_cache_status")
+          ),
+          mainPanel(
+            dataTableOutput("diagnostics")
+          )
         )
       ),
       tabItem(
@@ -700,6 +719,28 @@ server <- function(input, output, session) {
       count(team, position) |>
       pivot_wider(names_from = "position", values_from = "n") |>
       filter(GOALKEEPER != 1 | DEFENDER != 2 | MIDFIELDER != 3 | FORWARD != 5)
+  })
+
+  output$diagnostics_cache_status <- renderUI({
+    source_label <- if (identical(cache_pull_source, "google remote")) {
+      "Google remote"
+    } else {
+      "Local cache"
+    }
+
+    cache_time <- if (is.na(cache_last_updated)) {
+      "Unavailable"
+    } else {
+      format(cache_last_updated, "%Y-%m-%d %H:%M:%S")
+    }
+
+    tags$div(
+      class = "alert alert-info",
+      style = "margin:0; padding:8px 12px;",
+      HTML(glue::glue(
+        "<b>Cache status</b><br/>Last checked: {cache_time}<br/>Source: {source_label}"
+      ))
+    )
   })
 
   output$update_time <- renderUI({
