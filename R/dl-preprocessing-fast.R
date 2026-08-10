@@ -187,6 +187,7 @@ dl_process <- function(
         player == "MANNY MONTHE" ~ "EMMANUEL MONTHE",
         player == "STRAND LARSEN" ~ "JORGEN STRAND LARSEN",
         player == "ELI JUNIOR KROUPI" ~ "JUNIOR KROUPI",
+        player == "GABRIEL MAGHALAES" ~ "GABRIEL",
         T ~ player
       )
     )
@@ -319,7 +320,7 @@ dl_process <- function(
               Goals = sum(Goals, na.rm = TRUE)
             )
 
-          sb_goals <- if (outfield$player_id[i] == 134733) {
+          sb_goals <- if (outfield$player_id[i] %in% c(134733, 52657, 114115)) {
             0
           } else {
             appgoals2[[1, "Goals"]]

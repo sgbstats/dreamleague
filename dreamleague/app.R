@@ -15,13 +15,64 @@ library(reactable)
 library(glue)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
-googledrive::drive_auth(
-  path = "credentials.json"
+
+credentials_path <- Sys.getenv(
+  "DREAMLEAGUE_GOOGLE_CREDENTIALS",
+  "credentials.json"
 )
+shared_drive_target <- Sys.getenv(
+  "DREAMLEAGUE_SHARED_DRIVE_TARGET",
+  ""
+)
+
+try_drive_auth <- function(path = credentials_path) {
+  if (!file.exists(path)) {
+    message(
+      "Drive auth unavailable; credentials file not found. Using bundled cache files only."
+    )
+    return(invisible(NULL))
+  }
+
+  tryCatch(
+    googledrive::drive_auth(path = path),
+    error = function(e) {
+      message(
+        "Drive auth unavailable; using bundled cache files only. ",
+        conditionMessage(e)
+      )
+      invisible(NULL)
+    }
+  )
+}
+
+resolve_shared_drive_path <- function(target = shared_drive_target) {
+  if (!nzchar(target)) {
+    return(NULL)
+  }
+
+  tryCatch(
+    if (grepl("^[A-Za-z0-9_-]{20,}$", target)) {
+      googledrive::as_id(target)
+    } else {
+      googledrive::drive_get(target)
+    },
+    error = function(e) {
+      message(
+        "Shared Drive target could not be resolved; using bundled cache files only. ",
+        conditionMessage(e)
+      )
+      NULL
+    }
+  )
+}
+
+try_drive_auth()
+shared_drive_path <- resolve_shared_drive_path()
 
 cache_dir <- tools::R_user_dir("dreamleague", which = "cache")
 dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
 
+file_data <- file.path(cache_dir, "data.RDa")
 file_managers <- file.path(cache_dir, "managers.RDa")
 file_teams <- file.path(cache_dir, "teams.RDa")
 file_daily <- file.path(cache_dir, "daily.RDa")
@@ -29,7 +80,13 @@ file_cupties <- file.path(cache_dir, "cupties.RDa")
 
 bootstrap_cache <- function() {
   if (
-    all(file.exists(c(file_managers, file_teams, file_daily, file_cupties)))
+    all(file.exists(c(
+      file_data,
+      file_managers,
+      file_teams,
+      file_daily,
+      file_cupties
+    )))
   ) {
     return(invisible(TRUE))
   }
@@ -37,6 +94,7 @@ bootstrap_cache <- function() {
   load("data.RDa")
   load("managers.RDa")
 
+  save(dl, daily, time, cupties, file = file_data)
   save(managers_d, managers_o, file = file_managers)
   save(dl, file = file_teams)
   save(daily, file = file_daily)
@@ -49,8 +107,14 @@ bootstrap_cache()
 
 ensure_drive_cache <- function(remote_name, local_path) {
   remote <- tryCatch(
-    googledrive::drive_find(pattern = paste0("^", remote_name, "$")) |>
-      dplyr::slice_max(modified_time, n = 1, with_ties = FALSE),
+    if (is.null(shared_drive_path)) {
+      googledrive::drive_find(pattern = paste0("^", remote_name, "$")) |>
+        dplyr::slice_max(modified_time, n = 1, with_ties = FALSE)
+    } else {
+      googledrive::drive_ls(shared_drive_path) |>
+        dplyr::filter(.data$name == remote_name) |>
+        dplyr::slice_max(modified_time, n = 1, with_ties = FALSE)
+    },
     error = function(e) NULL
   )
 
@@ -74,11 +138,13 @@ ensure_drive_cache <- function(remote_name, local_path) {
   invisible(local_path)
 }
 
+ensure_drive_cache("data.RDa", file_data)
 ensure_drive_cache("managers.RDa", file_managers)
 ensure_drive_cache("teams.RDa", file_teams)
 ensure_drive_cache("daily.RDa", file_daily)
 ensure_drive_cache("cupties.RDa", file_cupties)
 
+load(file_data)
 load(file_managers)
 load(file_teams)
 load(file_daily)
@@ -91,7 +157,7 @@ file_updates <- list(
   cupties = file.info(file_cupties)$mtime
 )
 
-weeks <- seq.Date(as.Date("2025-07-28"), by = 7, length.out = 52)
+weeks <- seq.Date(as.Date("2026-07-27"), by = 7, length.out = 52)
 weeks2 <- weeks[weeks <= Sys.Date()]
 weekschar <- format(weeks2, format = "%d-%b")
 names(weeks2) <- weekschar
