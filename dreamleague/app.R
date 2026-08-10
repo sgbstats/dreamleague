@@ -15,7 +15,8 @@ library(reactable)
 library(glue)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
-
+load("managers.RDa")
+load("teams.RDa")
 credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
   "credentials.json"
@@ -69,12 +70,12 @@ resolve_shared_drive_path <- function(target = shared_drive_target) {
 try_drive_auth()
 shared_drive_path <- resolve_shared_drive_path()
 
-cache_dir <- tools::R_user_dir("dreamleague", which = "cache")
-dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+cache_dir <- "cache"
+# dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
 
 file_data <- file.path(cache_dir, "data.RDa")
-file_managers <- file.path(cache_dir, "managers.RDa")
-file_teams <- file.path(cache_dir, "teams.RDa")
+# file_managers <- file.path(cache_dir, "managers.RDa")
+# file_teams <- file.path(cache_dir, "teams.RDa")
 file_daily <- file.path(cache_dir, "daily.RDa")
 file_cupties <- file.path(cache_dir, "cupties.RDa")
 
@@ -82,8 +83,6 @@ bootstrap_cache <- function() {
   if (
     all(file.exists(c(
       file_data,
-      file_managers,
-      file_teams,
       file_daily,
       file_cupties
     )))
@@ -91,12 +90,23 @@ bootstrap_cache <- function() {
     return(invisible(TRUE))
   }
 
-  load("data.RDa")
-  load("managers.RDa")
+  load_first_existing <- function(paths) {
+    for (path in paths) {
+      if (file.exists(path)) {
+        load(path, envir = parent.frame())
+        return(invisible(path))
+      }
+    }
+    stop("Unable to locate bundled cache file: ", paste(paths, collapse = ", "))
+  }
+
+  load_first_existing(c("data.RDa", file.path("dreamleague", "data.RDa")))
+  load_first_existing(c(
+    "managers.RDa",
+    file.path("dreamleague", "managers.RDa")
+  ))
 
   save(dl, daily, time, cupties, file = file_data)
-  save(managers_d, managers_o, file = file_managers)
-  save(dl, file = file_teams)
   save(daily, file = file_daily)
   save(cupties, file = file_cupties)
 
@@ -105,16 +115,28 @@ bootstrap_cache <- function() {
 
 bootstrap_cache()
 
-ensure_drive_cache <- function(remote_name, local_path) {
+remote_drive_listing <- tryCatch(
+  if (is.null(shared_drive_path)) {
+    googledrive::drive_find(pattern = "\\.RDa$") |>
+      googledrive::drive_reveal("modified_time")
+  } else {
+    googledrive::drive_ls(shared_drive_path) |>
+      dplyr::filter(grepl("\\.RDa$", .data$name)) |>
+      googledrive::drive_reveal("modified_time")
+  },
+  error = function(e) NULL
+)
+
+ensure_drive_cache <- function(
+  remote_name,
+  local_path,
+  remote_listing = remote_drive_listing,
+  stale_after = lubridate::hours(1)
+) {
   remote <- tryCatch(
-    if (is.null(shared_drive_path)) {
-      googledrive::drive_find(pattern = paste0("^", remote_name, "$")) |>
-        dplyr::slice_max(modified_time, n = 1, with_ties = FALSE)
-    } else {
-      googledrive::drive_ls(shared_drive_path) |>
-        dplyr::filter(.data$name == remote_name) |>
-        dplyr::slice_max(modified_time, n = 1, with_ties = FALSE)
-    },
+    remote_listing |>
+      dplyr::filter(.data$name == remote_name) |>
+      dplyr::slice_max(modified_time, n = 1, with_ties = FALSE),
     error = function(e) NULL
   )
 
@@ -123,15 +145,9 @@ ensure_drive_cache <- function(remote_name, local_path) {
   }
 
   remote_mtime <- remote$modified_time[[1]]
-  local_mtime <- if (file.exists(local_path)) {
-    file.info(local_path)$mtime
-  } else {
-    as.POSIXct(0, tz = "UTC")
-  }
+  remote_age <- difftime(Sys.time(), remote_mtime, units = "secs")
 
-  if (
-    !file.exists(local_path) || is.na(local_mtime) || local_mtime < remote_mtime
-  ) {
+  if (is.na(remote_age) || remote_age > stale_after) {
     googledrive::drive_download(remote, path = local_path, overwrite = TRUE)
   }
 
@@ -139,20 +155,20 @@ ensure_drive_cache <- function(remote_name, local_path) {
 }
 
 ensure_drive_cache("data.RDa", file_data)
-ensure_drive_cache("managers.RDa", file_managers)
-ensure_drive_cache("teams.RDa", file_teams)
+# ensure_drive_cache("managers.RDa", file_managers)
+# ensure_drive_cache("teams.RDa", file_teams)
 ensure_drive_cache("daily.RDa", file_daily)
 ensure_drive_cache("cupties.RDa", file_cupties)
 
 load(file_data)
-load(file_managers)
-load(file_teams)
+# load(file_managers)
+# load(file_teams)
 load(file_daily)
 load(file_cupties)
 
 file_updates <- list(
-  managers = file.info(file_managers)$mtime,
-  teams = file.info(file_teams)$mtime,
+  # managers = file.info(file_managers)$mtime,
+  # teams = file.info(file_teams)$mtime,
   daily = file.info(file_daily)$mtime,
   cupties = file.info(file_cupties)$mtime
 )

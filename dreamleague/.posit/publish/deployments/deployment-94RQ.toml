@@ -10,16 +10,16 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-08-10T11:47:40.701Z"
-bundle_id = "019feb7f-8e6c-ed2f-cc43-7f90cbab2fe8"
+deployed_at = "2026-08-10T14:15:52.982Z"
+bundle_id = "019fec07-6061-af61-ed76-c70d40a9cc54"
 files = [
     ".posit/publish/deployments/deployment-94RQ.toml",
     ".posit/publish/dreamleague-VT3K.toml",
     "app.R",
+    "cache/cupties.RDa",
+    "cache/daily.RDa",
+    "cache/data.RDa",
     "credentials.json",
-    "cupties.RDa",
-    "daily.RDa",
-    "data.RDa",
     "img/ALTERNATIVEULSTERMEN.png",
     "img/ATLETICODEC.png",
     "img/BETTERTOGETHER.png",
@@ -67,12 +67,10 @@ files = [
     "/.posit/publish/dreamleague-VT3K.toml",
     "/.posit/publish/deployments/deployment-94RQ.toml",
     "/credentials.json",
-    "/teams.RDa",
     "/img",
+    "/teams.RDa",
     "/managers.RDa",
-    "/data.RDa",
-    "/daily.RDa",
-    "/cupties.RDa",
+    "/cache",
 ]
 title = "dreamleague"
 secrets = [
