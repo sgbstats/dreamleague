@@ -11,12 +11,10 @@ files = [
     "/.posit/publish/dreamleague-VT3K.toml",
     "/.posit/publish/deployments/deployment-94RQ.toml",
     "/credentials.json",
-    "/teams.RDa",
     "/img",
+    "/teams.RDa",
     "/managers.RDa",
-    "/data.RDa",
-    "/daily.RDa",
-    "/cupties.RDa",
+    "/cache",
 ]
 title = "dreamleague"
 secrets = [
