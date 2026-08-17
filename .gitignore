@@ -47,3 +47,7 @@ web/public/data/*.json
 .env.local
 .env
 .vercel/
+dreamleague/daily.RDa
+dreamleague/cupties.RDa
+daily.RDa
+cupties.RDa
