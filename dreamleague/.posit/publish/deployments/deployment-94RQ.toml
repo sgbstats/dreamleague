@@ -10,8 +10,8 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-08-17T10:17:14.858Z"
-bundle_id = "01a00f39-705c-bebc-2fc1-f04c44a6bc94"
+deployed_at = "2026-08-17T11:33:12.218Z"
+bundle_id = "01a00f7e-f4bb-670b-2605-a61ae79a3277"
 files = [
     ".posit/publish/deployments/deployment-94RQ.toml",
     ".posit/publish/dreamleague-VT3K.toml",
@@ -24,12 +24,12 @@ files = [
     "credentials.json",
     "img/ALTERNATIVEULSTERMEN.png",
     "img/ATLETICODEC.png",
-    "img/BETTERTOGETHER.png",
     "img/CFCALAALCAUFAR.png",
     "img/CRÈMEDADVOCAAT.png",
     "img/DUGGANSARMANDILLOS.png",
     "img/DURHAMDYNAMO.png",
     "img/DYNAMODURHAM.png",
+    "img/EDINBURGHSTEALERS.png",
     "img/ERIMUS.png",
     "img/GLENS.png",
     "img/HOLYFK.png",
