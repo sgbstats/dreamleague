@@ -210,8 +210,8 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   upload_to_drive("dreamleague/data.RDa", "data.RDa")
   # upload_to_drive("dreamleague/managers.RDa", "managers.RDa")
   # upload_to_drive("dreamleague/teams.RDa", "teams.RDa")
-  upload_to_drive("dreamleague/daily.RDa", "daily.RDa")
-  upload_to_drive("dreamleague/cupties.RDa", "cupties.RDa")
+  # upload_to_drive("dreamleague/daily.RDa", "daily.RDa")
+  # upload_to_drive("dreamleague/cupties.RDa", "cupties.RDa")
 }
 b <- Sys.time()
 

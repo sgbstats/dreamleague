@@ -2,7 +2,7 @@
 "$schema" = "https://cdn.posit.co/publisher/schemas/posit-publishing-record-schema-v3.json"
 server_type = "connect_cloud"
 server_url = "https://connect.posit.cloud"
-client_version = "2.9.16"
+client_version = "2.9.19"
 created_at = "2026-03-03T09:34:03.272Z"
 type = "r-shiny"
 configuration_name = "dreamleague-VT3K"
@@ -10,8 +10,8 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-08-11T09:23:53.934Z"
-bundle_id = "019ff022-7092-9e35-7b5f-8972255a0519"
+deployed_at = "2026-08-17T10:17:14.858Z"
+bundle_id = "01a00f39-705c-bebc-2fc1-f04c44a6bc94"
 files = [
     ".posit/publish/deployments/deployment-94RQ.toml",
     ".posit/publish/dreamleague-VT3K.toml",

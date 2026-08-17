@@ -72,8 +72,6 @@ shared_drive_path <- resolve_shared_drive_path()
 
 cache_dir <- "cache"
 file_data <- file.path(cache_dir, "data.RDa")
-file_daily <- file.path(cache_dir, "daily.RDa")
-file_cupties <- file.path(cache_dir, "cupties.RDa")
 cache_meta_file <- file.path(cache_dir, "drive_cache_meta.rds")
 
 cache_meta_default <- list(
@@ -108,9 +106,7 @@ cache_last_updated <- as.POSIXct(NA)
 bootstrap_cache <- function() {
   if (
     all(file.exists(c(
-      file_data,
-      file_daily,
-      file_cupties
+      file_data
     )))
   ) {
     return(invisible(TRUE))
@@ -128,8 +124,6 @@ bootstrap_cache <- function() {
 
   load_first_existing(c("data.RDa", file.path("dreamleague", "data.RDa")))
   save(dl, daily, time, cupties, file = file_data)
-  save(daily, file = file_daily)
-  save(cupties, file = file_cupties)
 
   invisible(TRUE)
 }
@@ -138,8 +132,6 @@ bootstrap_cache()
 
 load_bundle_from_cache <- function() {
   load(file_data)
-  load(file_daily)
-  load(file_cupties)
 
   assign("dl", dl, envir = .GlobalEnv)
   assign("daily", daily, envir = .GlobalEnv)
@@ -194,12 +186,11 @@ load_bundle_from_cache <- function() {
   )
 
   file_updates <<- list(
-    daily = file.info(file_daily)$mtime,
-    cupties = file.info(file_cupties)$mtime
+    daily = file.info(file_data)$mtime
   )
 
   cache_last_updated <<- max(
-    file.info(c(file_data, file_daily, file_cupties))$mtime,
+    file.info(c(file_data))$mtime,
     na.rm = TRUE
   )
 
@@ -286,9 +277,8 @@ refresh_drive_cache <- function(force = FALSE) {
 
   pulled_any <- FALSE
   pulled_any <- pull_drive_file(listing, "data.RDa", file_data) || pulled_any
-  pulled_any <- pull_drive_file(listing, "daily.RDa", file_daily) || pulled_any
-  pulled_any <- pull_drive_file(listing, "cupties.RDa", file_cupties) ||
-    pulled_any
+
+  pulled_any
 
   cache_meta$last_check_success <<- TRUE
   cache_meta$last_refresh_time <<- if (pulled_any) {
