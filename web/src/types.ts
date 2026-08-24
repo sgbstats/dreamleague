@@ -15,6 +15,8 @@ export interface DlRow {
   bought2: string | null;
   sold2: string | null;
   SBapp?: number | null;
+  player_sb_url?: string | null;
+  team_results_url?: string | null;
 }
 
 export interface DailyRow {
@@ -27,6 +29,8 @@ export interface DailyRow {
   Date: string;
   bought2?: string | null;
   sold2?: string | null;
+  player_sb_url?: string | null;
+  team_results_url?: string | null;
 }
 
 export interface ManagerRow {
@@ -76,6 +80,8 @@ export interface TeamRow {
   cost: string | number | null;
   bought: string | null;
   sold: string | null;
+  player_sb_url?: string | null;
+  team_results_url?: string | null;
 }
 
 export interface ScoreHistoryRow {

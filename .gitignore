@@ -29,7 +29,7 @@ vignettes/*.pdf
 #Other junk
 *.html
 **/junk/
-*$*
+*$$
 .secrets
 .secrets/
 
@@ -51,3 +51,6 @@ dreamleague/daily.RDa
 dreamleague/cupties.RDa
 daily.RDa
 cupties.RDa
+**/plans/
+.posit/assistant/plans/
+agents.md

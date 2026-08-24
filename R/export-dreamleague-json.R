@@ -5,6 +5,25 @@ suppressPackageStartupMessages({
 
 load("dreamleague/data.RDa")
 load("dreamleague/managers.RDa")
+load("data/ids.RDa")
+
+player_soccerbase_url <- function(player_id) {
+  if (is.na(player_id) || player_id == "") {
+    return(NA_character_)
+  }
+  glue::glue(
+    "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id=158"
+  )
+}
+
+make_team_results_url <- function(team_id) {
+  if (is.na(team_id) || team_id == "") {
+    return(NA_character_)
+  }
+  glue::glue(
+    "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id=158"
+  )
+}
 
 output_dir <- "web/public/data"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
