@@ -15,11 +15,19 @@ library(reactable)
 library(glue)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
-load("managers.RDa")
-load("teams.RDa")
+
+app_dir <- if (file.exists(file.path("dreamleague", "app.R"))) {
+  "dreamleague"
+} else {
+  "."
+}
+resolve_app_path <- function(...) file.path(app_dir, ...)
+
+load(resolve_app_path("managers.RDa"))
+load(resolve_app_path("teams.RDa"))
 credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
-  "credentials.json"
+  resolve_app_path("credentials.json")
 )
 shared_drive_target <- Sys.getenv(
   "DREAMLEAGUE_SHARED_DRIVE_TARGET",
@@ -70,9 +78,9 @@ resolve_shared_drive_path <- function(target = shared_drive_target) {
 try_drive_auth()
 shared_drive_path <- resolve_shared_drive_path()
 
-cache_dir <- "cache"
-file_data <- file.path(cache_dir, "data.RDa")
-cache_meta_file <- file.path(cache_dir, "drive_cache_meta.rds")
+cache_dir <- resolve_app_path("cache")
+file_data <- resolve_app_path("cache", "data.RDa")
+cache_meta_file <- resolve_app_path("cache", "drive_cache_meta.rds")
 
 cache_meta_default <- list(
   last_check_time = as.POSIXct(NA),
@@ -104,11 +112,7 @@ cache_pull_source <- cache_meta$last_source
 cache_last_updated <- as.POSIXct(NA)
 
 bootstrap_cache <- function() {
-  if (
-    all(file.exists(c(
-      file_data
-    )))
-  ) {
+  if (all(file.exists(c(file_data)))) {
     return(invisible(TRUE))
   }
 
@@ -122,7 +126,11 @@ bootstrap_cache <- function() {
     stop("Unable to locate bundled cache file: ", paste(paths, collapse = ", "))
   }
 
-  load_first_existing(c("data.RDa", file.path("dreamleague", "data.RDa")))
+  load_first_existing(c(
+    resolve_app_path("data.RDa"),
+    "data.RDa"
+  ))
+  dir.create(dirname(file_data), recursive = TRUE, showWarnings = FALSE)
   save(dl, daily, time, cupties, file = file_data)
 
   invisible(TRUE)
@@ -186,6 +194,7 @@ load_bundle_from_cache <- function() {
   )
 
   file_updates <<- list(
+    teams = file.info(file_data)$mtime,
     daily = file.info(file_data)$mtime
   )
 
@@ -385,7 +394,7 @@ ui <- dashboardPage(
               selected = "didsbury"
             ),
             pickerInput("team", "Team", choices = teamslist, selected = NULL),
-            checkboxInput("current", "Current team only", value = T),
+            checkboxInput("current", "Current team only", value = TRUE),
             imageOutput("img", inline = T),
             htmlOutput("teamtext"),
             br(),
@@ -436,7 +445,7 @@ ui <- dashboardPage(
               unique(),
             selected = cupties |>
               filter(comp == "didsbury") |>
-              slice_max(date, with_ties = FALSE) |>
+              slice_max(date, n = 1, with_ties = FALSE) |>
               pull(round),
             multiple = FALSE
           ),
@@ -469,7 +478,7 @@ ui <- dashboardPage(
               selected = "didsbury"
             ),
             dateInput("start", "Start date", value = Sys.Date() - 6),
-            dateInput("end", "End date", value = Sys.Date()),
+            dateInput("end", "End date", value = Sys.Date())
           ),
           mainPanel(
             tags$div(
@@ -530,6 +539,28 @@ server <- function(input, output, session) {
   refresh_counter_value <- 0
   cache_status_text <- reactiveVal("Local cache")
   cache_warning_text <- reactiveVal(NULL)
+
+  team_choices_for_league <- function(league_name) {
+    managers |>
+      filter(league == league_name) |>
+      arrange(team) |>
+      (function(df) {
+        setNames(df$team, paste(df$team, " (", df$manager, ")", sep = ""))
+      })()
+  }
+
+  observeEvent(
+    input$league_teams,
+    {
+      updatePickerInput(
+        session,
+        "team",
+        choices = team_choices_for_league(input$league_teams),
+        selected = NULL
+      )
+    },
+    ignoreInit = FALSE
+  )
 
   bump_refresh_counter <- function() {
     refresh_counter_value <<- refresh_counter_value + 1
@@ -595,37 +626,88 @@ server <- function(input, output, session) {
 
   output$team_out <- renderReactable({
     refresh_counter()
-    if (input$current) {
-      teams3 <- dl |>
-        filter(team == input$team) |>
-        filter(is.na(sold)) |>
-        select(-sold, -bought2, -sold2, -SBapp, -league)
-    } else {
-      teams3 <- dl |>
-        filter(team == input$team) |>
-        select(-bought2, -sold2, -SBapp, -league)
+
+    req(input$league_teams, input$team)
+
+    team_data <- dl |>
+      filter(league == input$league_teams, team == input$team)
+
+    if (isTRUE(input$current)) {
+      team_data <- team_data |>
+        filter(is.na(sold) | sold == "")
     }
+
+    teams3 <- team_data |>
+      select(-sold, -bought2, -sold2, -SBapp, -league)
 
     table_data_unformatted <- teams3 |>
       select(-goals)
 
     table_data <- table_data_unformatted |>
-      select(-team) |>
+      select(-url) |>
       rename("Goals" = "SBgoals") |>
       rename_with(str_to_title) |>
-      relocate(Goals, .after = Club)
+      relocate(Goals, .after = Club) |>
+      mutate(
+        Team = as.character(Team),
+        Player = replace_na(as.character(Player), ""),
+        Club = replace_na(as.character(Club), "")
+      )
+
+    link_style <- "cursor: pointer; text-decoration: underline; color: #808080;"
 
     reactable(
       table_data,
       sortable = TRUE,
       searchable = TRUE,
       columns = list(
-        Player = colDef(width = 150),
-        Club = colDef(width = 150),
+        Team = colDef(show = FALSE),
+        Player = colDef(
+          width = 150,
+          cell = function(value, index) {
+            if (table_data_unformatted$position[index] == "GOALKEEPER") {
+              ""
+            } else {
+              url <- table_data_unformatted$url[index]
+              if (!is.na(url) && nzchar(url)) {
+                tags$a(
+                  href = url,
+                  target = "_blank",
+                  rel = "noreferrer",
+                  style = link_style,
+                  value
+                )
+              } else {
+                value
+              }
+            }
+          }
+        ),
+        Club = colDef(
+          width = 150,
+          cell = function(value, index) {
+            if (table_data_unformatted$position[index] == "GOALKEEPER") {
+              url <- table_data_unformatted$url[index]
+              if (!is.na(url) && nzchar(url)) {
+                tags$a(
+                  href = url,
+                  target = "_blank",
+                  rel = "noreferrer",
+                  style = link_style,
+                  value
+                )
+              } else {
+                value
+              }
+            } else {
+              value
+            }
+          }
+        ),
         Position = colDef(width = 100),
         Goals = colDef(width = 70),
         Cost = colDef(width = 70),
-        Bought = colDef(width = 100)
+        Bought = colDef(show = FALSE)
       ),
       defaultPageSize = 15,
       details = function(index) {
@@ -735,38 +817,53 @@ server <- function(input, output, session) {
 
   output$teamtext <- renderUI({
     refresh_counter()
+    req(input$league_teams, input$team)
+
+    league_row <- league |>
+      filter(league == input$league_teams, team == input$team)
+
     text1 <- paste(
       "<b>League position:",
-      league$rank[which(league$team == input$team)],
+      league_row$rank,
       "</b>"
     )
     text2 <- paste(
       "<b>Score:",
-      league$total[which(league$team == input$team)],
+      league_row$total,
       "</b>"
     )
     text3 <- paste(
       "<font color=\"#4DAF4A\">For:",
-      league$gf[which(league$team == input$team)],
+      league_row$gf,
       "</font>"
     )
     text4 <- paste(
       "<font color=\"#E41A1C\">Against:",
-      league$ga[which(league$team == input$team)],
+      league_row$ga,
       "</font>"
     )
     outfield <- paste(
       "Outfield transfers remaining:",
       8 -
         dl |>
-          filter(team == input$team, position != "GOALKEEPER", cost == "") |>
+          filter(
+            league == input$league_teams,
+            team == input$team,
+            position != "GOALKEEPER",
+            is.na(sold) | sold == ""
+          ) |>
           nrow()
     )
     goalie <- paste(
       "Goalkeeper transfers remaining:",
       2 -
         dl |>
-          filter(team == input$team, position == "GOALKEEPER", cost == "") |>
+          filter(
+            league == input$league_teams,
+            team == input$team,
+            position == "GOALKEEPER",
+            is.na(sold) | sold == ""
+          ) |>
           nrow()
     )
     HTML(paste(text1, text2, text3, text4, outfield, goalie, sep = "<br/>"))
@@ -796,19 +893,41 @@ server <- function(input, output, session) {
   )
 
   output$playerstaken <- renderReactable({
-    table_data <- dl |>
+    table_data_unformatted <- dl |>
       filter(is.na(sold), league == input$league_players) |>
-      dplyr::select(team, player, club, position) |>
+      dplyr::select(team, player, club, position, any_of("url"))
+
+    table_data <- table_data_unformatted |>
+      mutate(
+        player = replace_na(as.character(player), ""),
+        club = replace_na(as.character(club), "")
+      ) |>
+      select(team, player, club, position, url) |>
       rename_with(str_to_title)
 
     reactable(
       table_data,
       searchable = TRUE,
       columns = list(
-        Team = colDef(width = 150),
+        Team = colDef(
+          width = 150,
+          cell = function(value, index) {
+            escaped_team <- gsub("'", "\\\\'", value)
+            tags$a(
+              href = "#",
+              style = "cursor: pointer; text-decoration: underline; color: #808080;",
+              onclick = sprintf(
+                "Shiny.setInputValue('goto_team', {team: '%s', nonce: Math.random()})",
+                escaped_team
+              ),
+              value
+            )
+          }
+        ),
         Player = colDef(width = 150),
         Club = colDef(width = 150),
-        Position = colDef(width = 100)
+        Position = colDef(width = 100),
+        Url = colDef(show = FALSE)
       ),
       defaultPageSize = 15
     )
@@ -907,7 +1026,7 @@ server <- function(input, output, session) {
   output$player_warning <- renderUI({
     refresh_counter()
     req(input$league_players)
-    last_mod <- file_updates$teams
+    last_mod <- file_updates$daily
 
     tags$div(
       class = "alert alert-warning alert-dismissible",
@@ -1098,7 +1217,7 @@ server <- function(input, output, session) {
   observeEvent(input$league, {
     #updateRadioButtons(session, "league", selected = input$league)
     updateRadioButtons(session, "league_teams", selected = input$league)
-    updateRadioButtons(session, "league_players", selected = input$leagues)
+    updateRadioButtons(session, "league_players", selected = input$league)
     updateRadioButtons(session, "league_team_history", selected = input$league)
   })
 
@@ -1164,9 +1283,8 @@ server <- function(input, output, session) {
       pull(round) |>
       unique()
 
-    # pick the most recent round as default (if any)
     selected_round <- if (length(rounds_for_comp) > 0) {
-      rounds_for_comp[length(rounds_for_comp)]
+      tail(rounds_for_comp, 1)
     } else {
       NULL
     }

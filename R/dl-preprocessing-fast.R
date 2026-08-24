@@ -271,7 +271,13 @@ dl_process <- function(
     group_by(player_id, team, bought2) |>
     slice_min(team, n = 1, with_ties = F) |>
     ungroup() |>
-    mutate(SBgoals = 0, SBapp = 0) |>
+    mutate(
+      SBgoals = 0,
+      SBapp = 0,
+      url = glue::glue(
+        "https://www.soccerbase.com/players/player.sd?player_id={player_id}&season_id={season_id}"
+      )
+    ) |>
     select(-player.y, -dist) |>
     rename("player" = "player.x") |>
     arrange(player) |>
@@ -386,7 +392,13 @@ dl_process <- function(
       by.y = "team",
       all.x = T
     ) |>
-    mutate(SBgoals = 0, SBapp = 0) |>
+    mutate(
+      SBgoals = 0,
+      SBapp = 0,
+      url = glue::glue(
+        "https://www.soccerbase.com/teams/team.sd?team_id={team_id}&teamTabs=results&season_id={season_id}"
+      )
+    ) |>
     ungroup() |>
     drop_na(club) |>
     mutate(
@@ -510,11 +522,20 @@ dl_process <- function(
       )
     )
 
+  outfield2 <- outfield |>
+    ungroup() |>
+    dplyr::select(-player_id)
+
+  gk2 <- gk |>
+    dplyr::select(-team_id) |>
+    mutate(
+      SBgoals = as.numeric(SBgoals),
+      SBapp = as.numeric(SBapp)
+    )
+
   team_score <- rbind(
-    outfield |> ungroup() |> dplyr::select(-player_id),
-    gk |>
-      dplyr::select(-team_id) |>
-      mutate(SBgoals = as.numeric(SBgoals), SBapp = as.numeric(SBapp))
+    outfield2,
+    gk2
   ) |>
     ungroup() |>
     mutate(

@@ -140,6 +140,8 @@ export function getTeamRows(bundle: Bundle, league: LeagueKey, team: string, cur
       cost: row.cost,
       bought: row.bought,
       sold: row.sold,
+      player_sb_url: row.player_sb_url,
+      team_results_url: row.team_results_url,
     }))
     .sort((a, b) => {
       const aIndex = POSITION_ORDER.indexOf(a.position as SquadPosition);

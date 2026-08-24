@@ -249,6 +249,7 @@ fieldset {
   color: #111827;
 }
 
+.table-link,
 .inline-link-button {
   color: inherit;
   text-decoration: underline;
