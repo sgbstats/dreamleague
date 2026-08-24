@@ -268,11 +268,20 @@ function App() {
                     {teamRows.map((row) => {
                       const key = `${row.team}-${row.player ?? row.club}-${row.position}`;
                       const open = expandedTeamRow === key;
+                      const playerHref = row.position === 'GOALKEEPER' ? row.team_results_url : row.player_sb_url;
                       return (
                         <Fragment key={key}>
                           <tr>
                             <td><button onClick={() => setExpandedTeamRow(open ? null : key)}>{open ? '−' : '+'}</button></td>
-                            <td>{row.player ?? ''}</td>
+                            <td>
+                              {playerHref ? (
+                                <a className="table-link" href={playerHref} target="_blank" rel="noreferrer">
+                                  {row.position === 'GOALKEEPER' ? row.club : row.player ?? row.club}
+                                </a>
+                              ) : (
+                                row.position === 'GOALKEEPER' ? row.club : row.player ?? row.club
+                              )}
+                            </td>
                             <td>{row.club}</td>
                             <td>{row.position}</td>
                             <td>{row.SBgoals}</td>
@@ -323,7 +332,19 @@ function App() {
                   <tbody>
                     {filteredPlayersTaken.map((row) => (
                       <tr key={`${row.team}-${row.player ?? row.club}`}>
-                        <td>{row.team}</td>
+                        <td>
+                          <a
+                            className="table-link"
+                            href="#teams"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setTeam(row.team);
+                              setTab('teams');
+                            }}
+                          >
+                            {row.team}
+                          </a>
+                        </td>
                         <td>{row.player ?? ''}</td>
                         <td>{row.club}</td>
                         <td>{row.position}</td>

@@ -2,7 +2,7 @@
 "$schema" = "https://cdn.posit.co/publisher/schemas/posit-publishing-record-schema-v3.json"
 server_type = "connect_cloud"
 server_url = "https://connect.posit.cloud"
-client_version = "2.9.19"
+client_version = "2.11.2"
 created_at = "2026-03-03T09:34:03.272Z"
 type = "r-shiny"
 configuration_name = "dreamleague-VT3K"
@@ -10,8 +10,8 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-08-17T11:33:12.218Z"
-bundle_id = "01a00f7e-f4bb-670b-2605-a61ae79a3277"
+deployed_at = "2026-08-24T13:36:23.811Z"
+bundle_id = "01a033fc-3cf7-84c8-cc8c-175c393f7e6f"
 files = [
     ".posit/publish/deployments/deployment-94RQ.toml",
     ".posit/publish/dreamleague-VT3K.toml",
@@ -285,28 +285,6 @@ author = "Douglas Bates [aut] (ORCID: <https://orcid.org/0000-0001-8316-9503>), 
 maintainer = "Martin Maechler <mmaechler+Matrix@gmail.com>"
 repository = "CRAN"
 
-[renv.packages.PKI]
-package = "PKI"
-version = "0.1-15"
-source = "Repository"
-title = "Public Key Infrastucture for R Based on the X.509 Standard"
-"authors@r" = "person(\"Simon\", \"Urbanek\", role=c(\"aut\",\"cre\",\"cph\"), email=\"Simon.Urbanek@r-project.org\", comment=c(\"https://urbanek.nz\", ORCID=\"0000-0003-2297-1732\"))"
-maintainer = "Simon Urbanek <Simon.Urbanek@r-project.org>"
-depends = [
-    "R (>= 2.9.0)",
-    "base64enc",
-]
-enhances = [
-    "gmp",
-]
-description = "Public Key Infrastucture functions such as verifying certificates, RSA encription and signing which can be used to build PKI infrastructure and perform cryptographic tasks."
-license = "GPL-2 | GPL-3 | file LICENSE"
-url = "http://www.rforge.net/PKI"
-system_requirements = "OpenSSL library and headers (openssl-dev or similar)"
-needs_compilation = "yes"
-author = "Simon Urbanek [aut, cre, cph] (https://urbanek.nz, ORCID: <https://orcid.org/0000-0003-2297-1732>)"
-repository = "CRAN"
-
 [renv.packages.R6]
 package = "R6"
 version = "2.6.1"
@@ -379,36 +357,6 @@ encoding = "UTF-8"
 vignette_builder = "Rcpp"
 needs_compilation = "yes"
 author = "Dirk Eddelbuettel [aut, cre] (ORCID: <https://orcid.org/0000-0001-6419-907X>), Romain Francois [aut] (ORCID: <https://orcid.org/0000-0002-2444-4226>), JJ Allaire [aut] (ORCID: <https://orcid.org/0000-0003-0174-9868>), Kevin Ushey [aut] (ORCID: <https://orcid.org/0000-0003-2880-7407>), Qiang Kou [aut] (ORCID: <https://orcid.org/0000-0001-6786-5453>), Nathan Russell [aut], Iñaki Ucar [aut] (ORCID: <https://orcid.org/0000-0001-6403-5550>), Doug Bates [aut] (ORCID: <https://orcid.org/0000-0001-8316-9503>), John Chambers [aut]"
-maintainer = "Dirk Eddelbuettel <edd@debian.org>"
-repository = "CRAN"
-
-[renv.packages.RcppTOML]
-package = "RcppTOML"
-version = "0.2.3"
-source = "Repository"
-type = "Package"
-title = "'Rcpp' Bindings to Parser for \"Tom's Obvious Markup Language\""
-date = "2025-03-08"
-"authors@r" = "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\", comment = c(ORCID = \"0000-0001-6419-907X\")), person(\"Mark\", \"Gillard\", role = \"aut\", comment = \"Author of 'toml++' header library\"))"
-description = "The configuration format defined by 'TOML' (which expands to \"Tom's Obvious Markup Language\") specifies an excellent format (described at <https://toml.io/en/>) suitable for both human editing as well as the common uses of a machine-readable format. This package uses 'Rcpp' to connect to the 'toml++' parser written by Mark Gillard to R."
-system_requirements = "A C++17 compiler"
-bug_reports = "https://github.com/eddelbuettel/rcpptoml/issues"
-url = "http://dirk.eddelbuettel.com/code/rcpp.toml.html"
-imports = [
-    "Rcpp (>= 1.0.8)",
-]
-depends = [
-    "R (>= 3.3.0)",
-]
-linking_to = [
-    "Rcpp",
-]
-suggests = [
-    "tinytest",
-]
-license = "GPL (>= 2)"
-needs_compilation = "yes"
-author = "Dirk Eddelbuettel [aut, cre] (<https://orcid.org/0000-0001-6419-907X>), Mark Gillard [aut] (Author of 'toml++' header library)"
 maintainer = "Dirk Eddelbuettel <edd@debian.org>"
 repository = "CRAN"
 
@@ -554,7 +502,7 @@ repository = "CRAN"
 
 [renv.packages.bit64]
 package = "bit64"
-version = "4.8.2"
+version = "4.8.4"
 source = "Repository"
 title = "A S3 Class for Vectors of 64bit Integers"
 "authors@r" = "c( person(\"Michael\", \"Chirico\", email=\"michaelchirico4@gmail.com\", role=c(\"aut\", \"cre\")), person(\"Jens\", \"Oehlschlägel\", role=\"aut\"), person(\"Leonardo\", \"Silvestri\", role=\"ctb\"), person(\"Ofek\", \"Shilon\", role=\"ctb\"), person(\"Christian\", \"Ullerich\", role=\"ctb\") )"
@@ -582,7 +530,7 @@ suggests = [
 "config/testthat/edition" = "3"
 "config/needs/development" = "patrick, testthat"
 "config/needs/website" = "tidyverse/tidytemplate"
-roxygen_note = "7.3.3"
+"config/roxygen2/version" = "8.0.0"
 needs_compilation = "yes"
 author = "Michael Chirico [aut, cre], Jens Oehlschlägel [aut], Leonardo Silvestri [ctb], Ofek Shilon [ctb], Christian Ullerich [ctb]"
 maintainer = "Michael Chirico <michaelchirico4@gmail.com>"
@@ -772,7 +720,7 @@ repository = "CRAN"
 
 [renv.packages.bslib]
 package = "bslib"
-version = "0.11.0"
+version = "0.12.0"
 source = "Repository"
 title = "Custom 'Bootstrap' 'Sass' Themes for 'shiny' and 'rmarkdown'"
 "authors@r" = "c( person(\"Carson\", \"Sievert\", , \"carson@posit.co\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-4958-2844\")), person(\"Joe\", \"Cheng\", , \"joe@posit.co\", role = \"aut\"), person(\"Garrick\", \"Aden-Buie\", , \"garrick@posit.co\", role = \"aut\", comment = c(ORCID = \"0000-0002-7111-0077\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")), person(, \"Bootstrap contributors\", role = \"ctb\", comment = \"Bootstrap library\"), person(, \"Twitter, Inc\", role = \"cph\", comment = \"Bootstrap library\"), person(\"Javi\", \"Aguilar\", role = c(\"ctb\", \"cph\"), comment = \"Bootstrap colorpicker library\"), person(\"Thomas\", \"Park\", role = c(\"ctb\", \"cph\"), comment = \"Bootswatch library\"), person(, \"PayPal\", role = c(\"ctb\", \"cph\"), comment = \"Bootstrap accessibility plugin\") )"
@@ -825,7 +773,7 @@ suggests = [
 "config/testthat/parallel" = "true"
 "config/testthat/start-first" = "zzzz-bs-sass, fonts, zzz-precompile, theme-*, rmd-*"
 encoding = "UTF-8"
-collate = "'accordion.R' 'breakpoints.R' 'bs-current-theme.R' 'bs-dependencies.R' 'bs-global.R' 'bs-remove.R' 'bs-theme-layers.R' 'bs-theme-preset-bootswatch.R' 'bs-theme-preset-brand.R' 'bs-theme-preset-builtin.R' 'bs-theme-preset.R' 'utils.R' 'bs-theme-preview.R' 'bs-theme-update.R' 'bs-theme.R' 'bslib-package.R' 'buttons.R' 'card.R' 'deprecated.R' 'files.R' 'fill.R' 'imports.R' 'input-code-editor.R' 'input-dark-mode.R' 'input-submit.R' 'input-switch.R' 'layout.R' 'nav-items.R' 'nav-update.R' 'navbar_options.R' 'navs-legacy.R' 'navs.R' 'onLoad.R' 'page.R' 'popover.R' 'precompiled.R' 'print.R' 'shiny-devmode.R' 'sidebar.R' 'staticimports.R' 'toast.R' 'toolbar.R' 'tooltip.R' 'utils-deps.R' 'utils-shiny.R' 'utils-tags.R' 'value-box.R' 'version-default.R' 'versions.R'"
+collate = "'accordion.R' 'breakpoints.R' 'bs-current-theme.R' 'bs-dependencies.R' 'bs-global.R' 'bs-remove.R' 'bs-theme-layers.R' 'bs-theme-preset-bootswatch.R' 'bs-theme-preset-brand.R' 'bs-theme-preset-builtin.R' 'bs-theme-preset.R' 'utils.R' 'bs-theme-preview.R' 'bs-theme-update.R' 'bs-theme.R' 'bslib-package.R' 'buttons.R' 'card.R' 'deprecated.R' 'files.R' 'fill.R' 'imports.R' 'input-code-editor.R' 'input-dark-mode.R' 'input-submit.R' 'input-switch.R' 'layout.R' 'nav-items.R' 'nav-update.R' 'navbar_options.R' 'navs-legacy.R' 'navs.R' 'offcanvas.R' 'onLoad.R' 'page.R' 'popover.R' 'precompiled.R' 'print.R' 'shiny-devmode.R' 'sidebar.R' 'staticimports.R' 'toast.R' 'toolbar.R' 'tooltip.R' 'utils-deps.R' 'utils-shiny.R' 'utils-tags.R' 'value-box.R' 'version-default.R' 'versions.R'"
 needs_compilation = "no"
 author = "Carson Sievert [aut, cre] (ORCID: <https://orcid.org/0000-0002-4958-2844>), Joe Cheng [aut], Garrick Aden-Buie [aut] (ORCID: <https://orcid.org/0000-0002-7111-0077>), Posit Software, PBC [cph, fnd], Bootstrap contributors [ctb] (Bootstrap library), Twitter, Inc [cph] (Bootstrap library), Javi Aguilar [ctb, cph] (Bootstrap colorpicker library), Thomas Park [ctb, cph] (Bootswatch library), PayPal [ctb, cph] (Bootstrap accessibility plugin)"
 maintainer = "Carson Sievert <carson@posit.co>"
@@ -2533,67 +2481,6 @@ author = "Hadley Wickham [aut, cre], Posit Software, PBC [cph, fnd]"
 maintainer = "Hadley Wickham <hadley@posit.co>"
 repository = "CRAN"
 
-[renv.packages.httr2]
-package = "httr2"
-version = "1.2.3"
-source = "Repository"
-title = "Perform HTTP Requests and Process the Responses"
-"authors@r" = "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")), person(\"Maximilian\", \"Girlich\", role = \"ctb\") )"
-description = "Tools for creating and modifying HTTP requests, then performing them and processing the results. 'httr2' is a modern re-imagining of 'httr' that uses a pipe-based interface and solves more of the problems that API wrapping packages face."
-license = "MIT + file LICENSE"
-url = "https://httr2.r-lib.org, https://github.com/r-lib/httr2"
-bug_reports = "https://github.com/r-lib/httr2/issues"
-depends = [
-    "R (>= 4.1)",
-]
-imports = [
-    "cli (>= 3.0.0)",
-    "curl (>= 6.4.0)",
-    "glue",
-    "lifecycle",
-    "magrittr",
-    "openssl",
-    "R6",
-    "rappdirs",
-    "rlang (>= 1.1.0)",
-    "vctrs (>= 0.6.3)",
-    "withr",
-]
-suggests = [
-    "askpass",
-    "bench",
-    "clipr",
-    "covr",
-    "digest",
-    "docopt",
-    "httpuv",
-    "jose",
-    "jsonlite",
-    "knitr",
-    "later (>= 1.4.0)",
-    "nanonext",
-    "otel (>= 0.2.0)",
-    "otelsdk (>= 0.2.0)",
-    "paws.common (>= 0.8.0)",
-    "promises",
-    "rmarkdown",
-    "testthat (>= 3.1.8)",
-    "tibble",
-    "webfakes (>= 1.4.0)",
-    "xml2",
-]
-vignette_builder = "knitr"
-"config/needs/website" = "tidyverse/tidytemplate"
-"config/roxygen2/version" = "8.0.0"
-"config/testthat/edition" = "3"
-"config/testthat/parallel" = "true"
-"config/testthat/start-first" = "resp-stream, req-perform"
-encoding = "UTF-8"
-needs_compilation = "no"
-author = "Hadley Wickham [aut, cre], Posit Software, PBC [cph, fnd], Maximilian Girlich [ctb]"
-maintainer = "Hadley Wickham <hadley@posit.co>"
-repository = "CRAN"
-
 [renv.packages.ids]
 package = "ids"
 version = "1.0.1"
@@ -2661,38 +2548,6 @@ linking_to = [
 needs_compilation = "yes"
 author = "Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Claus O. Wilke [aut] (Original author, ORCID: <https://orcid.org/0000-0002-7470-9261>), Thomas Lin Pedersen [aut, cre] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Posit, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)"
 maintainer = "Thomas Lin Pedersen <thomas.pedersen@posit.co>"
-repository = "CRAN"
-
-[renv.packages.jose]
-package = "jose"
-version = "2.0.0"
-source = "Repository"
-type = "Package"
-title = "JavaScript Object Signing and Encryption"
-"authors@r" = "person(\"Jeroen\", \"Ooms\", role = c(\"aut\", \"cre\"),  email = \"jeroenooms@gmail.com\", comment = c(ORCID = \"0000-0002-4035-0289\"))"
-description = "Read and write JSON Web Keys (JWK, rfc7517), generate and verify JSON Web Signatures (JWS, rfc7515) and encode/decode JSON Web Tokens (JWT, rfc7519) <https://datatracker.ietf.org/wg/jose/documents/>. These standards provide  modern signing and encryption formats that are natively supported by browsers via the JavaScript WebCryptoAPI <https://www.w3.org/TR/webcrypto/#jose>,  and used by services like OAuth 2.0, LetsEncrypt, and Github Apps."
-license = "MIT + file LICENSE"
-url = "https://r-lib.r-universe.dev/jose"
-bug_reports = "https://github.com/r-lib/jose/issues"
-depends = [
-    "openssl (>= 1.2.1)",
-]
-imports = [
-    "jsonlite",
-]
-roxygen_note = "7.3.3.9000"
-vignette_builder = "knitr"
-suggests = [
-    "spelling",
-    "testthat",
-    "knitr",
-    "rmarkdown",
-]
-encoding = "UTF-8"
-language = "en-US"
-needs_compilation = "no"
-author = "Jeroen Ooms [aut, cre] (ORCID: <https://orcid.org/0000-0002-4035-0289>)"
-maintainer = "Jeroen Ooms <jeroenooms@gmail.com>"
 repository = "CRAN"
 
 [renv.packages.jquerylib]
@@ -3287,7 +3142,7 @@ repository = "CRAN"
 
 [renv.packages.officer]
 package = "officer"
-version = "0.7.5"
+version = "0.7.6"
 source = "Repository"
 type = "Package"
 title = "Manipulation of Microsoft Word and PowerPoint Documents"
@@ -3399,42 +3254,6 @@ bug_reports = "https://github.com/r-lib/otel/issues"
 needs_compilation = "no"
 author = "Gábor Csárdi [aut, cre]"
 maintainer = "Gábor Csárdi <csardi.gabor@gmail.com>"
-repository = "CRAN"
-
-[renv.packages.packrat]
-package = "packrat"
-version = "0.9.3"
-source = "Repository"
-type = "Package"
-title = "A Dependency Management System for Projects and their R Package Dependencies"
-"authors@r" = "c( person(\"Aron\", \"Atkins\", , \"aron@posit.co\", role = c(\"aut\", \"cre\")), person(\"Toph\", \"Allen\", role = \"aut\"), person(\"Kevin\", \"Ushey\", role = \"aut\"), person(\"Jonathan\", \"McPherson\", role = \"aut\"), person(\"Joe\", \"Cheng\", role = \"aut\"), person(\"JJ\", \"Allaire\", role = \"aut\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )"
-description = "Manage the R packages your project depends on in an isolated, portable, and reproducible way."
-license = "GPL-2"
-url = "https://github.com/rstudio/packrat"
-bug_reports = "https://github.com/rstudio/packrat/issues"
-depends = [
-    "R (>= 3.0.0)",
-]
-imports = [
-    "tools",
-    "utils",
-]
-suggests = [
-    "devtools",
-    "httr",
-    "knitr",
-    "mockery",
-    "rmarkdown",
-    "testthat (>= 3.0.0)",
-    "webfakes",
-    "withr",
-]
-"config/testthat/edition" = "3"
-encoding = "UTF-8"
-roxygen_note = "7.3.2"
-needs_compilation = "no"
-author = "Aron Atkins [aut, cre], Toph Allen [aut], Kevin Ushey [aut], Jonathan McPherson [aut], Joe Cheng [aut], JJ Allaire [aut], Posit Software, PBC [cph, fnd]"
-maintainer = "Aron Atkins <aron@posit.co>"
 repository = "CRAN"
 
 [renv.packages.pillar]
@@ -4043,7 +3862,7 @@ repository = "CRAN"
 
 [renv.packages.renv]
 package = "renv"
-version = "1.2.3"
+version = "1.2.4"
 source = "Repository"
 type = "Package"
 title = "Project Environments"
@@ -4085,12 +3904,12 @@ suggests = [
     "webfakes",
 ]
 encoding = "UTF-8"
-roxygen_note = "7.3.3"
 vignette_builder = "knitr"
 "config/needs/website" = "tidyverse/tidytemplate"
 "config/testthat/edition" = "3"
 "config/testthat/parallel" = "true"
 "config/testthat/start-first" = "bioconductor,python,install,restore,snapshot,retrieve,remotes"
+"config/roxygen2/version" = "8.0.0"
 needs_compilation = "no"
 author = "Kevin Ushey [aut, cre] (ORCID: <https://orcid.org/0000-0003-2880-7407>), Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Posit Software, PBC [cph, fnd]"
 maintainer = "Kevin Ushey <kevin@rstudio.com>"
@@ -4283,65 +4102,6 @@ maintainer = "Beth Atkinson <atkinson@mayo.edu>"
 repository = "CRAN"
 url = "https://github.com/bethatkinson/rpart, https://cran.r-project.org/package=rpart"
 bug_reports = "https://github.com/bethatkinson/rpart/issues"
-
-[renv.packages.rsconnect]
-package = "rsconnect"
-version = "1.10.0"
-source = "Repository"
-type = "Package"
-title = "Deploy Docs, Apps, and APIs to 'Posit Connect', 'shinyapps.io', and 'RPubs'"
-"authors@r" = "c( person(\"Aron\", \"Atkins\", , \"aron@posit.co\", role = c(\"aut\", \"cre\")), person(\"Toph\", \"Allen\", role = \"aut\"), person(\"Hadley\", \"Wickham\", role = \"aut\"), person(\"Jonathan\", \"McPherson\", role = \"aut\"), person(\"JJ\", \"Allaire\", role = \"aut\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )"
-description = "Programmatic deployment interface for 'RPubs', 'shinyapps.io', and 'Posit Connect'. Supported content types include R Markdown documents, Shiny applications, Plumber APIs, plots, and static web content."
-license = "GPL-2"
-url = "https://rstudio.github.io/rsconnect/, https://github.com/rstudio/rsconnect"
-bug_reports = "https://github.com/rstudio/rsconnect/issues"
-depends = [
-    "R (>= 3.5.0)",
-]
-imports = [
-    "cli",
-    "curl (>= 7.0.0)",
-    "digest",
-    "httr2",
-    "jsonlite",
-    "lifecycle",
-    "openssl (>= 2.0.0)",
-    "PKI",
-    "packrat (>= 0.6)",
-    "renv (>= 1.0.0)",
-    "rlang (>= 1.0.0)",
-    "rstudioapi (>= 0.18.0)",
-    "snowflakeauth",
-    "tools",
-    "yaml (>= 2.1.5)",
-    "utils",
-]
-suggests = [
-    "Biobase",
-    "BiocManager",
-    "foreign",
-    "knitr",
-    "MASS",
-    "plumber (>= 0.3.2)",
-    "quarto",
-    "reticulate",
-    "rmarkdown (>= 1.1)",
-    "shiny",
-    "testthat (>= 3.1.9)",
-    "webfakes",
-    "withr",
-]
-vignette_builder = "knitr, rmarkdown"
-"config/needs/website" = "tidyverse/tidytemplate"
-"config/testthat/edition" = "3"
-"config/testthat/parallel" = "true"
-"config/python/note" = "Python <= 3.10 requires tomllib package for pyproject.toml parsing"
-encoding = "UTF-8"
-"config/roxygen2/version" = "8.0.0"
-needs_compilation = "no"
-author = "Aron Atkins [aut, cre], Toph Allen [aut], Hadley Wickham [aut], Jonathan McPherson [aut], JJ Allaire [aut], Posit Software, PBC [cph, fnd]"
-maintainer = "Aron Atkins <aron@posit.co>"
-repository = "CRAN"
 
 [renv.packages.rstudioapi]
 package = "rstudioapi"
@@ -4703,39 +4463,6 @@ author = "Dean Attali [aut, cre] (ORCID: <https://orcid.org/0000-0002-5645-3493>
 maintainer = "Dean Attali <daattali@gmail.com>"
 repository = "CRAN"
 
-[renv.packages.snowflakeauth]
-package = "snowflakeauth"
-version = "0.2.2"
-source = "Repository"
-title = "Authentication Helpers for 'Snowflake'"
-"authors@r" = "c( person(\"Aaron\", \"Jacobs\", , \"aaron.jacobs@posit.co\", role = c(\"aut\")), person(\"E. David\", \"Aja\", , \"david@posit.co\", role = c(\"aut\", \"cre\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )"
-description = "Authentication helpers for 'Snowflake'. It provides compatibility with authentication approaches supported by the 'Snowflake Connector for Python' <https://pypi.org/project/snowflake-connector-python> and the 'Snowflake CLI' <https://pypi.org/project/snowflake-cli>."
-license = "MIT + file LICENSE"
-encoding = "UTF-8"
-imports = [
-    "cli",
-    "curl",
-    "jsonlite",
-    "RcppTOML",
-    "rlang",
-    "jose",
-    "openssl",
-]
-suggests = [
-    "httpuv",
-    "keyring",
-    "testthat (>= 3.0.0)",
-    "withr",
-]
-roxygen_note = "7.3.2"
-"config/testthat/edition" = "3"
-url = "https://posit-dev.github.io/snowflakeauth/, https://github.com/posit-dev/snowflakeauth"
-bug_reports = "https://github.com/posit-dev/snowflakeauth/issues"
-needs_compilation = "no"
-author = "Aaron Jacobs [aut], E. David Aja [aut, cre], Posit Software, PBC [cph, fnd]"
-maintainer = "E. David Aja <david@posit.co>"
-repository = "CRAN"
-
 [renv.packages.sourcetools]
 package = "sourcetools"
 version = "0.1.7-2"
@@ -4788,9 +4515,9 @@ repository = "CRAN"
 
 [renv.packages.stringi]
 package = "stringi"
-version = "1.8.7"
+version = "1.8.9"
 source = "Repository"
-date = "2025-03-27"
+date = "2026-07-30"
 title = "Fast and Portable Character String Processing Facilities"
 description = "A collection of character string/text/natural language processing tools for pattern searching (e.g., with 'Java'-like regular expressions or the 'Unicode' collation algorithm), random string generation, case mapping, string transliteration, concatenation, sorting, padding, wrapping, Unicode normalisation, date-time formatting and parsing, and many more. They are fast, consistent, convenient, and - thanks to 'ICU' (International Components for Unicode) - portable across all locales and platforms. Documentation about 'stringi' is provided via its website at <https://stringi.gagolewski.com/> and the paper by Gagolewski (2022, <doi:10.18637/jss.v103.i02>)."
 url = "https://stringi.gagolewski.com/, https://github.com/gagolews/stringi, https://icu.unicode.org/"
@@ -4808,10 +4535,10 @@ imports = [
 biarch = "TRUE"
 license = "file LICENSE"
 "authors@r" = "c(person(given = \"Marek\", family = \"Gagolewski\", role = c(\"aut\", \"cre\", \"cph\"), email = \"marek@gagolewski.com\", comment = c(ORCID = \"0000-0003-0637-6028\")), person(given = \"Bartek\", family = \"Tartanus\", role = \"ctb\"), person(\"Unicode, Inc. and others\", role=\"ctb\", comment = \"ICU4C source code, Unicode Character Database\") )"
-roxygen_note = "7.3.2"
 encoding = "UTF-8"
+"config/roxygen2/version" = "8.0.0"
 needs_compilation = "yes"
-author = "Marek Gagolewski [aut, cre, cph] (<https://orcid.org/0000-0003-0637-6028>), Bartek Tartanus [ctb], Unicode, Inc. and others [ctb] (ICU4C source code, Unicode Character Database)"
+author = "Marek Gagolewski [aut, cre, cph] (ORCID: <https://orcid.org/0000-0003-0637-6028>), Bartek Tartanus [ctb], Unicode, Inc. and others [ctb] (ICU4C source code, Unicode Character Database)"
 maintainer = "Marek Gagolewski <marek@gagolewski.com>"
 license_is_foss = "yes"
 repository = "CRAN"
@@ -5552,7 +5279,7 @@ repository = "CRAN"
 
 [renv.packages.xfun]
 package = "xfun"
-version = "0.59"
+version = "0.60"
 source = "Repository"
 type = "Package"
 title = "Supporting Functions for Packages Maintained by 'Yihui Xie'"
@@ -5697,7 +5424,7 @@ repository = "CRAN"
 
 [renv.packages.zip]
 package = "zip"
-version = "3.0.0"
+version = "3.0.2"
 source = "Repository"
 title = "Cross-Platform 'zip' Compression"
 "authors@r" = "c( person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = c(\"aut\", \"cre\")), person(\"Kuba\", \"Podgórski\", role = \"ctb\"), person(\"Rich\", \"Geldreich\", role = \"ctb\"), person(\"Arm Limited\", role = c(\"ctb\", \"cph\"), comment = \"bundled Mbed TLS crypto subset in src/mbedtls/ (Apache-2.0)\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )"
