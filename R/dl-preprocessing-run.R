@@ -12,6 +12,7 @@ suppressPackageStartupMessages({
 a <- Sys.time()
 
 source("R/dl-preprocessing-fast.R")
+source("R/validate-dreamleague-data.R")
 credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
   "credentials.json"
@@ -96,10 +97,6 @@ dl_o <- dl_o |>
 out_o <- dl_process(dl_o, managers_o, "Original", season_id = 159)
 
 
-dl_d <- out_d$scores
-dl_o <- out_o$scores
-daily_o <- out_o$daily
-daily_d <- out_d$daily
 time <- list("update_time" = Sys.time(), "mod_d" = mod_d, "mod_o" = mod_o)
 
 cupties <- read.csv("data/cupties.csv") |>
@@ -183,6 +180,36 @@ upload_to_drive <- function(local_file, remote_name) {
   )
 }
 
+normalize_daily_schema <- function(daily) {
+  if ("App" %in% names(daily) && !"SBapp" %in% names(daily)) {
+    daily$SBapp <- daily$App
+  }
+  if ("SBapp" %in% names(daily) && !"App" %in% names(daily)) {
+    daily$App <- daily$SBapp
+  }
+  daily
+}
+
+run_data_shape_tests <- function(dl, daily, time, cupties, managers) {
+  options(
+    dreamleague.test_bundle = list(
+      dl = dl,
+      daily = daily,
+      time = time,
+      cupties = cupties,
+      managers = managers
+    )
+  )
+  on.exit(options(dreamleague.test_bundle = NULL), add = TRUE)
+
+  testthat::test_dir(
+    "tests/testthat",
+    reporter = "summary",
+    stop_on_failure = TRUE
+  )
+
+  invisible(TRUE)
+}
 
 if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   dl <- rbind.data.frame(
@@ -194,6 +221,11 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
     out_d$daily |> mutate(league = "didsbury"),
     out_o$daily |> mutate(league = "original")
   )
+
+  daily <- normalize_daily_schema(daily)
+
+  validate_dreamleague_bundle(dl, daily, time, cupties, managers)
+  run_data_shape_tests(dl, daily, time, cupties, managers)
 
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
   source("R/export-dreamleague-json.R")
