@@ -10,8 +10,8 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-08-24T13:36:23.811Z"
-bundle_id = "01a033fc-3cf7-84c8-cc8c-175c393f7e6f"
+deployed_at = "2026-08-25T10:41:49.230Z"
+bundle_id = "01a03882-c630-860d-08e7-de7e1747d169"
 files = [
     ".posit/publish/deployments/deployment-94RQ.toml",
     ".posit/publish/dreamleague-VT3K.toml",
@@ -52,7 +52,6 @@ files = [
     "img/WOODHALLSPAWHITES.png",
     "img/favicon.ico",
     "managers.RDa",
-    "teams.RDa",
 ]
 
 [connect_cloud]

@@ -123,7 +123,8 @@ dl_process <- function(
       ) |>
       mutate(
         team = NA_character_,
-        cost = gsub("TRANSFER|TRASNFER", "", cost, ignore.case = T)
+        is_transfer = grepl("TRANSFER|TRASNFER", cost, ignore.case = TRUE),
+        cost = gsub("TRANSFER|TRASNFER", "", cost, ignore.case = TRUE)
       )
 
     managers <- managers |>
@@ -144,7 +145,8 @@ dl_process <- function(
       ) |>
       mutate(
         team = NA_character_,
-        cost = gsub("transfer", "", cost, ignore.case = T)
+        is_transfer = grepl("TRANSFER|TRASNFER", cost, ignore.case = TRUE),
+        cost = gsub("TRANSFER|TRASNFER", "", cost, ignore.case = TRUE)
       )
   }
 

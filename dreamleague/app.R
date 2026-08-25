@@ -22,9 +22,9 @@ app_dir <- if (file.exists(file.path("dreamleague", "app.R"))) {
   "."
 }
 resolve_app_path <- function(...) file.path(app_dir, ...)
+app_env <- environment()
 
 load(resolve_app_path("managers.RDa"))
-load(resolve_app_path("teams.RDa"))
 credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
   resolve_app_path("credentials.json")
@@ -33,11 +33,100 @@ shared_drive_target <- Sys.getenv(
   "DREAMLEAGUE_SHARED_DRIVE_TARGET",
   ""
 )
+file_data <- resolve_app_path("data.RDa")
+
+normalize_daily_schema <- function(daily) {
+  if ("App" %in% names(daily) && !"SBapp" %in% names(daily)) {
+    daily$SBapp <- daily$App
+  }
+  if ("SBapp" %in% names(daily) && !"App" %in% names(daily)) {
+    daily$App <- daily$SBapp
+  }
+  daily
+}
+
+build_runtime_objects <- function(source_mtime = as.POSIXct(NA)) {
+  daily <- normalize_daily_schema(get(
+    "daily",
+    envir = app_env,
+    inherits = FALSE
+  ))
+  assign("daily", daily, envir = app_env)
+
+  managers <- rbind.data.frame(
+    managers_d |> mutate(league = "didsbury"),
+    managers_o |> mutate(league = "original")
+  )
+  assign("managers", managers, envir = app_env)
+
+  league <- managers |>
+    merge(
+      dl |> group_by(team) |> summarise(total = sum(SBgoals, na.rm = TRUE)),
+      by = "team",
+      all = TRUE
+    ) |>
+    merge(
+      dl |>
+        filter(position != "GOALKEEPER") |>
+        group_by(team) |>
+        summarise(gf = sum(SBgoals, na.rm = TRUE)),
+      by = "team",
+      all = TRUE
+    ) |>
+    merge(
+      dl |>
+        filter(position == "GOALKEEPER") |>
+        group_by(team) |>
+        summarise(ga = -sum(SBgoals, na.rm = TRUE)),
+      by = "team",
+      all = TRUE
+    ) |>
+    arrange(-total, -gf) |>
+    mutate(rank = row_number(), .by = "league")
+
+  teamslist <- managers |>
+    arrange(team) |>
+    pull(team)
+  names(teamslist) <- paste(
+    (league |> arrange(team) |> pull(team)),
+    " (",
+    (league |> arrange(team) |> pull(manager)),
+    ")",
+    sep = ""
+  )
+  assign("teamslist", teamslist, envir = app_env)
+
+  assign("league", league, envir = app_env)
+  assign("rounds", unique(cupties$round), envir = app_env)
+  assign(
+    "file_updates",
+    list(
+      teams = source_mtime,
+      daily = source_mtime
+    ),
+    envir = app_env
+  )
+
+  invisible(TRUE)
+}
+
+load_local_bundle <- function(path = file_data) {
+  if (!file.exists(path)) {
+    stop(
+      "Local fallback data.RDa not found at ",
+      normalizePath(path, winslash = "/", mustWork = FALSE),
+      call. = FALSE
+    )
+  }
+
+  load(path, envir = .GlobalEnv)
+  build_runtime_objects(file.info(path)$mtime[[1]])
+}
 
 try_drive_auth <- function(path = credentials_path) {
   if (!file.exists(path)) {
     message(
-      "Drive auth unavailable; credentials file not found. Using bundled cache files only."
+      "Drive auth unavailable; credentials file not found. Using bundled data.RDa only."
     )
     return(invisible(NULL))
   }
@@ -46,7 +135,7 @@ try_drive_auth <- function(path = credentials_path) {
     googledrive::drive_auth(path = path),
     error = function(e) {
       message(
-        "Drive auth unavailable; using bundled cache files only. ",
+        "Drive auth unavailable; using bundled data.RDa only. ",
         conditionMessage(e)
       )
       invisible(NULL)
@@ -67,7 +156,7 @@ resolve_shared_drive_path <- function(target = shared_drive_target) {
     },
     error = function(e) {
       message(
-        "Shared Drive target could not be resolved; using bundled cache files only. ",
+        "Shared Drive target could not be resolved; using bundled data.RDa only. ",
         conditionMessage(e)
       )
       NULL
@@ -75,151 +164,14 @@ resolve_shared_drive_path <- function(target = shared_drive_target) {
   )
 }
 
-try_drive_auth()
-shared_drive_path <- resolve_shared_drive_path()
-
-cache_dir <- resolve_app_path("cache")
-file_data <- resolve_app_path("cache", "data.RDa")
-cache_meta_file <- resolve_app_path("cache", "drive_cache_meta.rds")
-
-cache_meta_default <- list(
-  last_check_time = as.POSIXct(NA),
-  last_check_success = NA,
-  last_check_error = NA_character_,
-  last_refresh_time = as.POSIXct(NA),
-  last_refresh_forced = FALSE,
-  last_source = "Local cache"
-)
-
-load_cache_meta <- function(path = cache_meta_file) {
-  if (!file.exists(path)) {
-    return(cache_meta_default)
-  }
-
-  tryCatch(
-    modifyList(cache_meta_default, readRDS(path)),
-    error = function(e) cache_meta_default
-  )
-}
-
-save_cache_meta <- function(meta = cache_meta, path = cache_meta_file) {
-  saveRDS(meta, path)
-  invisible(meta)
-}
-
-cache_meta <- load_cache_meta()
-cache_pull_source <- cache_meta$last_source
-cache_last_updated <- as.POSIXct(NA)
-
-bootstrap_cache <- function() {
-  if (all(file.exists(c(file_data)))) {
-    return(invisible(TRUE))
-  }
-
-  load_first_existing <- function(paths) {
-    for (path in paths) {
-      if (file.exists(path)) {
-        load(path, envir = parent.frame())
-        return(invisible(path))
-      }
-    }
-    stop("Unable to locate bundled cache file: ", paste(paths, collapse = ", "))
-  }
-
-  load_first_existing(c(
-    resolve_app_path("data.RDa"),
-    "data.RDa"
-  ))
-  dir.create(dirname(file_data), recursive = TRUE, showWarnings = FALSE)
-  save(dl, daily, time, cupties, file = file_data)
-
-  invisible(TRUE)
-}
-
-bootstrap_cache()
-
-load_bundle_from_cache <- function() {
-  load(file_data)
-
-  assign("dl", dl, envir = .GlobalEnv)
-  assign("daily", daily, envir = .GlobalEnv)
-  assign("time", time, envir = .GlobalEnv)
-  assign("cupties", cupties, envir = .GlobalEnv)
-
-  managers <- rbind.data.frame(
-    managers_d |> mutate(league = "didsbury"),
-    managers_o |> mutate(league = "original")
-  )
-
-  league <- managers |>
-    merge(
-      dl |> group_by(team) |> summarise(total = sum(SBgoals, na.rm = T)),
-      by = "team",
-      all = T
-    ) |>
-    merge(
-      dl |>
-        filter(position != "GOALKEEPER") |>
-        group_by(team) |>
-        summarise(gf = sum(SBgoals, na.rm = T)),
-      by = "team",
-      all = T
-    ) |>
-    merge(
-      dl |>
-        filter(position == "GOALKEEPER") |>
-        group_by(team) |>
-        summarise(ga = -sum(SBgoals, na.rm = T)),
-      by = "team",
-      all = T
-    ) |>
-    arrange(-total, -gf) |>
-    mutate(rank = row_number(), .by = "league")
-
-  teamslist <- (managers |> arrange(team))$team
-  names(teamslist) <- paste(
-    (league |> arrange(team))$team,
-    " (",
-    (league |> arrange(team))$manager,
-    ")",
-    sep = ""
-  )
-  teamslist_cup <- (managers |> arrange(team))$team
-  names(teamslist_cup) <- paste(
-    (managers |> arrange(team))$team,
-    " (",
-    (managers |> arrange(team))$manager,
-    ")",
-    sep = ""
-  )
-
-  file_updates <<- list(
-    teams = file.info(file_data)$mtime,
-    daily = file.info(file_data)$mtime
-  )
-
-  cache_last_updated <<- max(
-    file.info(c(file_data))$mtime,
-    na.rm = TRUE
-  )
-
-  invisible(list(
-    managers = managers,
-    league = league,
-    teamslist = teamslist,
-    teamslist_cup = teamslist_cup,
-    rounds = unique(cupties$round)
-  ))
-}
-
 get_remote_listing <- function() {
   tryCatch(
     if (is.null(shared_drive_path)) {
-      googledrive::drive_find(pattern = "\\.RDa$") |>
+      googledrive::drive_find(pattern = "^data\\.RDa$") |>
         googledrive::drive_reveal("modified_time")
     } else {
       googledrive::drive_ls(shared_drive_path) |>
-        dplyr::filter(grepl("\\.RDa$", .data$name)) |>
+        dplyr::filter(.data$name == "data.RDa") |>
         googledrive::drive_reveal("modified_time")
     },
     error = function(e) {
@@ -231,94 +183,127 @@ get_remote_listing <- function() {
   )
 }
 
-pull_drive_file <- function(remote_listing, remote_name, local_path) {
+pull_remote_bundle <- function(remote_listing, remote_name = "data.RDa") {
   remote <- remote_listing |>
     dplyr::filter(.data$name == remote_name) |>
     dplyr::slice_max(modified_time, n = 1, with_ties = FALSE)
 
   if (nrow(remote) == 0) {
-    return(FALSE)
+    return(NULL)
   }
 
-  local_info <- file.info(local_path)
-  remote_time <- remote$modified_time[[1]]
-  local_time <- local_info$mtime[[1]]
+  temp_path <- tempfile(fileext = ".RDa")
+  on.exit(unlink(temp_path), add = TRUE)
+  googledrive::drive_download(remote, path = temp_path, overwrite = TRUE)
 
-  if (!is.na(local_time) && remote_time <= local_time) {
-    return(FALSE)
+  remote_env <- new.env(parent = emptyenv())
+  load(temp_path, envir = remote_env)
+
+  required_objects <- c("dl", "daily", "time", "cupties")
+  missing_objects <- required_objects[
+    !vapply(
+      required_objects,
+      exists,
+      logical(1),
+      envir = remote_env,
+      inherits = FALSE
+    )
+  ]
+  if (length(missing_objects) > 0) {
+    stop(
+      "Remote data.RDa is missing objects: ",
+      paste(missing_objects, collapse = ", "),
+      call. = FALSE
+    )
   }
 
-  googledrive::drive_download(remote, path = local_path, overwrite = TRUE)
-  TRUE
+  assign("dl", get("dl", envir = remote_env, inherits = FALSE), envir = app_env)
+  assign(
+    "daily",
+    get("daily", envir = remote_env, inherits = FALSE),
+    envir = app_env
+  )
+  assign(
+    "time",
+    get("time", envir = remote_env, inherits = FALSE),
+    envir = app_env
+  )
+  assign(
+    "cupties",
+    get("cupties", envir = remote_env, inherits = FALSE),
+    envir = app_env
+  )
+  build_runtime_objects(remote$modified_time[[1]])
+
+  list(modified_time = remote$modified_time[[1]])
 }
 
+try_drive_auth()
+shared_drive_path <- resolve_shared_drive_path()
 refresh_drive_cache <- function(force = FALSE) {
-  previous_check_time <- cache_meta$last_check_time
-  recent_check <- !force &&
-    !is.na(previous_check_time) &&
-    difftime(Sys.time(), previous_check_time, units = "hours") < 1
-
-  cache_meta$last_check_time <<- Sys.time()
-  cache_meta$last_check_error <<- NA_character_
-  cache_meta$last_check_success <<- NA
-
-  if (recent_check) {
-    return(invisible(list(status = "skipped", source = cache_meta$last_source)))
-  }
-
   listing <- get_remote_listing()
   if (inherits(listing, "drive_listing_error")) {
-    cache_meta$last_check_success <<- FALSE
-    cache_meta$last_check_error <<- listing$error
-    save_cache_meta(cache_meta)
-    return(invisible(list(status = "failed", error = listing$error)))
-  }
-
-  if (is.null(listing) || nrow(listing) == 0) {
-    cache_meta$last_check_success <<- FALSE
-    cache_meta$last_check_error <<- "No remote cache files found."
-    save_cache_meta(cache_meta)
     return(invisible(list(
       status = "failed",
-      error = cache_meta$last_check_error
+      source = if (file.exists(file_data)) {
+        "Bundled data.RDa"
+      } else {
+        "Unavailable"
+      },
+      error = listing$error
     )))
   }
 
-  pulled_any <- FALSE
-  pulled_any <- pull_drive_file(listing, "data.RDa", file_data) || pulled_any
+  pulled_bundle <- tryCatch(
+    pull_remote_bundle(listing),
+    error = function(e) {
+      structure(list(error = conditionMessage(e)), class = "drive_pull_error")
+    }
+  )
 
-  pulled_any
+  if (inherits(pulled_bundle, "drive_pull_error") || is.null(pulled_bundle)) {
+    error_message <- if (inherits(pulled_bundle, "drive_pull_error")) {
+      pulled_bundle$error
+    } else {
+      "No remote data.RDa found."
+    }
 
-  cache_meta$last_check_success <<- TRUE
-  cache_meta$last_refresh_time <<- if (pulled_any) {
-    Sys.time()
-  } else {
-    cache_meta$last_refresh_time
+    return(invisible(list(
+      status = "failed",
+      source = if (file.exists(file_data)) {
+        "Bundled data.RDa"
+      } else {
+        "Unavailable"
+      },
+      error = error_message
+    )))
   }
-  cache_meta$last_refresh_forced <<- force
-  cache_meta$last_source <<- if (pulled_any) "Google remote" else "Local cache"
-  cache_pull_source <<- cache_meta$last_source
-  cache_last_updated <<- if (pulled_any) Sys.time() else cache_last_updated
-  save_cache_meta(cache_meta)
 
-  if (pulled_any) {
-    load_bundle_from_cache()
-  }
+  file_updates$teams <- pulled_bundle$modified_time
+  file_updates$daily <- pulled_bundle$modified_time
+  assign("file_updates", file_updates, envir = app_env)
 
   invisible(list(
-    status = if (pulled_any) "updated" else "current",
-    source = cache_meta$last_source
+    status = "updated",
+    source = "Google Drive",
+    modified_time = pulled_bundle$modified_time
   ))
 }
 
-bundle <- load_bundle_from_cache()
-managers <- bundle$managers
-league <- bundle$league
-teamslist <- bundle$teamslist
-teamslist_cup <- bundle$teamslist_cup
-rounds <- bundle$rounds
-
-refresh_drive_cache(force = FALSE)
+initial_remote_load <- refresh_drive_cache(force = FALSE)
+if (identical(initial_remote_load$status, "failed")) {
+  if (file.exists(file_data)) {
+    load_local_bundle()
+  } else {
+    stop(
+      paste(
+        "Unable to load DreamLeague data from Google Drive, and no local fallback data.RDa is available.",
+        initial_remote_load$error
+      ),
+      call. = FALSE
+    )
+  }
+}
 
 weeks <- seq.Date(as.Date("2026-07-27"), by = 7, length.out = 52)
 weeks2 <- weeks[weeks <= Sys.Date()]
@@ -537,7 +522,7 @@ server <- function(input, output, session) {
   league_master <- reactiveVal("didsbury")
   refresh_counter <- reactiveVal(0)
   refresh_counter_value <- 0
-  cache_status_text <- reactiveVal("Local cache")
+  cache_status_text <- reactiveVal("Bundled data.RDa")
   cache_warning_text <- reactiveVal(NULL)
 
   team_choices_for_league <- function(league_name) {
@@ -573,7 +558,7 @@ server <- function(input, output, session) {
     }
     if (!is.null(result) && identical(result$status, "failed")) {
       cache_warning_text(glue::glue(
-        "Last remote check failed at {format(cache_meta$last_check_time, '%Y-%m-%d %H:%M:%S')}: {cache_meta$last_check_error}"
+        "Last remote load failed: {result$error}"
       ))
     } else if (!is.null(result)) {
       cache_warning_text(NULL)
@@ -581,8 +566,7 @@ server <- function(input, output, session) {
     bump_refresh_counter()
   }
 
-  initial_refresh <- refresh_drive_cache(force = FALSE)
-  update_cache_state(initial_refresh)
+  update_cache_state(initial_remote_load)
 
   output$table <- renderReactable({
     table_data <- league |>
@@ -637,8 +621,13 @@ server <- function(input, output, session) {
         filter(is.na(sold) | sold == "")
     }
 
-    teams3 <- team_data |>
-      select(-sold, -bought2, -sold2, -SBapp, -league)
+    teams3 <- if (isTRUE(input$current)) {
+      team_data |>
+        select(-sold, -bought2, -sold2, -SBapp, -league, -is_transfer)
+    } else {
+      team_data |>
+        select(-bought2, -sold2, -SBapp, -league, -is_transfer)
+    }
 
     table_data_unformatted <- teams3 |>
       select(-goals)
@@ -656,59 +645,67 @@ server <- function(input, output, session) {
 
     link_style <- "cursor: pointer; text-decoration: underline; color: #808080;"
 
-    reactable(
-      table_data,
-      sortable = TRUE,
-      searchable = TRUE,
-      columns = list(
-        Team = colDef(show = FALSE),
-        Player = colDef(
-          width = 150,
-          cell = function(value, index) {
-            if (table_data_unformatted$position[index] == "GOALKEEPER") {
-              ""
-            } else {
-              url <- table_data_unformatted$url[index]
-              if (!is.na(url) && nzchar(url)) {
-                tags$a(
-                  href = url,
-                  target = "_blank",
-                  rel = "noreferrer",
-                  style = link_style,
-                  value
-                )
-              } else {
+    team_columns <- list(
+      Team = colDef(show = FALSE),
+      Player = colDef(
+        width = 150,
+        cell = function(value, index) {
+          if (table_data_unformatted$position[index] == "GOALKEEPER") {
+            ""
+          } else {
+            url <- table_data_unformatted$url[index]
+            if (!is.na(url) && nzchar(url)) {
+              tags$a(
+                href = url,
+                target = "_blank",
+                rel = "noreferrer",
+                style = link_style,
                 value
-              }
-            }
-          }
-        ),
-        Club = colDef(
-          width = 150,
-          cell = function(value, index) {
-            if (table_data_unformatted$position[index] == "GOALKEEPER") {
-              url <- table_data_unformatted$url[index]
-              if (!is.na(url) && nzchar(url)) {
-                tags$a(
-                  href = url,
-                  target = "_blank",
-                  rel = "noreferrer",
-                  style = link_style,
-                  value
-                )
-              } else {
-                value
-              }
+              )
             } else {
               value
             }
           }
-        ),
-        Position = colDef(width = 100),
-        Goals = colDef(width = 70),
-        Cost = colDef(width = 70),
-        Bought = colDef(show = FALSE)
+        }
       ),
+      Club = colDef(
+        width = 150,
+        cell = function(value, index) {
+          if (table_data_unformatted$position[index] == "GOALKEEPER") {
+            url <- table_data_unformatted$url[index]
+            if (!is.na(url) && nzchar(url)) {
+              tags$a(
+                href = url,
+                target = "_blank",
+                rel = "noreferrer",
+                style = link_style,
+                value
+              )
+            } else {
+              value
+            }
+          } else {
+            value
+          }
+        }
+      ),
+      Position = colDef(width = 100),
+      Goals = colDef(width = 70),
+      Cost = colDef(width = 70)
+    )
+
+    if (isTRUE(input$current)) {
+      team_columns$Bought <- colDef(show = FALSE)
+    } else {
+      team_columns$Bought <- colDef(width = 90)
+      team_columns$Sold <- colDef(width = 90)
+    }
+
+    reactable(
+      table_data,
+      sortable = TRUE,
+      searchable = TRUE,
+      columns = team_columns,
       defaultPageSize = 15,
       details = function(index) {
         player_name <- table_data_unformatted$player[index]
@@ -844,27 +841,33 @@ server <- function(input, output, session) {
     )
     outfield <- paste(
       "Outfield transfers remaining:",
-      8 -
-        dl |>
-          filter(
-            league == input$league_teams,
-            team == input$team,
-            position != "GOALKEEPER",
-            is.na(sold) | sold == ""
-          ) |>
-          nrow()
+      pmax(
+        0,
+        8 -
+          (dl |>
+            filter(
+              league == input$league_teams,
+              team == input$team,
+              position != "GOALKEEPER",
+              is_transfer
+            ) |>
+            nrow())
+      )
     )
     goalie <- paste(
       "Goalkeeper transfers remaining:",
-      2 -
-        dl |>
-          filter(
-            league == input$league_teams,
-            team == input$team,
-            position == "GOALKEEPER",
-            is.na(sold) | sold == ""
-          ) |>
-          nrow()
+      pmax(
+        0,
+        2 -
+          (dl |>
+            filter(
+              league == input$league_teams,
+              team == input$team,
+              position == "GOALKEEPER",
+              is_transfer
+            ) |>
+            nrow())
+      )
     )
     HTML(paste(text1, text2, text3, text4, outfield, goalie, sep = "<br/>"))
   })
@@ -956,58 +959,26 @@ server <- function(input, output, session) {
 
   output$diagnostics_cache_status <- renderUI({
     refresh_counter()
-    source_label <- if (is.na(cache_meta$last_check_time)) {
-      "Unavailable"
-    } else if (identical(cache_meta$last_source, "Google remote")) {
-      "Google remote"
-    } else {
-      "Local cache"
-    }
-
-    cache_time <- if (is.na(cache_meta$last_check_time)) {
-      "Unavailable"
-    } else {
-      format(cache_meta$last_check_time, "%Y-%m-%d %H:%M:%S")
-    }
-
-    refresh_time <- if (is.na(cache_meta$last_refresh_time)) {
-      "Unavailable"
-    } else {
-      format(cache_meta$last_refresh_time, "%Y-%m-%d %H:%M:%S")
-    }
-
     tags$div(
       class = "alert alert-info",
       style = "margin:0; padding:8px 12px;",
       HTML(glue::glue(
-        "<b>Cache status</b><br/>Last remote check: {cache_time}<br/>Last refresh: {refresh_time}<br/>Source: {source_label}"
+        "<b>Remote load status</b><br/>Source: {cache_status_text()}"
       ))
     )
   })
 
   output$diagnostics_cache_warning <- renderUI({
     refresh_counter()
-    if (
-      isTRUE(cache_meta$last_check_success) || is.na(cache_meta$last_check_time)
-    ) {
-      return(NULL)
-    }
-
-    age_hours <- as.numeric(difftime(
-      Sys.time(),
-      cache_meta$last_check_time,
-      units = "hours"
-    ))
-    if (is.na(age_hours) || age_hours > 24) {
+    warning_text <- cache_warning_text()
+    if (is.null(warning_text) || !nzchar(warning_text)) {
       return(NULL)
     }
 
     tags$div(
       class = "alert alert-warning",
       style = "margin:8px 0 0 0; padding:8px 12px;",
-      HTML(glue::glue(
-        "Last remote check failed within the past 24 hours.<br/>{cache_meta$last_check_error}"
-      ))
+      HTML(warning_text)
     )
   })
 
@@ -1027,13 +998,18 @@ server <- function(input, output, session) {
     refresh_counter()
     req(input$league_players)
     last_mod <- file_updates$daily
+    last_mod_text <- if (is.na(last_mod)) {
+      "Unavailable"
+    } else {
+      format(last_mod, "%Y-%m-%d %H:%M:%S")
+    }
 
     tags$div(
       class = "alert alert-warning alert-dismissible",
       role = "alert",
       style = "margin:0; padding:8px 12px;",
       HTML(glue::glue(
-        "This table was last updated on {format(last_mod, '%Y-%m-%d %H:%M:%S')}; transfers since then will not be reflected here."
+        "This table was last updated on {last_mod_text}; transfers since then will not be reflected here."
       )),
       tags$button(
         type = "button",

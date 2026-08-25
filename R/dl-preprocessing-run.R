@@ -111,7 +111,7 @@ save(managers_d, managers_o, file = "dreamleague/managers.RDa")
 
 googledrive::drive_auth(
   # email = TRUE,
-  path = "credentials.json",
+  path = credentials_path,
   subject = NULL,
   scopes = "drive",
   cache = gargle::gargle_oauth_cache(),
@@ -230,20 +230,12 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
   source("R/export-dreamleague-json.R")
 
-  save(dl = dl, file = "dreamleague/teams.RDa")
-  save(daily = daily, time = time, file = "dreamleague/daily.RDa")
-  save(cupties = cupties, file = "dreamleague/cupties.RDa")
-
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
     write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
 
   upload_to_drive("dreamleague/data.RDa", "data.RDa")
-  # upload_to_drive("dreamleague/managers.RDa", "managers.RDa")
-  # upload_to_drive("dreamleague/teams.RDa", "teams.RDa")
-  # upload_to_drive("dreamleague/daily.RDa", "daily.RDa")
-  # upload_to_drive("dreamleague/cupties.RDa", "cupties.RDa")
 }
 b <- Sys.time()
 

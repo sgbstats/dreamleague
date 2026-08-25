@@ -51,12 +51,23 @@ validate_numeric_column <- function(x, field_name) {
   invisible(x)
 }
 
+validate_logical_column <- function(x, field_name) {
+  if (!is.logical(x)) {
+    stop(sprintf("%s must be logical", field_name), call. = FALSE)
+  }
+
+  invisible(x)
+}
+
 validate_time_bundle <- function(time) {
   required <- c("update_time", "mod_d", "mod_o")
   missing <- setdiff(required, names(time))
   if (length(missing) > 0) {
     stop(
-      sprintf("time is missing required fields: %s", paste(missing, collapse = ", ")),
+      sprintf(
+        "time is missing required fields: %s",
+        paste(missing, collapse = ", ")
+      ),
       call. = FALSE
     )
   }
@@ -84,7 +95,11 @@ validate_current_squads <- function(dl, managers) {
   current <- dl |>
     dplyr::filter(is.na(sold) | sold == "") |>
     dplyr::count(league, team, position, name = "n") |>
-    tidyr::pivot_wider(names_from = position, values_from = n, values_fill = 0) |>
+    tidyr::pivot_wider(
+      names_from = position,
+      values_from = n,
+      values_fill = 0
+    ) |>
     dplyr::right_join(managers, by = c("league", "team")) |>
     dplyr::mutate(
       GOALKEEPER = tidyr::replace_na(.data$GOALKEEPER, 0L),
@@ -129,8 +144,16 @@ validate_current_squads <- function(dl, managers) {
 }
 
 validate_manager_rows <- function(managers) {
-  validate_required_columns(managers, c("manager", "team", "league"), "managers")
-  validate_allowed_values(managers$league, c("didsbury", "original"), "managers$league")
+  validate_required_columns(
+    managers,
+    c("manager", "team", "league"),
+    "managers"
+  )
+  validate_allowed_values(
+    managers$league,
+    c("didsbury", "original"),
+    "managers$league"
+  )
 
   duplicates <- managers |>
     dplyr::count(league, team, name = "n") |>
@@ -142,7 +165,10 @@ validate_manager_rows <- function(managers) {
       dplyr::pull(label)
 
     stop(
-      sprintf("Duplicate manager-team rows found: %s", paste(details, collapse = ", ")),
+      sprintf(
+        "Duplicate manager-team rows found: %s",
+        paste(details, collapse = ", ")
+      ),
       call. = FALSE
     )
   }
@@ -154,13 +180,27 @@ validate_dl_data <- function(dl) {
   validate_required_columns(
     dl,
     c(
-      "team", "player", "club", "position", "cost", "goals", "sold",
-      "bought", "SBgoals", "SBapp", "url", "bought2", "sold2", "league"
+      "team",
+      "player",
+      "club",
+      "position",
+      "cost",
+      "goals",
+      "sold",
+      "bought",
+      "SBgoals",
+      "SBapp",
+      "url",
+      "bought2",
+      "sold2",
+      "is_transfer",
+      "league"
     ),
     "dl"
   )
   validate_numeric_column(dl$SBgoals, "dl$SBgoals")
   validate_numeric_column(dl$SBapp, "dl$SBapp")
+  validate_logical_column(dl$is_transfer, "dl$is_transfer")
   validate_date_column(dl$bought2, "dl$bought2")
   validate_date_column(dl$sold2, "dl$sold2")
   validate_allowed_values(dl$league, c("didsbury", "original"), "dl$league")
@@ -177,16 +217,36 @@ validate_daily_data <- function(daily) {
   validate_required_columns(
     daily,
     c(
-      "Date", "App", "team", "position", "player", "club", "cost", "goals",
-      "sold", "bought", "SBapp", "url", "bought2", "sold2", "SBgoals", "league"
+      "Date",
+      "App",
+      "team",
+      "position",
+      "player",
+      "club",
+      "cost",
+      "goals",
+      "sold",
+      "bought",
+      "SBapp",
+      "url",
+      "bought2",
+      "sold2",
+      "SBgoals",
+      "is_transfer",
+      "league"
     ),
     "daily"
   )
   validate_date_column(daily$Date, "daily$Date")
+  validate_logical_column(daily$is_transfer, "daily$is_transfer")
   validate_date_column(daily$bought2, "daily$bought2")
   validate_date_column(daily$sold2, "daily$sold2")
   validate_numeric_column(daily$SBgoals, "daily$SBgoals")
-  validate_allowed_values(daily$league, c("didsbury", "original"), "daily$league")
+  validate_allowed_values(
+    daily$league,
+    c("didsbury", "original"),
+    "daily$league"
+  )
   validate_allowed_values(
     as.character(daily$position),
     c("GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"),
@@ -197,9 +257,17 @@ validate_daily_data <- function(daily) {
 }
 
 validate_cupties_data <- function(cupties, managers) {
-  validate_required_columns(cupties, c("comp", "round", "team1", "team2", "date"), "cupties")
+  validate_required_columns(
+    cupties,
+    c("comp", "round", "team1", "team2", "date"),
+    "cupties"
+  )
   validate_date_column(cupties$date, "cupties$date")
-  validate_allowed_values(cupties$comp, c("bfl", "didsbury", "original"), "cupties$comp")
+  validate_allowed_values(
+    cupties$comp,
+    c("bfl", "didsbury", "original"),
+    "cupties$comp"
+  )
 
   known_teams <- unique(managers$team)
   unknown_teams <- setdiff(unique(c(cupties$team1, cupties$team2)), known_teams)
