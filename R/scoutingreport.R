@@ -13,9 +13,9 @@ library(crayon)
 
 load("data/ids.RDa")
 
-player_id2 = player_id |>
+player_id2 <- player_id |>
   mutate(position = "", SBgoals = 0, SBapp = 0)
-weeklyreport = tribble(
+weeklyreport <- tribble(
   ~"player_id" , ~"Date" , ~"Goals" , ~"App" , ~"team"
 )
 comps <<- c(
@@ -53,10 +53,10 @@ comps <<- c(
 plan(multisession, workers = availableCores() / 2)
 
 results <- furrr::future_map(1:nrow(player_id2), .f = function(i) {
-  url = glue::glue(
-    "https://www.soccerbase.com/players/player.sd?player_id={player_id2$player_id[i]}&season_id=158"
+  url <- glue::glue(
+    "https://www.soccerbase.com/players/player.sd?player_id={player_id2$player_id[i]}&season_id=159"
   )
-  link = RCurl::getURL(url)
+  link <- RCurl::getURL(url)
   cat(paste(i, player_id$player[i], "\n"))
 
   position <- NA
@@ -66,10 +66,10 @@ results <- furrr::future_map(1:nrow(player_id2), .f = function(i) {
 
   tryCatch(
     {
-      tables = readHTMLTable(link)
-      position = stringr::word(tables[[1]], 1)
+      tables <- readHTMLTable(link)
+      position <- stringr::word(tables[[1]], 1)
 
-      appgoals = (tables$tpg) |>
+      appgoals <- (tables$tpg) |>
         filter(V1 %in% comps) |>
         mutate(Date = as.Date(substr(V2, 4, 13), "%d%b %Y")) |>
         mutate(
@@ -80,13 +80,13 @@ results <- furrr::future_map(1:nrow(player_id2), .f = function(i) {
           team = player_id2$team[i]
         )
 
-      appgoals2 = appgoals |>
+      appgoals2 <- appgoals |>
         summarise(App = sum(App, na.rm = T), Goals = sum(Goals, na.rm = T))
 
-      SBgoals = appgoals2[1, 2]
-      SBapp = appgoals2[1, 1]
+      SBgoals <- appgoals2[1, 2]
+      SBapp <- appgoals2[1, 1]
 
-      weekly_report_rows = appgoals |>
+      weekly_report_rows <- appgoals |>
         select(player_id, Date, Goals, App, team)
 
       cat(paste(SBgoals, "\n"))
@@ -126,12 +126,12 @@ weeklyreport <- weekly_report_rows
 load("dreamleague/data.RDa")
 
 
-weeklyleaguedata = weeklyreport |>
+weeklyleaguedata <- weeklyreport |>
   merge(player_id |> select(player, player_id), by = "player_id") |>
   select(player, player_id, team, Date, Goals, App) |>
   mutate(taken = player %in% (dl |> filter(league == "Didsbury"))$player)
 
-player_id_scout = player_id2 |>
+player_id_scout <- player_id2 |>
   mutate(taken = player %in% dl$player) |>
   filter(!taken) |>
   arrange(-SBgoals)
@@ -141,11 +141,11 @@ tictoc::toc()
 save(player_id_scout, file = "data/scouting/scoutingdata.RDa")
 
 source("R/dl-preprocessing-fast.R")
-team_id$SBgoals = NA_integer_
-team_id$SBapp = NA_integer_
+team_id$SBgoals <- NA_integer_
+team_id$SBapp <- NA_integer_
 team_updates <- furrr::future_map_dfr(1:nrow(team_id), .f = function(i) {
-  url = glue::glue(
-    "https://www.soccerbase.com/teams/team.sd?team_id={team_id$team_id[i]}&teamTabs=results&season_id=158"
+  url <- glue::glue(
+    "https://www.soccerbase.com/teams/team.sd?team_id={team_id$team_id[i]}&teamTabs=results&season_id=159"
   )
 
   cat(paste0(team_id$team[i], "\n"))
@@ -155,8 +155,8 @@ team_updates <- furrr::future_map_dfr(1:nrow(team_id), .f = function(i) {
 
   tryCatch(
     {
-      sl = scraplinks2(url)
-      x = sl |>
+      sl <- scraplinks2(url)
+      x <- sl |>
         mutate(rn = row_number()) |>
         mutate(
           concede = case_when(
@@ -171,11 +171,11 @@ team_updates <- furrr::future_map_dfr(1:nrow(team_id), .f = function(i) {
         ) |>
         filter(comp %in% comps)
 
-      x2 = x |>
+      x2 <- x |>
         summarise(Goals = sum(concede, na.rm = T), App = sum(App, na.rm = T))
 
-      SBgoals = x2[1, 1]
-      SBapp = x2[1, 2]
+      SBgoals <- x2[1, 1]
+      SBapp <- x2[1, 2]
 
       cat(blue(paste0(x2[1, 1], "\n")))
     },

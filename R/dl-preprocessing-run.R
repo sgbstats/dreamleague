@@ -17,7 +17,7 @@ credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
   "credentials.json"
 )
-
+shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
 safe_gs4_auth <- function(path = credentials_path) {
   if (!file.exists(path)) {
     message("Google Sheets auth unavailable; credentials file not found.")
@@ -37,6 +37,7 @@ safe_gs4_auth <- function(path = credentials_path) {
 }
 
 safe_gs4_auth()
+
 
 file_d <- "data/DreamLeague26-27.xlsx"
 dl_d <- readxl::read_excel(
@@ -119,7 +120,7 @@ googledrive::drive_auth(
   token = NULL
 )
 
-shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
+
 shared_drive_path <- if (nzchar(shared_drive_target)) {
   if (grepl("^[A-Za-z0-9_-]{20,}$", shared_drive_target)) {
     googledrive::as_id(shared_drive_target)
