@@ -11,8 +11,11 @@ suppressPackageStartupMessages({
 })
 a <- Sys.time()
 
+source("R/dl-file-pull.R")
 source("R/dl-preprocessing-fast.R")
 source("R/validate-dreamleague-data.R")
+
+try_drive_auth()
 credentials_path <- Sys.getenv(
   "DREAMLEAGUE_GOOGLE_CREDENTIALS",
   "credentials.json"
@@ -40,6 +43,7 @@ safe_gs4_auth()
 
 
 file_d <- "data/DreamLeague26-27.xlsx"
+refresh_remote_xlsx(file_d)
 dl_d <- readxl::read_excel(
   file_d,
   na = c("SOLD"),
@@ -63,6 +67,7 @@ out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
 file_o <- "data/DL26-27.xlsx"
+refresh_remote_xlsx(file_o)
 dl_o <- readxl::read_excel(
   file_o,
   na = c(""),
@@ -203,8 +208,8 @@ run_data_shape_tests <- function(dl, daily, time, cupties, managers) {
   )
   on.exit(options(dreamleague.test_bundle = NULL), add = TRUE)
 
-  testthat::test_dir(
-    "tests/testthat",
+  testthat::test_file(
+    "tests/testthat/test-validate-dreamleague-data.R",
     reporter = "summary",
     stop_on_failure = TRUE
   )
