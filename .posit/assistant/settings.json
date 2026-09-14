@@ -1,7 +1,8 @@
 {
   "permission": {
     "edit": {
-      "*.md": "allow"
+      "*.md": "allow",
+      "*.R": "allow"
     }
   }
 }

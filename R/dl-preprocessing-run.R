@@ -14,6 +14,7 @@ a <- Sys.time()
 source("R/dl-file-pull.R")
 source("R/dl-preprocessing-fast.R")
 source("R/validate-dreamleague-data.R")
+source("R/supabase-storage.R")
 
 try_drive_auth()
 credentials_path <- Sys.getenv(
@@ -242,6 +243,31 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   }
 
   upload_to_drive("dreamleague/data.RDa", "data.RDa")
+
+  publish_to_supabase <- tryCatch(
+    {
+      supabase_config <- supabase_storage_config()
+      supabase_upload_object(
+        "dreamleague/data.RDa",
+        config = supabase_config
+      )
+      verify_supabase_bundle(config = supabase_config)
+      message("Supabase publication completed successfully.")
+      TRUE
+    },
+    error = function(e) {
+      warning(
+        "Supabase publication was not completed: ",
+        conditionMessage(e),
+        call. = FALSE
+      )
+      FALSE
+    }
+  )
+
+  if (!publish_to_supabase) {
+    message("Google Drive publication remains the active runtime source.")
+  }
 }
 b <- Sys.time()
 
