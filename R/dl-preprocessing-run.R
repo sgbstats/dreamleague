@@ -252,6 +252,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
         config = supabase_config
       )
       verify_supabase_bundle(config = supabase_config)
+      message("Supabase publication completed successfully.")
       TRUE
     },
     error = function(e) {

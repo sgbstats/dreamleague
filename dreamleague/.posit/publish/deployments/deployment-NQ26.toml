@@ -10,8 +10,8 @@ id = "01a09afc-7672-7877-b341-7c2d6b1a0d00"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/01a09afc-7672-7877-b341-7c2d6b1a0d00"
 direct_url = "https://01a09afc-7672-7877-b341-7c2d6b1a0d00.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/01a09afc-7672-7877-b341-7c2d6b1a0d00/history"
-deployed_at = "2026-09-13T13:50:52.876Z"
-bundle_id = "01a09b08-a7ad-b31e-7191-ba52ed67e10e"
+deployed_at = "2026-09-14T09:34:27.257Z"
+bundle_id = "01a09f44-2a09-1eda-5ad7-a5b17f877738"
 files = [
     ".posit/publish/deployments/deployment-NQ26.toml",
     ".posit/publish/dreamleague-staging-HV8U.toml",
@@ -68,8 +68,8 @@ files = [
     "/data.RDa",
     "/img",
     "/cupties.RDa",
-    "/credentials.json",
     "/supabase-storage.R",
+    "/credentials.json",
 ]
 validate = true
 product_type = "connect_cloud"
