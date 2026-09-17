@@ -234,21 +234,48 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
   validate_dreamleague_bundle(dl, daily, time, cupties, managers)
   run_data_shape_tests(dl, daily, time, cupties, managers)
 
-  save(dl, daily, time, cupties, file = "dreamleague/data.RDa")
-  source("R/export-dreamleague-json.R")
+  bundle_path <- "dreamleague/data.RDa"
+  save(dl, daily, time, cupties, file = bundle_path)
+
+  bundle <- new.env(parent = emptyenv())
+  load(bundle_path, envir = bundle)
+  if (!exists("cupties", envir = bundle, inherits = FALSE)) {
+    stop("The published data bundle does not contain cupties", call. = FALSE)
+  }
 
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
     write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
 
-  upload_to_drive("dreamleague/data.RDa", "data.RDa")
+  drive_published <- tryCatch(
+    {
+      if (is.null(shared_drive_path)) {
+        warning(
+          "Google Drive publication was skipped: no shared drive is configured.",
+          call. = FALSE
+        )
+        FALSE
+      } else {
+        upload_to_drive(bundle_path, "data.RDa")
+        TRUE
+      }
+    },
+    error = function(e) {
+      warning(
+        "Google Drive publication was not completed: ",
+        conditionMessage(e),
+        call. = FALSE
+      )
+      FALSE
+    }
+  )
 
   publish_to_supabase <- tryCatch(
     {
       supabase_config <- supabase_storage_config()
       supabase_upload_object(
-        "dreamleague/data.RDa",
+        bundle_path,
         config = supabase_config
       )
       verify_supabase_bundle(config = supabase_config)
@@ -265,8 +292,11 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
     }
   )
 
-  if (!publish_to_supabase) {
-    message("Google Drive publication remains the active runtime source.")
+  if (!drive_published && !publish_to_supabase) {
+    stop(
+      "Neither Google Drive nor Supabase publication completed.",
+      call. = FALSE
+    )
   }
 }
 b <- Sys.time()

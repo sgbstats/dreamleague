@@ -310,6 +310,16 @@ if (identical(initial_remote_load$status, "failed")) {
   }
 }
 
+if (!inherits(cupties$date, "Date")) {
+  parsed_dates <- as.Date(as.character(cupties$date))
+  missing_dates <- is.na(parsed_dates)
+  parsed_dates[missing_dates] <- as.Date(
+    as.character(cupties$date[missing_dates]),
+    format = "%d/%m/%Y"
+  )
+  cupties$date <- parsed_dates
+}
+
 weeks <- seq.Date(as.Date("2026-07-27"), by = 7, length.out = 52)
 weeks2 <- weeks[weeks <= Sys.Date()]
 weekschar <- format(weeks2, format = "%d-%b")
@@ -423,18 +433,18 @@ ui <- dashboardPage(
               "Didsbury Cup" = "didsbury",
               "Original Cup" = "original"
             ),
-            selected = "didsbury"
+            selected = "bfl"
           ),
           pickerInput(
             "round_cup",
             "Round",
             choices = cupties |>
-              filter(comp == "didsbury") |>
+              filter(comp == "bfl") |>
               arrange(date) |>
               pull(round) |>
               unique(),
             selected = cupties |>
-              filter(comp == "didsbury") |>
+              filter(comp == "bfl") |>
               slice_max(date, n = 1, with_ties = FALSE) |>
               pull(round),
             multiple = FALSE
@@ -1016,172 +1026,252 @@ server <- function(input, output, session) {
   })
 
   output$cup <- renderReactable({
-    date <- cupties |>
-      filter(comp == input$comp_cup, round == input$round_cup) |>
-      pull(date) |>
-      min(na.rm = TRUE)
+    tryCatch(
+      {
+        req(input$comp_cup)
+        rounds_for_comp <- cupties |>
+          filter(comp == input$comp_cup) |>
+          arrange(date) |>
+          pull(round) |>
+          unique()
+        selected_round <- input$round_cup
+        if (
+          length(selected_round) != 1 ||
+            !selected_round %in% rounds_for_comp
+        ) {
+          selected_round <- tail(rounds_for_comp, 1)
+        }
+        validate(need(
+          length(selected_round) == 1,
+          "No rounds are available for the selected competition."
+        ))
 
-    weekend <- daily |>
-      filter(
-        Date >= date,
-        Date <= date + lubridate::days(3),
-        Date >= bought2,
-        Date <= sold2
-      )
+        matching_ties <- cupties |>
+          filter(comp == input$comp_cup, round == selected_round)
+        validate(need(
+          nrow(matching_ties) > 0,
+          "No cup ties are available for the selected competition and round."
+        ))
+        date <- matching_ties$date[[1]]
 
-    scorers <- weekend |>
-      filter(SBgoals != 0) |>
-      mutate(
-        name = paste0(
-          ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)),
-          if_else(SBgoals == 1, "", paste0(" (", SBgoals, ")"))
-        ) |>
-          str_to_title()
-      ) |>
-      summarise(scorers = paste(name, collapse = ", ", sep = ""), .by = "team")
+        validate(need(
+          !is.na(date),
+          "The selected cup round has no valid date."
+        ))
+        date <- as.Date(date)
+        filter(comp == input$comp_cup, round == input$round_cup) |>
+          pull(date) |>
+          min(na.rm = TRUE)
 
-    main <- managers |>
-      merge(
-        weekend |>
-          summarise(total = sum(SBgoals, na.rm = T), .by = "team"),
-        by = "team",
-        all.x = T
-      ) |>
-      merge(
-        weekend |>
-          filter(position != "GOALKEEPER") |>
-          summarise(gf = sum(SBgoals), .by = "team"),
-        by = "team",
-        all.x = T
-      ) |>
-      merge(
-        weekend |>
-          filter(position == "GOALKEEPER") |>
-          summarise(ga = -sum(SBgoals), .by = "team"),
-        by = "team",
-        all.x = T
-      ) |>
-      merge(scorers, .by = "team", all.x = T) |>
-      mutate(
-        ga = replace(ga, is.na(ga), 0),
-        total = replace(total, is.na(total), 0),
-        gf = replace(gf, is.na(gf), 0),
-        scorers = replace(scorers, is.na(scorers), "")
-      ) |>
-      arrange(-total, -gf) |>
-      mutate(
-        team_manager = paste0(team, " (", manager, ")"),
-        score = paste0(total, " (", gf, "-", ga, ")")
-      ) |>
-      dplyr::select(team, team_manager, total, gf, score, scorers)
+        weekend <- daily |>
+          filter(
+            Date >= date,
+            Date <= date + lubridate::days(3),
+            Date >= bought2,
+            Date <= sold2
+          )
 
-    res <- cupties |>
-      mutate(rn = row_number()) |>
-      filter(comp == input$comp_cup, round == input$round_cup) |>
-      merge(main, by.x = "team1", by.y = "team") |>
-      merge(main, by.x = "team2", by.y = "team") |>
-      mutate(
-        winner = case_when(
-          total.x > total.y ~ 1,
-          total.x < total.y ~ 2,
-          gf.x > gf.y ~ 1,
-          gf.x < gf.y ~ 2
-        )
-      ) |>
-      arrange(rn) |>
-      dplyr::select(
-        team_manager.x,
-        score.x,
-        score.y,
-        team_manager.y,
-        winner,
-        scorers.x,
-        scorers.y,
-        team1,
-        team2
-      )
+        scorers <- weekend |>
+          filter(SBgoals != 0) |>
+          mutate(
+            name = paste0(
+              ifelse(position == "GOALKEEPER", club, sub(".*\\s", "", player)),
+              if_else(SBgoals == 1, "", paste0(" (", SBgoals, ")"))
+            ) |>
+              str_to_title()
+          ) |>
+          summarise(
+            scorers = paste(name, collapse = ", ", sep = ""),
+            .by = "team"
+          )
 
-    reactable(
-      res[, 1:4],
-      columns = list(
-        team_manager.x = colDef(
-          name = "",
-          show = T,
-          width = 150,
-          style = function(value, index) {
-            if (!is.na(res$winner[index]) && res$winner[index] == 1) {
-              list(background = "#FFD700")
-            }
-          }
-        ),
-        score.x = colDef(
-          name = "",
-          show = T,
-          width = 70,
-          style = function(value, index) {
-            if (!is.na(res$winner[index]) && res$winner[index] == 1) {
-              list(background = "#FFD700")
-            }
-          }
-        ),
-        score.y = colDef(
-          name = "",
-          show = T,
-          width = 70,
-          style = function(value, index) {
-            if (!is.na(res$winner[index]) && res$winner[index] == 2) {
-              list(background = "#FFD700")
-            }
-          }
-        ),
-        team_manager.y = colDef(
-          name = "",
-          show = T,
-          width = 150,
-          style = function(value, index) {
-            if (!is.na(res$winner[index]) && res$winner[index] == 2) {
-              list(background = "#FFD700")
-            }
-          }
-        )
-      ),
+        main <- managers |>
+          merge(
+            weekend |>
+              summarise(total = sum(SBgoals, na.rm = T), .by = "team"),
+            by = "team",
+            all.x = T
+          ) |>
+          merge(
+            weekend |>
+              filter(position != "GOALKEEPER") |>
+              summarise(gf = sum(SBgoals), .by = "team"),
+            by = "team",
+            all.x = T
+          ) |>
+          merge(
+            weekend |>
+              filter(position == "GOALKEEPER") |>
+              summarise(ga = -sum(SBgoals), .by = "team"),
+            by = "team",
+            all.x = T
+          ) |>
+          merge(scorers, .by = "team", all.x = T) |>
+          mutate(
+            ga = replace(ga, is.na(ga), 0),
+            total = replace(total, is.na(total), 0),
+            gf = replace(gf, is.na(gf), 0),
+            scorers = replace(scorers, is.na(scorers), "")
+          ) |>
+          arrange(-total, -gf) |>
+          mutate(
+            team_manager = paste0(team, " (", manager, ")"),
+            score = paste0(total, " (", gf, "-", ga, ")")
+          ) |>
+          dplyr::select(team, team_manager, total, gf, score, scorers)
 
-      details = function(index) {
-        div(
-          style = "padding: 16px;",
-          strong("Scorers:"),
-          br(),
-          paste0(res$team1[index], ": ", res$scorers.x[index]),
-          br(),
-          paste0(res$team2[index], ": ", res$scorers.y[index])
+        res <- cupties |>
+          mutate(rn = row_number()) |>
+          filter(comp == input$comp_cup, round == selected_round) |>
+          merge(main, by.x = "team1", by.y = "team") |>
+          merge(main, by.x = "team2", by.y = "team") |>
+          mutate(
+            winner = case_when(
+              total.x > total.y ~ 1,
+              total.x < total.y ~ 2,
+              gf.x > gf.y ~ 1,
+              gf.x < gf.y ~ 2
+            )
+          ) |>
+          arrange(rn) |>
+          dplyr::select(
+            team_manager.x,
+            score.x,
+            score.y,
+            team_manager.y,
+            winner,
+            scorers.x,
+            scorers.y,
+            team1,
+            team2
+          )
+
+        reactable(
+          res[, 1:4],
+          columns = list(
+            team_manager.x = colDef(
+              name = "",
+              show = T,
+              width = 150,
+              style = function(value, index) {
+                if (!is.na(res$winner[index]) && res$winner[index] == 1) {
+                  list(background = "#FFD700")
+                }
+              }
+            ),
+            score.x = colDef(
+              name = "",
+              show = T,
+              width = 70,
+              style = function(value, index) {
+                if (!is.na(res$winner[index]) && res$winner[index] == 1) {
+                  list(background = "#FFD700")
+                }
+              }
+            ),
+            score.y = colDef(
+              name = "",
+              show = T,
+              width = 70,
+              style = function(value, index) {
+                if (!is.na(res$winner[index]) && res$winner[index] == 2) {
+                  list(background = "#FFD700")
+                }
+              }
+            ),
+            team_manager.y = colDef(
+              name = "",
+              show = T,
+              width = 150,
+              style = function(value, index) {
+                if (!is.na(res$winner[index]) && res$winner[index] == 2) {
+                  list(background = "#FFD700")
+                }
+              }
+            )
+          ),
+
+          details = function(index) {
+            div(
+              style = "padding: 16px;",
+              strong("Scorers:"),
+              br(),
+              paste0(res$team1[index], ": ", res$scorers.x[index]),
+              br(),
+              paste0(res$team2[index], ": ", res$scorers.y[index])
+            )
+          },
+          defaultColDef = colDef(header = NULL)
         )
       },
-      defaultColDef = colDef(header = NULL)
+      error = function(error) {
+        if (inherits(error, "shiny.silent.error")) {
+          return(NULL)
+        }
+        validate(need(
+          FALSE,
+          paste("Unable to load this competition:", error$message)
+        ))
+      }
     )
   })
 
   output$round_date2 <- renderUI({
-    rd <- cupties |>
-      dplyr::filter(round == input$round_cup, comp == input$comp_cup) |>
-      dplyr::slice_head(n = 1) |>
-      dplyr::pull(date)
+    tryCatch(
+      {
+        req(input$comp_cup)
+        rounds_for_comp <- cupties |>
+          dplyr::filter(comp == input$comp_cup) |>
+          dplyr::arrange(date) |>
+          dplyr::pull(round) |>
+          unique()
+        selected_round <- input$round_cup
+        if (
+          length(selected_round) != 1 ||
+            !selected_round %in% rounds_for_comp
+        ) {
+          selected_round <- tail(rounds_for_comp, 1)
+        }
+        validate(need(
+          length(selected_round) == 1,
+          "No rounds are available for the selected competition."
+        ))
 
-    req(rd)
-    if (month(rd) == month(rd + 3)) {
-      HTML(paste0(
-        "Round date: ",
-        format(rd, format = "%d"),
-        "-",
-        format(rd + 3, format = "%d %b")
-      ))
-    } else {
-      HTML(paste0(
-        "Round date: ",
-        format(rd, format = "%d %b"),
-        "-",
-        format(rd + 3, format = "%d %b")
-      ))
-    }
+        rd <- cupties |>
+          dplyr::filter(round == selected_round, comp == input$comp_cup) |>
+          dplyr::slice_head(n = 1) |>
+          dplyr::pull(date)
+
+        validate(need(
+          length(rd) == 1 && !is.na(rd),
+          "No date is available for the selected cup round."
+        ))
+        if (month(rd) == month(rd + 3)) {
+          HTML(paste0(
+            "Round date: ",
+            format(rd, format = "%d"),
+            "-",
+            format(rd + 3, format = "%d %b")
+          ))
+        } else {
+          HTML(paste0(
+            "Round date: ",
+            format(rd, format = "%d %b"),
+            "-",
+            format(rd + 3, format = "%d %b")
+          ))
+        }
+      },
+      error = function(error) {
+        if (inherits(error, "shiny.silent.error")) {
+          return(NULL)
+        }
+        validate(need(
+          FALSE,
+          paste("Unable to load this competition:", error$message)
+        ))
+      }
+    )
   })
   # maintaining pickers across tabs
   observeEvent(input$league, {
@@ -1246,26 +1336,30 @@ server <- function(input, output, session) {
     # updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
   })
 
-  observeEvent(input$comp_cup, {
-    rounds_for_comp <- cupties |>
-      filter(comp == input$comp_cup) |>
-      arrange(date) |>
-      pull(round) |>
-      unique()
+  observeEvent(
+    input$comp_cup,
+    {
+      rounds_for_comp <- cupties |>
+        filter(comp == input$comp_cup) |>
+        arrange(date) |>
+        pull(round) |>
+        unique()
 
-    selected_round <- if (length(rounds_for_comp) > 0) {
-      tail(rounds_for_comp, 1)
-    } else {
-      NULL
-    }
+      selected_round <- if (length(rounds_for_comp) > 0) {
+        tail(rounds_for_comp, 1)
+      } else {
+        character(0)
+      }
 
-    updatePickerInput(
-      session,
-      "round_cup",
-      choices = rounds_for_comp,
-      selected = selected_round
-    )
-  })
+      updatePickerInput(
+        session,
+        "round_cup",
+        choices = rounds_for_comp,
+        selected = selected_round
+      )
+    },
+    ignoreInit = FALSE
+  )
 
   observeEvent(input$goto_league, {
     updateTabItems(session, "sidebar", "league")
