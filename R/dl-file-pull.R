@@ -84,7 +84,8 @@ refresh_remote_xlsx <- function(
   local_path,
   remote_name = basename(local_path),
   listing_fn = get_remote_listing,
-  download_fn = googledrive::drive_download
+  download_fn = googledrive::drive_download,
+  force = FALSE
 ) {
   remote_listing <- listing_fn(remote_name)
 
@@ -106,7 +107,7 @@ refresh_remote_xlsx <- function(
     as.POSIXct(NA)
   }
 
-  if (!is.na(local_time) && remote$modified_time[[1]] <= local_time) {
+  if (!force && !is.na(local_time) && remote$modified_time[[1]] <= local_time) {
     message("Local file is current; skipping download: ", local_path)
     return(invisible("current"))
   }

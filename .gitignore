@@ -52,3 +52,7 @@ daily.RDa
 cupties.RDa
 **/plans/
 agents.md
+
+# Posit deployment configuration
+*.toml
+*.json

@@ -13,6 +13,7 @@ library(DT)
 library(shinyjs)
 library(reactable)
 library(glue)
+library(magick)
 
 options(gargle_oauth_cache = ".secrets", gargle_oauth_email = TRUE)
 
@@ -34,6 +35,7 @@ shared_drive_target <- Sys.getenv(
   ""
 )
 file_data <- resolve_app_path("data.RDa")
+source(resolve_app_path("supabase-storage.R"))
 
 normalize_daily_schema <- function(daily) {
   if ("App" %in% names(daily) && !"SBapp" %in% names(daily)) {
@@ -238,68 +240,71 @@ pull_remote_bundle <- function(remote_listing, remote_name = "data.RDa") {
   list(modified_time = remote$modified_time[[1]])
 }
 
-try_drive_auth()
-shared_drive_path <- resolve_shared_drive_path()
-refresh_drive_cache <- function(force = FALSE) {
-  listing <- get_remote_listing()
-  if (inherits(listing, "drive_listing_error")) {
-    return(invisible(list(
-      status = "failed",
-      source = if (file.exists(file_data)) {
-        "Bundled data.RDa"
-      } else {
-        "Unavailable"
-      },
-      error = listing$error
-    )))
+load_supabase_bundle <- function() {
+  destination <- tempfile(fileext = ".RDa")
+  on.exit(unlink(destination), add = TRUE)
+  supabase_download_object(destination = destination)
+  bundle <- load_dreamleague_bundle(destination)
+
+  for (name in c("dl", "daily", "time", "cupties")) {
+    assign(name, get(name, envir = bundle, inherits = FALSE), envir = app_env)
   }
-
-  pulled_bundle <- tryCatch(
-    pull_remote_bundle(listing),
-    error = function(e) {
-      structure(list(error = conditionMessage(e)), class = "drive_pull_error")
-    }
-  )
-
-  if (inherits(pulled_bundle, "drive_pull_error") || is.null(pulled_bundle)) {
-    error_message <- if (inherits(pulled_bundle, "drive_pull_error")) {
-      pulled_bundle$error
-    } else {
-      "No remote data.RDa found."
-    }
-
-    return(invisible(list(
-      status = "failed",
-      source = if (file.exists(file_data)) {
-        "Bundled data.RDa"
-      } else {
-        "Unavailable"
-      },
-      error = error_message
-    )))
-  }
-
-  file_updates$teams <- pulled_bundle$modified_time
-  file_updates$daily <- pulled_bundle$modified_time
-  assign("file_updates", file_updates, envir = app_env)
-
-  invisible(list(
-    status = "updated",
-    source = "Google Drive",
-    modified_time = pulled_bundle$modified_time
-  ))
+  build_runtime_objects(file.info(destination)$mtime[[1]])
+  invisible(list(status = "updated", source = "Supabase Storage"))
 }
 
-initial_remote_load <- refresh_drive_cache(force = FALSE)
+load_drive_bundle <- function() {
+  try_drive_auth()
+  assign(
+    "shared_drive_path",
+    resolve_shared_drive_path(),
+    envir = app_env
+  )
+  remote_listing <- get_remote_listing()
+  if (inherits(remote_listing, "drive_listing_error")) {
+    stop(remote_listing$error, call. = FALSE)
+  }
+
+  result <- pull_remote_bundle(remote_listing)
+  if (is.null(result)) {
+    stop("Google Drive data.RDa was not found", call. = FALSE)
+  }
+
+  invisible(list(status = "updated", source = "Google Drive"))
+}
+
+initial_remote_load <- tryCatch(
+  load_supabase_bundle(),
+  error = function(supabase_error) {
+    tryCatch(
+      load_drive_bundle(),
+      error = function(drive_error) {
+        list(
+          status = "failed",
+          source = "Local bundled data.RDa",
+          error = paste(
+            "Supabase:",
+            conditionMessage(supabase_error),
+            "Google Drive:",
+            conditionMessage(drive_error),
+            sep = "<br>"
+          )
+        )
+      }
+    )
+  }
+)
 if (identical(initial_remote_load$status, "failed")) {
   if (file.exists(file_data)) {
+    message(
+      "Supabase Storage and Google Drive unavailable; using bundled data.RDa. ",
+      gsub("<br>", " ", initial_remote_load$error, fixed = TRUE)
+    )
     load_local_bundle()
   } else {
     stop(
-      paste(
-        "Unable to load DreamLeague data from Google Drive, and no local fallback data.RDa is available.",
-        initial_remote_load$error
-      ),
+      "Unable to load DreamLeague data from Supabase Storage or Google Drive, and no local fallback data.RDa is available. ",
+      gsub("<br>", " ", initial_remote_load$error, fixed = TRUE),
       call. = FALSE
     )
   }
@@ -486,12 +491,6 @@ ui <- dashboardPage(
         fluid = T,
         sidebarLayout(
           sidebarPanel(
-            actionButton(
-              "force_drive_refresh",
-              "Force refresh from Google Drive"
-            ),
-            br(),
-            br(),
             uiOutput("diagnostics_cache_status"),
             uiOutput("diagnostics_cache_warning")
           ),
@@ -952,18 +951,13 @@ server <- function(input, output, session) {
       filter(GOALKEEPER != 1 | DEFENDER != 2 | MIDFIELDER != 3 | FORWARD != 5)
   })
 
-  observeEvent(input$force_drive_refresh, {
-    result <- refresh_drive_cache(force = TRUE)
-    update_cache_state(result)
-  })
-
   output$diagnostics_cache_status <- renderUI({
     refresh_counter()
     tags$div(
       class = "alert alert-info",
       style = "margin:0; padding:8px 12px;",
       HTML(glue::glue(
-        "<b>Remote load status</b><br/>Source: {cache_status_text()}"
+        "<b>Data source</b><br/>{cache_status_text()}"
       ))
     )
   })
