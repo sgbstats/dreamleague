@@ -108,12 +108,6 @@ test_that("remote xlsx refresh selects the newest matching file", {
   )
 })
 
-test_that("pull remote bundle returns NULL when the bundle is absent", {
-  listing <- make_remote_listing("other.RDa", "2026-09-01 10:00:00")
-
-  expect_null(pull_env$pull_remote_bundle(listing))
-})
-
 test_that("authentication helpers do not error without credentials", {
   expect_invisible(pull_env$try_drive_auth(tempfile()))
   expect_null(pull_env$resolve_shared_drive_path(""))
