@@ -245,7 +245,7 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
 
   for (i in names(out_d)) {
     write.csv(out_d[[i]], glue::glue("data/diagnostics/didsbury_{i}.csv"))
-    write.csv(out_d[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
+    write.csv(out_o[[i]], glue::glue("data/diagnostics/original_{i}.csv"))
   }
 
   drive_published <- tryCatch(

@@ -1058,8 +1058,8 @@ server <- function(input, output, session) {
           !is.na(date),
           "The selected cup round has no valid date."
         ))
-        date <- as.Date(date)
-        filter(comp == input$comp_cup, round == input$round_cup) |>
+        date <- cupties |>
+          filter(comp == input$comp_cup, round == selected_round) |>
           pull(date) |>
           min(na.rm = TRUE)
 

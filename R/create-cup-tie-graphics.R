@@ -69,7 +69,9 @@ logo_path <- function(team, logo_directory) {
 
 club_styles <- function() {
   list(
+    ACCRINGTON = c("#C8102E", "#FFFFFF", "vertical"),
     ARSENAL = c("#D71920", "#FFFFFF", "solid"),
+    ATLETICO_MADRID = c("#C8102E", "#FFFFFF", "vertical"),
     ASTON_VILLA = c("#670E36", "#7BB9E8", "solid"),
     BOURNEMOUTH = c("#D71920", "#111111", "vertical"),
     BRENTFORD = c("#D71920", "#FFFFFF", "vertical"),
@@ -89,6 +91,7 @@ club_styles <- function() {
     TOTTENHAM = c("#FFFFFF", "#132257", "solid"),
     WEST_HAM = c("#7A263A", "#7EB8E7", "solid"),
     BARNET = c("#F2A900", "#111111", "solid"),
+    BARNSLEY = c("#C8102E", "#FFFFFF", "solid"),
     BLACKPOOL = c("#F2A900", "#111111", "vertical"),
     BROMLEY = c("#FFFFFF", "#111111", "solid"),
     BURTON = c("#F2A900", "#111111", "solid"),
@@ -112,6 +115,7 @@ club_styles <- function() {
     LEICESTER = c("#003090", "#FFFFFF", "solid"),
     LEYTON_ORIENT = c("#E30613", "#FFFFFF", "solid"),
     LINCOLN = c("#E30613", "#FFFFFF", "vertical"),
+    LUTON = c("#F58220", "#1D428A", "solid"),
     MANCHESTEER_CITY = c("#6CABDD", "#FFFFFF", "solid"),
     MANCHESTER_CITY = c("#6CABDD", "#FFFFFF", "solid"),
     MANCHESTER_UNITED = c("#DA291C", "#FBE122", "solid"),
@@ -165,7 +169,7 @@ formation_coordinates <- function(side) {
     rep("MIDFIELDER", 3),
     rep("FORWARD", 5)
   )
-  x <- c(7, 18, 18, 30, 30, 30, 40, 40, 40, 40, 40)
+  x <- c(-8, 10, 10, 28, 24, 28, 39, 39, 39, 39, 39)
   y <- c(50, 22, 78, 12, 50, 88, 6, 28, 50, 72, 94)
   if (side == "right") {
     x <- 100 - x
@@ -173,103 +177,48 @@ formation_coordinates <- function(side) {
   data.frame(position = positions, x = x, y = y)
 }
 
-add_shirts <- function(plot, players) {
-  sleeves <- rbind(
-    transform(
-      players,
-      xmin = x - 6.2,
-      xmax = x - 2.8,
-      ymin = y - 1.8,
-      ymax = y + 2.6
-    ),
-    transform(
-      players,
-      xmin = x + 2.8,
-      xmax = x + 6.2,
-      ymin = y - 1.8,
-      ymax = y + 2.6
-    )
-  )
-  torso <- transform(
-    players,
-    xmin = x - 3.8,
-    xmax = x + 3.8,
-    ymin = y - 6,
-    ymax = y + 4.2
-  )
-  neckline <- do.call(
-    rbind,
-    lapply(seq_len(nrow(players)), function(i) {
-      angle <- seq(pi, 2 * pi, length.out = 30)
-      data.frame(
-        player_id = i,
-        x = players$x[i] + 1.25 * cos(angle),
-        y = players$y[i] + 4.2 + 1.1 * sin(angle)
+shirt_raster <- function(fill, secondary, pattern, shirt_template) {
+  strip <- magick::image_blank(160, 160, color = fill)
+  if (pattern == "vertical") {
+    stripe <- magick::image_blank(20, 160, color = secondary)
+    for (offset in seq(10, 130, by = 40)) {
+      strip <- magick::image_composite(
+        strip,
+        stripe,
+        offset = sprintf("+%d+0", offset)
       )
-    })
-  )
+    }
+  }
+  magick::image_composite(strip, shirt_template)
+}
 
-  plot <- plot +
-    ggplot2::geom_rect(
-      data = sleeves,
-      ggplot2::aes(
-        xmin = xmin,
-        xmax = xmax,
-        ymin = ymin,
-        ymax = ymax,
-        fill = fill
-      ),
-      inherit.aes = FALSE,
-      colour = "#1A1A1A",
-      linewidth = 0.45
-    ) +
-    ggplot2::geom_rect(
-      data = torso,
-      ggplot2::aes(
-        xmin = xmin,
-        xmax = xmax,
-        ymin = ymin,
-        ymax = ymax,
-        fill = fill
-      ),
-      inherit.aes = FALSE,
-      colour = "#1A1A1A",
-      linewidth = 0.45
-    ) +
-    ggplot2::geom_path(
-      data = neckline,
-      ggplot2::aes(x = x, y = y, group = player_id),
-      inherit.aes = FALSE,
-      colour = "#1A1A1A",
-      linewidth = 0.55
+add_shirts <- function(plot, players, shirt_template_path) {
+  if (!inherits(plot, "ggplot")) {
+    stop("`plot` must be a ggplot object.", call. = FALSE)
+  }
+  if (!file.exists(shirt_template_path)) {
+    stop(
+      sprintf("No shirt template found at '%s'.", shirt_template_path),
+      call. = FALSE
     )
+  }
+  shirt_template <- magick::image_read(shirt_template_path) |>
+    magick::image_scale("160x160")
 
-  striped <- players[players$pattern == "vertical", ]
-  if (nrow(striped) > 0) {
-    stripes <- do.call(
-      rbind,
-      lapply(seq_len(nrow(striped)), function(i) {
-        data.frame(
-          xmin = striped$x[i] + c(-2.25, -0.75, 0.75),
-          xmax = striped$x[i] + c(-1.25, 0.25, 1.75),
-          ymin = striped$y[i] - 5.9,
-          ymax = striped$y[i] + 4.15,
-          fill = striped$secondary[i]
-        )
-      })
+  for (i in seq_len(nrow(players))) {
+    shirt <- shirt_raster(
+      players$fill[i],
+      players$secondary[i],
+      players$pattern[i],
+      shirt_template
     )
     plot <- plot +
-      ggplot2::geom_rect(
-        data = stripes,
-        ggplot2::aes(
-          xmin = xmin,
-          xmax = xmax,
-          ymin = ymin,
-          ymax = ymax,
-          fill = fill
-        ),
-        inherit.aes = FALSE,
-        colour = NA
+      ggplot2::annotation_custom(
+        grid::rasterGrob(as.raster(shirt), interpolate = TRUE),
+        xmin = players$x[i] - 4.6,
+        xmax = players$x[i] + 4.6,
+        ymin = players$y[i] - 4.6,
+        ymax = players$y[i] + 4.6
       )
   }
   plot
@@ -343,15 +292,14 @@ create_cup_tie_graphics <- function(
       fallback_clubs,
       players$club[!style_keys %in% club_style_keys()]
     )
-    players$name_label <- ifelse(
+    players$label <- ifelse(
       players$position == "GOALKEEPER",
-      NA_character_,
-      players$player
+      players$club,
+      paste(players$player, players$club, sep = "\n")
     )
-    players$label_x <- ifelse(players$x < 50, players$x - 6.5, players$x + 6.5)
-    players$label_hjust <- ifelse(players$x < 50, 1, 0)
-    players$name_y <- ifelse(players$y > 76, players$y - 8.5, players$y + 8.5)
-    players$club_y <- ifelse(players$y > 76, players$y - 11.5, players$y + 5.5)
+    players$label_x <- players$x
+    players$label_hjust <- 0.5
+    players$label_y <- ifelse(players$y > 76, players$y - 7, players$y + 7)
 
     pitch <- ggplot2::ggplot() +
       ggplot2::annotate(
@@ -389,8 +337,8 @@ create_cup_tie_graphics <- function(
       ) +
       ggplot2::annotate(
         "rect",
-        xmin = c(1, 87),
-        xmax = c(13, 99),
+        xmin = c(-16, 104),
+        xmax = c(-4, 116),
         ymin = 30,
         ymax = 70,
         colour = "white",
@@ -399,8 +347,8 @@ create_cup_tie_graphics <- function(
       ) +
       ggplot2::annotate(
         "rect",
-        xmin = c(1, 93),
-        xmax = c(7, 99),
+        xmin = c(-16, 110),
+        xmax = c(-10, 116),
         ymin = 40,
         ymax = 60,
         colour = "white",
@@ -421,34 +369,20 @@ create_cup_tie_graphics <- function(
         plot.margin = ggplot2::margin(12, 12, 12, 12),
         plot.background = ggplot2::element_rect(fill = "#16883D", colour = NA)
       )
-    pitch <- add_shirts(pitch, players)
+    pitch <- add_shirts(pitch, players, "img/SHIRT.png")
     pitch <- pitch +
       ggplot2::geom_text(
-        data = players[
-          !is.na(players$name_label) & nzchar(players$name_label),
-        ],
+        data = players,
         ggplot2::aes(
           x = label_x,
-          y = name_y,
-          label = name_label,
+          y = label_y,
+          label = label,
           hjust = label_hjust
         ),
         colour = "white",
         fontface = "bold",
-        size = 2.8,
-        lineheight = 0.9
-      ) +
-      ggplot2::geom_text(
-        data = players[!is.na(players$club) & nzchar(players$club), ],
-        ggplot2::aes(
-          x = label_x,
-          y = club_y,
-          label = club,
-          hjust = label_hjust
-        ),
-        colour = "white",
-        size = 2.2,
-        lineheight = 0.9
+        size = 4,
+        lineheight = 0.95
       ) +
       ggplot2::annotate(
         "text",
@@ -541,6 +475,5 @@ create_cup_tie_graphics <- function(
   invisible(written)
 }
 
-if (identical(environment(), globalenv()) && !interactive()) {
-  create_cup_tie_graphics()
-}
+
+create_cup_tie_graphics()
