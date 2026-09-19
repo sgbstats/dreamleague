@@ -425,6 +425,7 @@ ui <- dashboardPage(
         tabName = "cup",
         fluid = T,
         sidebarPanel(
+          width = 3,
           radioButtons(
             "comp_cup",
             "Competition ",
@@ -452,6 +453,7 @@ ui <- dashboardPage(
           uiOutput("round_date2")
         ),
         mainPanel(
+          width = 9,
           tags$div(
             class = "alert alert-secondary",
             style = "margin:0; padding:2px 6px;", # tight alert
@@ -1152,7 +1154,6 @@ server <- function(input, output, session) {
             team_manager.x = colDef(
               name = "",
               show = T,
-              width = 150,
               style = function(value, index) {
                 if (!is.na(res$winner[index]) && res$winner[index] == 1) {
                   list(background = "#FFD700")
@@ -1162,7 +1163,7 @@ server <- function(input, output, session) {
             score.x = colDef(
               name = "",
               show = T,
-              width = 70,
+              width = 80,
               style = function(value, index) {
                 if (!is.na(res$winner[index]) && res$winner[index] == 1) {
                   list(background = "#FFD700")
@@ -1172,7 +1173,7 @@ server <- function(input, output, session) {
             score.y = colDef(
               name = "",
               show = T,
-              width = 70,
+              width = 80,
               style = function(value, index) {
                 if (!is.na(res$winner[index]) && res$winner[index] == 2) {
                   list(background = "#FFD700")
@@ -1182,7 +1183,6 @@ server <- function(input, output, session) {
             team_manager.y = colDef(
               name = "",
               show = T,
-              width = 150,
               style = function(value, index) {
                 if (!is.na(res$winner[index]) && res$winner[index] == 2) {
                   list(background = "#FFD700")
