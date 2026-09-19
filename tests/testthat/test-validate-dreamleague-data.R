@@ -139,6 +139,14 @@ test_that("unknown cup team fails", {
   )
 })
 
+test_that("BFL R1 starts on 18 September 2026", {
+  bfl_r1 <- read.csv(testthat::test_path("..", "..", "data", "cupties.csv")) |>
+    dplyr::filter(comp == "bfl", round == "R1")
+
+  expect_gt(nrow(bfl_r1), 0)
+  expect_true(all(bfl_r1$date == "18/09/2026"))
+})
+
 test_that("preprocessing bundle passes validation when provided", {
   skip_if(is.null(bundle_under_test), "No preprocessing bundle supplied")
 
