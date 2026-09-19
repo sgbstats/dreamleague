@@ -54,5 +54,4 @@ cupties.RDa
 agents.md
 
 # Posit deployment configuration
-*.toml
 *.json
