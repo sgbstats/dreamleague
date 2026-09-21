@@ -56,3 +56,4 @@ agents.md
 
 # Posit deployment configuration
 *.json
+*/settings.json

@@ -17,11 +17,9 @@ files = [
 validate = true
 product_type = "connect_cloud"
 secrets = [
-    "SUPABASE_API_KEY",
-    "SUPABASE_URL",
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
-    "DREAMLEAGUE_SUPABASE_BUCKET",
     "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
+    "SUPABASE_API_KEY",
 ]
 
 [r]

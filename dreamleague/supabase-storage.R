@@ -1,10 +1,10 @@
+DREAMLEAGUE_SUPABASE_URL <- "https://uapfyikxspmcifgdergl.supabase.co"
+DREAMLEAGUE_SUPABASE_BUCKET <- "dreamleague"
+
 supabase_storage_config <- function(
-  url = Sys.getenv(
-    "SUPABASE_URL",
-    "https://uapfyikxspmcifgdergl.supabase.co"
-  ),
+  url = DREAMLEAGUE_SUPABASE_URL,
   api_key = Sys.getenv("SUPABASE_API_KEY", ""),
-  bucket = Sys.getenv("DREAMLEAGUE_SUPABASE_BUCKET", "dreamleague")
+  bucket = DREAMLEAGUE_SUPABASE_BUCKET
 ) {
   url <- sub("/+$", "", url)
   if (!grepl("^https://[^/]+$", url)) {
@@ -14,7 +14,10 @@ supabase_storage_config <- function(
     stop("SUPABASE_API_KEY is not configured", call. = FALSE)
   }
   if (!grepl("^[A-Za-z0-9_-]+$", bucket)) {
-    stop("DREAMLEAGUE_SUPABASE_BUCKET contains invalid characters", call. = FALSE)
+    stop(
+      "DREAMLEAGUE_SUPABASE_BUCKET contains invalid characters",
+      call. = FALSE
+    )
   }
 
   list(url = url, api_key = api_key, bucket = bucket)
@@ -90,13 +93,15 @@ load_dreamleague_bundle <- function(path) {
   bundle <- new.env(parent = emptyenv())
   load(path, envir = bundle)
   required_objects <- c("dl", "daily", "time", "cupties")
-  missing_objects <- required_objects[!vapply(
-    required_objects,
-    exists,
-    logical(1),
-    envir = bundle,
-    inherits = FALSE
-  )]
+  missing_objects <- required_objects[
+    !vapply(
+      required_objects,
+      exists,
+      logical(1),
+      envir = bundle,
+      inherits = FALSE
+    )
+  ]
   if (length(missing_objects) > 0) {
     stop(
       "Data bundle is missing objects: ",
