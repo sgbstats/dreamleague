@@ -26,10 +26,33 @@ resolve_app_path <- function(...) file.path(app_dir, ...)
 app_env <- environment()
 
 load(resolve_app_path("managers.RDa"))
-credentials_path <- Sys.getenv(
-  "DREAMLEAGUE_GOOGLE_CREDENTIALS",
-  resolve_app_path("credentials.json")
-)
+
+initialize_google_credentials <- function() {
+  credentials_path <- Sys.getenv("DREAMLEAGUE_GOOGLE_CREDENTIALS", "")
+  encoded_credentials <- Sys.getenv(
+    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
+    ""
+  )
+
+  if (!nzchar(credentials_path) && nzchar(encoded_credentials)) {
+    credentials_path <- tempfile(
+      pattern = "dreamleague-google-",
+      fileext = ".json"
+    )
+    writeBin(
+      jsonlite::base64_dec(encoded_credentials),
+      credentials_path
+    )
+  }
+
+  if (!nzchar(credentials_path)) {
+    credentials_path <- resolve_app_path("credentials.json")
+  }
+
+  credentials_path
+}
+
+credentials_path <- initialize_google_credentials()
 shared_drive_target <- Sys.getenv(
   "DREAMLEAGUE_SHARED_DRIVE_TARGET",
   ""
@@ -130,17 +153,20 @@ try_drive_auth <- function(path = credentials_path) {
     message(
       "Drive auth unavailable; credentials file not found. Using bundled data.RDa only."
     )
-    return(invisible(NULL))
+    return(FALSE)
   }
 
   tryCatch(
-    googledrive::drive_auth(path = path),
+    {
+      googledrive::drive_auth(path = path)
+      TRUE
+    },
     error = function(e) {
       message(
         "Drive auth unavailable; using bundled data.RDa only. ",
         conditionMessage(e)
       )
-      invisible(NULL)
+      FALSE
     }
   )
 }
@@ -254,7 +280,18 @@ load_supabase_bundle <- function() {
 }
 
 load_drive_bundle <- function() {
-  try_drive_auth()
+  if (!try_drive_auth()) {
+    stop(
+      paste(
+        "Google Drive credentials are unavailable.",
+        "Set DREAMLEAGUE_GOOGLE_CREDENTIALS_B64 in Connect Cloud Secrets",
+        "or provide a local credentials.json file.",
+        sep = " "
+      ),
+      call. = FALSE
+    )
+  }
+
   assign(
     "shared_drive_path",
     resolve_shared_drive_path(),
@@ -504,7 +541,23 @@ ui <- dashboardPage(
         sidebarLayout(
           sidebarPanel(
             uiOutput("diagnostics_cache_status"),
-            uiOutput("diagnostics_cache_warning")
+            uiOutput("diagnostics_cache_warning"),
+            uiOutput("diagnostics_pull_status"),
+            br(),
+            actionButton(
+              "force_pull_supabase",
+              "Pull from Supabase",
+              icon = icon("cloud-arrow-down"),
+              class = "btn-primary"
+            ),
+            br(),
+            br(),
+            actionButton(
+              "force_pull_drive",
+              "Pull from Google Drive",
+              icon = icon("hard-drive"),
+              class = "btn-primary"
+            )
           ),
           mainPanel(
             dataTableOutput("diagnostics")
@@ -535,6 +588,7 @@ server <- function(input, output, session) {
   refresh_counter_value <- 0
   cache_status_text <- reactiveVal("Bundled data.RDa")
   cache_warning_text <- reactiveVal(NULL)
+  pull_status_text <- reactiveVal(NULL)
 
   team_choices_for_league <- function(league_name) {
     managers |>
@@ -578,6 +632,65 @@ server <- function(input, output, session) {
   }
 
   update_cache_state(initial_remote_load)
+
+  set_pull_status <- function(result, source) {
+    if (identical(result$status, "failed")) {
+      pull_status_text(glue::glue(
+        "{source} pull failed: {result$error}"
+      ))
+    } else {
+      pull_status_text(glue::glue(
+        "{source} pull succeeded."
+      ))
+    }
+  }
+
+  set_pull_status(initial_remote_load, "Initial remote load")
+
+  run_manual_remote_load <- function(loader) {
+    tryCatch(
+      loader(),
+      error = function(error) {
+        list(
+          status = "failed",
+          error = conditionMessage(error)
+        )
+      }
+    )
+  }
+
+  observeEvent(input$force_pull_supabase, {
+    result <- run_manual_remote_load(load_supabase_bundle)
+    update_cache_state(result)
+    set_pull_status(result, "Supabase")
+    if (identical(result$status, "failed")) {
+      showNotification(
+        paste("Supabase pull failed:", result$error),
+        type = "error",
+        duration = NULL
+      )
+    } else {
+      showNotification("Supabase data pulled successfully.", type = "message")
+    }
+  })
+
+  observeEvent(input$force_pull_drive, {
+    result <- run_manual_remote_load(load_drive_bundle)
+    update_cache_state(result)
+    set_pull_status(result, "Google Drive")
+    if (identical(result$status, "failed")) {
+      showNotification(
+        paste("Google Drive pull failed:", result$error),
+        type = "error",
+        duration = NULL
+      )
+    } else {
+      showNotification(
+        "Google Drive data pulled successfully.",
+        type = "message"
+      )
+    }
+  })
 
   output$table <- renderReactable({
     table_data <- league |>
@@ -948,6 +1061,7 @@ server <- function(input, output, session) {
   })
 
   output$diagnostics <- DT::renderDT({
+    refresh_counter()
     dl |>
       filter(is.na(sold)) |>
       dplyr::select(team, player, club, position) |>
@@ -985,6 +1099,21 @@ server <- function(input, output, session) {
       class = "alert alert-warning",
       style = "margin:8px 0 0 0; padding:8px 12px;",
       HTML(warning_text)
+    )
+  })
+
+  output$diagnostics_pull_status <- renderUI({
+    refresh_counter()
+    status_text <- pull_status_text()
+    if (is.null(status_text) || !nzchar(status_text)) {
+      return(NULL)
+    }
+
+    is_failure <- grepl(" failed:", status_text, fixed = TRUE)
+    tags$div(
+      class = if (is_failure) "alert alert-danger" else "alert alert-success",
+      style = "margin:8px 0 0 0; padding:8px 12px;",
+      HTML(status_text)
     )
   })
 

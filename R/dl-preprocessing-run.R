@@ -16,11 +16,33 @@ source("R/dl-preprocessing-fast.R")
 source("R/validate-dreamleague-data.R")
 source("R/supabase-storage.R")
 
-try_drive_auth()
-credentials_path <- Sys.getenv(
-  "DREAMLEAGUE_GOOGLE_CREDENTIALS",
-  "credentials.json"
-)
+initialize_google_credentials <- function() {
+  credentials_path <- Sys.getenv("DREAMLEAGUE_GOOGLE_CREDENTIALS", "")
+  encoded_credentials <- Sys.getenv(
+    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
+    ""
+  )
+
+  if (!nzchar(credentials_path) && nzchar(encoded_credentials)) {
+    credentials_path <- tempfile(
+      pattern = "dreamleague-google-",
+      fileext = ".json"
+    )
+    writeBin(
+      jsonlite::base64_dec(encoded_credentials),
+      credentials_path
+    )
+  }
+
+  if (!nzchar(credentials_path)) {
+    credentials_path <- "credentials.json"
+  }
+
+  credentials_path
+}
+
+credentials_path <- initialize_google_credentials()
+try_drive_auth(credentials_path)
 shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
 safe_gs4_auth <- function(path = credentials_path) {
   if (!file.exists(path)) {

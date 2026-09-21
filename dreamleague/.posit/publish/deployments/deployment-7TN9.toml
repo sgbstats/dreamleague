@@ -2,7 +2,7 @@
 "$schema" = "https://cdn.posit.co/publisher/schemas/posit-publishing-record-schema-v3.json"
 server_type = "connect_cloud"
 server_url = "https://connect.posit.cloud"
-client_version = "2.13.7"
+client_version = "2.13.8"
 created_at = "2026-09-17T12:03:34.313Z"
 type = "r-shiny"
 configuration_name = "dreamleague-staging-90EP"
@@ -10,8 +10,8 @@ id = "01a09afc-7672-7877-b341-7c2d6b1a0d00"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/01a09afc-7672-7877-b341-7c2d6b1a0d00"
 direct_url = "https://01a09afc-7672-7877-b341-7c2d6b1a0d00.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/01a09afc-7672-7877-b341-7c2d6b1a0d00/history"
-deployed_at = "2026-09-19T12:54:44.599Z"
-bundle_id = "01a0b9bb-84dd-1c82-cf11-0a0a35dcce6d"
+deployed_at = "2026-09-21T09:44:58.125Z"
+bundle_id = "01a0c35a-61a2-5c75-0b87-dfc74eed425b"
 files = [
     ".posit/publish/deployments/deployment-7TN9.toml",
     "app.R",
@@ -73,6 +73,7 @@ secrets = [
     "SUPABASE_URL",
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
     "DREAMLEAGUE_SUPABASE_BUCKET",
+    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
 ]
 
 [configuration.r]

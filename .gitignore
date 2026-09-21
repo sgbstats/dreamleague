@@ -39,6 +39,7 @@ vignettes/*.pdf
 dreamleague/data.RDa
 data.RDa
 credentials.json
+**/credentials.json
 data/diagnostics/*
 web/node_modules/
 web/dist/

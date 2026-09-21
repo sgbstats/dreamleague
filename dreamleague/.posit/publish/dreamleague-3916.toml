@@ -7,11 +7,11 @@ entrypoint = "app.R"
 title = "dreamleague"
 files = [
     "/app.R",
-    "/.posit/publish/dreamleague-3916.toml",
-    "/.posit/publish/deployments/deployment-8P5U.toml",
-    "/credentials.json",
     "/managers.RDa",
+    "/data.RDa",
     "/supabase-storage.R",
+    "/.posit/publish/dreamleague-90EP.toml",
+    "/.posit/publish/deployments/deployment-7TN9.toml",
     "/img",
 ]
 validate = true
@@ -21,6 +21,7 @@ secrets = [
     "SUPABASE_URL",
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
     "DREAMLEAGUE_SUPABASE_BUCKET",
+    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
 ]
 
 [r]
