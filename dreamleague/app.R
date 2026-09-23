@@ -59,6 +59,7 @@ shared_drive_target <- Sys.getenv(
 )
 file_data <- resolve_app_path("data.RDa")
 source(resolve_app_path("supabase-storage.R"))
+source(resolve_app_path("github-actions.R"))
 
 normalize_daily_schema <- function(daily) {
   if ("App" %in% names(daily) && !"SBapp" %in% names(daily)) {
@@ -387,6 +388,7 @@ ui <- dashboardPage(
   ),
 
   dashboardBody(
+    shinyjs::useShinyjs(),
     tabItems(
       tabItem(
         tabName = "league",
@@ -543,6 +545,7 @@ ui <- dashboardPage(
             uiOutput("diagnostics_cache_status"),
             uiOutput("diagnostics_cache_warning"),
             uiOutput("diagnostics_pull_status"),
+            uiOutput("diagnostics_workflow_status"),
             br(),
             actionButton(
               "force_pull_supabase",
@@ -557,6 +560,14 @@ ui <- dashboardPage(
               "Pull from Google Drive",
               icon = icon("hard-drive"),
               class = "btn-primary"
+            ),
+            br(),
+            br(),
+            actionButton(
+              "trigger_preprocessing",
+              "Run data preprocessing",
+              icon = icon("play"),
+              class = "btn-warning"
             )
           ),
           mainPanel(
@@ -589,6 +600,7 @@ server <- function(input, output, session) {
   cache_status_text <- reactiveVal("Bundled data.RDa")
   cache_warning_text <- reactiveVal(NULL)
   pull_status_text <- reactiveVal(NULL)
+  workflow_state <- reactiveVal(NULL)
 
   team_choices_for_league <- function(league_name) {
     managers |>
@@ -647,6 +659,40 @@ server <- function(input, output, session) {
 
   set_pull_status(initial_remote_load, "Initial remote load")
 
+  set_workflow_state <- function(
+    phase,
+    message,
+    config = NULL,
+    dispatch_time = NULL,
+    run_id = NULL,
+    deadline = NULL
+  ) {
+    workflow_state(list(
+      phase = phase,
+      message = message,
+      config = config,
+      dispatch_time = dispatch_time,
+      run_id = run_id,
+      deadline = deadline
+    ))
+    if (phase %in% c("dispatching", "waiting", "running", "refreshing")) {
+      shinyjs::disable("trigger_preprocessing")
+    } else {
+      shinyjs::enable("trigger_preprocessing")
+    }
+  }
+
+  workflow_in_progress <- function() {
+    state <- workflow_state()
+    !is.null(state) &&
+      state$phase %in% c("dispatching", "waiting", "running", "refreshing")
+  }
+
+  fail_workflow <- function(message) {
+    set_workflow_state("failed", message)
+    showNotification(message, type = "error", duration = NULL)
+  }
+
   run_manual_remote_load <- function(loader) {
     tryCatch(
       loader(),
@@ -690,6 +736,178 @@ server <- function(input, output, session) {
         type = "message"
       )
     }
+  })
+
+  observeEvent(input$trigger_preprocessing, {
+    if (workflow_in_progress()) {
+      showNotification(
+        "A preprocessing workflow request is already in progress.",
+        type = "warning"
+      )
+      return()
+    }
+
+    showModal(modalDialog(
+      title = "Run data preprocessing?",
+      paste(
+        "This starts the DreamLeague preprocessing workflow on GitHub.",
+        "The app will refresh its Supabase data only if that workflow succeeds."
+      ),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton(
+          "confirm_trigger_preprocessing",
+          "Start workflow",
+          class = "btn-warning"
+        )
+      )
+    ))
+  })
+
+  observeEvent(input$confirm_trigger_preprocessing, {
+    if (workflow_in_progress()) {
+      removeModal()
+      return()
+    }
+
+    removeModal()
+    config <- tryCatch(
+      dreamleague_github_actions_config(),
+      error = function(error) error
+    )
+    if (inherits(config, "error")) {
+      fail_workflow(conditionMessage(config))
+      return()
+    }
+
+    dispatch_time <- Sys.time()
+    set_workflow_state(
+      "dispatching",
+      "Dispatching preprocessing workflow on GitHub...",
+      config = config,
+      dispatch_time = dispatch_time,
+      deadline = dispatch_time + 60 * 60
+    )
+    dispatch_result <- tryCatch(
+      {
+        github_actions_dispatch(config)
+        NULL
+      },
+      error = function(error) error
+    )
+    if (inherits(dispatch_result, "error")) {
+      fail_workflow(conditionMessage(dispatch_result))
+      return()
+    }
+
+    set_workflow_state(
+      "waiting",
+      "Workflow dispatch accepted. Waiting for the GitHub Actions run...",
+      config = config,
+      dispatch_time = dispatch_time,
+      deadline = dispatch_time + 60 * 60
+    )
+  })
+
+  observe({
+    state <- workflow_state()
+    if (
+      is.null(state) ||
+        !state$phase %in% c("waiting", "running")
+    ) {
+      return()
+    }
+
+    invalidateLater(10000, session)
+    if (Sys.time() > state$deadline) {
+      fail_workflow(
+        "GitHub Actions workflow monitoring timed out after 60 minutes. Data were not refreshed."
+      )
+      return()
+    }
+
+    poll_result <- tryCatch(
+      {
+        if (is.null(state$run_id)) {
+          runs <- github_actions_list_dispatched_runs(state$config)
+          run <- github_actions_find_dispatched_run(runs, state$dispatch_time)
+          if (is.null(run)) {
+            list(type = "waiting")
+          } else {
+            list(type = "run", run = run)
+          }
+        } else {
+          list(
+            type = "run",
+            run = github_actions_get_run(state$config, state$run_id)
+          )
+        }
+      },
+      error = function(error) list(type = "error", message = conditionMessage(error))
+    )
+    if (identical(poll_result$type, "error")) {
+      fail_workflow(poll_result$message)
+      return()
+    }
+    if (identical(poll_result$type, "waiting")) {
+      return()
+    }
+
+    run <- poll_result$run
+    run_id <- run$id
+    if (!github_actions_run_is_complete(run)) {
+      phase <- if (identical(run$status, "in_progress")) "running" else "waiting"
+      message <- if (identical(phase, "running")) {
+        sprintf("GitHub Actions workflow run #%s is running...", run_id)
+      } else {
+        sprintf("GitHub Actions workflow run #%s is queued...", run_id)
+      }
+      set_workflow_state(
+        phase,
+        message,
+        config = state$config,
+        dispatch_time = state$dispatch_time,
+        run_id = run_id,
+        deadline = state$deadline
+      )
+      return()
+    }
+
+    if (!identical(run$conclusion, "success")) {
+      conclusion <- if (is.null(run$conclusion) || !nzchar(run$conclusion)) {
+        "unknown"
+      } else {
+        run$conclusion
+      }
+      fail_workflow(sprintf(
+        "GitHub Actions workflow run #%s completed with conclusion: %s. Data were not refreshed.",
+        run_id,
+        conclusion
+      ))
+      return()
+    }
+
+    set_workflow_state(
+      "refreshing",
+      sprintf(
+        "GitHub Actions workflow run #%s completed successfully. Refreshing Supabase data...",
+        run_id
+      )
+    )
+    result <- run_manual_remote_load(load_supabase_bundle)
+    update_cache_state(result)
+    set_pull_status(result, "Supabase")
+    if (identical(result$status, "failed")) {
+      fail_workflow(paste("Workflow succeeded, but Supabase refresh failed:", result$error))
+      return()
+    }
+
+    success_message <- sprintf(
+      "GitHub Actions workflow run #%s completed successfully and Supabase data were refreshed.",
+      run_id
+    )
+    set_workflow_state("succeeded", success_message)
+    showNotification(success_message, type = "message")
   })
 
   output$table <- renderReactable({
@@ -1114,6 +1332,25 @@ server <- function(input, output, session) {
       class = if (is_failure) "alert alert-danger" else "alert alert-success",
       style = "margin:8px 0 0 0; padding:8px 12px;",
       HTML(status_text)
+    )
+  })
+
+  output$diagnostics_workflow_status <- renderUI({
+    state <- workflow_state()
+    if (is.null(state)) {
+      return(NULL)
+    }
+
+    class <- switch(
+      state$phase,
+      failed = "alert alert-danger",
+      succeeded = "alert alert-success",
+      "alert alert-info"
+    )
+    tags$div(
+      class = class,
+      style = "margin:8px 0 0 0; padding:8px 12px;",
+      HTML(glue::glue("<b>Preprocessing workflow</b><br/>{state$message}"))
     )
   })
 
