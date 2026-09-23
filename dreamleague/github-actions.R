@@ -1,23 +1,34 @@
 dreamleague_github_actions_config <- function(
-  token = Sys.getenv("GITHUB_TOKEN", ""),
-  repository = Sys.getenv("DREAMLEAGUE_GITHUB_REPOSITORY", "sgbstats/dreamleague"),
+  token = Sys.getenv("ACTION_TOKEN", ""),
+  repository = Sys.getenv(
+    "DREAMLEAGUE_GITHUB_REPOSITORY",
+    "sgbstats/dreamleague"
+  ),
   workflow = "dl-preprocessing.yml"
 ) {
   if (!nzchar(token)) {
     stop(
       paste(
         "GitHub Actions is not configured.",
-        "Set the GITHUB_TOKEN environment variable to a token with Actions",
-        "workflow dispatch permission for ", repository, "."
+        "Set the ACTION_TOKEN environment variable to a token with Actions",
+        "workflow dispatch permission for ",
+        repository,
+        "."
       ),
       call. = FALSE
     )
   }
   if (!grepl("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repository)) {
-    stop("DREAMLEAGUE_GITHUB_REPOSITORY must use owner/repository format", call. = FALSE)
+    stop(
+      "DREAMLEAGUE_GITHUB_REPOSITORY must use owner/repository format",
+      call. = FALSE
+    )
   }
   if (!identical(workflow, "dl-preprocessing.yml")) {
-    stop("Only the dl-preprocessing.yml workflow can be dispatched", call. = FALSE)
+    stop(
+      "Only the dl-preprocessing.yml workflow can be dispatched",
+      call. = FALSE
+    )
   }
 
   list(token = token, repository = repository, workflow = workflow)
@@ -64,7 +75,11 @@ github_actions_api_request <- function(method, path, config, body = NULL) {
       paste0(
         " Rate limit resets at ",
         format(
-          as.POSIXct(as.numeric(rate_limit_reset), origin = "1970-01-01", tz = "UTC"),
+          as.POSIXct(
+            as.numeric(rate_limit_reset),
+            origin = "1970-01-01",
+            tz = "UTC"
+          ),
           tz = "UTC",
           usetz = TRUE
         ),
@@ -110,7 +125,10 @@ github_actions_parse_json <- function(content, action) {
   )
 }
 
-github_actions_dispatch <- function(config, request = github_actions_api_request) {
+github_actions_dispatch <- function(
+  config,
+  request = github_actions_api_request
+) {
   request(
     "POST",
     sprintf(
@@ -137,7 +155,10 @@ github_actions_list_dispatched_runs <- function(
     ),
     config
   )
-  payload <- github_actions_parse_json(response$content, "listing workflow runs")
+  payload <- github_actions_parse_json(
+    response$content,
+    "listing workflow runs"
+  )
   if (is.null(payload$workflow_runs)) {
     return(list())
   }

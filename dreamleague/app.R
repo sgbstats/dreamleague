@@ -565,7 +565,7 @@ ui <- dashboardPage(
             br(),
             actionButton(
               "trigger_preprocessing",
-              "Run data preprocessing",
+              "Run data collection",
               icon = icon("play"),
               class = "btn-warning"
             )
@@ -843,7 +843,9 @@ server <- function(input, output, session) {
           )
         }
       },
-      error = function(error) list(type = "error", message = conditionMessage(error))
+      error = function(error) {
+        list(type = "error", message = conditionMessage(error))
+      }
     )
     if (identical(poll_result$type, "error")) {
       fail_workflow(poll_result$message)
@@ -856,7 +858,11 @@ server <- function(input, output, session) {
     run <- poll_result$run
     run_id <- run$id
     if (!github_actions_run_is_complete(run)) {
-      phase <- if (identical(run$status, "in_progress")) "running" else "waiting"
+      phase <- if (identical(run$status, "in_progress")) {
+        "running"
+      } else {
+        "waiting"
+      }
       message <- if (identical(phase, "running")) {
         sprintf("GitHub Actions workflow run #%s is running...", run_id)
       } else {
@@ -898,7 +904,10 @@ server <- function(input, output, session) {
     update_cache_state(result)
     set_pull_status(result, "Supabase")
     if (identical(result$status, "failed")) {
-      fail_workflow(paste("Workflow succeeded, but Supabase refresh failed:", result$error))
+      fail_workflow(paste(
+        "Workflow succeeded, but Supabase refresh failed:",
+        result$error
+      ))
       return()
     }
 

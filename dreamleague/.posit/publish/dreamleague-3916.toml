@@ -13,6 +13,7 @@ files = [
     "/.posit/publish/dreamleague-90EP.toml",
     "/.posit/publish/deployments/deployment-7TN9.toml",
     "/img",
+    "/github-actions.R",
 ]
 validate = true
 product_type = "connect_cloud"
@@ -20,6 +21,7 @@ secrets = [
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
     "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
     "SUPABASE_API_KEY",
+    "ACTION_TOKEN",
 ]
 
 [r]
