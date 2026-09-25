@@ -17,7 +17,11 @@ test_that("downloads an xlsx when the remote file is newer", {
     download_fn = function(file, path, overwrite) downloaded <<- TRUE
   )
 
-  expect_identical(result, "downloaded")
+  expect_identical(result$status, "downloaded")
+  expect_equal(
+    result$modified_time,
+    as.POSIXct("2026-09-02 10:00:00", tz = "UTC")
+  )
   expect_true(downloaded)
 })
 
@@ -38,7 +42,11 @@ test_that("skips download when the local xlsx is current", {
     download_fn = function(file, path, overwrite) downloaded <<- TRUE
   )
 
-  expect_identical(result, "current")
+  expect_identical(result$status, "current")
+  expect_equal(
+    as.numeric(result$modified_time),
+    as.numeric(as.POSIXct("2026-09-02 10:00:00", tz = "UTC"))
+  )
   expect_false(downloaded)
 })
 
@@ -57,7 +65,11 @@ test_that("downloads when the local xlsx is missing", {
     download_fn = function(file, path, overwrite) downloaded <<- TRUE
   )
 
-  expect_identical(result, "downloaded")
+  expect_identical(result$status, "downloaded")
+  expect_equal(
+    result$modified_time,
+    as.POSIXct("2026-09-01 10:00:00", tz = "UTC")
+  )
   expect_true(downloaded)
 })
 
@@ -79,7 +91,11 @@ test_that("force downloads even when the local xlsx is current", {
     download_fn = function(file, path, overwrite) downloaded <<- TRUE
   )
 
-  expect_identical(result, "downloaded")
+  expect_identical(result$status, "downloaded")
+  expect_equal(
+    result$modified_time,
+    as.POSIXct("2026-09-01 10:00:00", tz = "UTC")
+  )
   expect_true(downloaded)
 })
 
@@ -96,6 +112,7 @@ test_that("keeps the local xlsx when the remote file is unavailable", {
     download_fn = function(file, path, overwrite) downloaded <<- TRUE
   )
 
-  expect_identical(result, "unavailable")
+  expect_identical(result$status, "unavailable")
+  expect_equal(result$modified_time, file.info(local_path)$mtime[[1]])
   expect_false(downloaded)
 })

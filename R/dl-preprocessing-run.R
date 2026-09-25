@@ -16,32 +16,10 @@ source("R/dl-preprocessing-fast.R")
 source("R/validate-dreamleague-data.R")
 source("R/supabase-storage.R")
 
-initialize_google_credentials <- function() {
-  credentials_path <- Sys.getenv("DREAMLEAGUE_GOOGLE_CREDENTIALS", "")
-  encoded_credentials <- Sys.getenv(
-    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
-    ""
-  )
-
-  if (!nzchar(credentials_path) && nzchar(encoded_credentials)) {
-    credentials_path <- tempfile(
-      pattern = "dreamleague-google-",
-      fileext = ".json"
-    )
-    writeBin(
-      jsonlite::base64_dec(encoded_credentials),
-      credentials_path
-    )
-  }
-
-  if (!nzchar(credentials_path)) {
-    credentials_path <- "credentials.json"
-  }
-
-  credentials_path
-}
-
-credentials_path <- initialize_google_credentials()
+source("dreamleague/google-credentials.R")
+credentials_path <- initialize_google_credentials(
+  default_path = "dreamleague/credentials.json"
+)
 try_drive_auth(credentials_path)
 shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
 safe_gs4_auth <- function(path = credentials_path) {
@@ -66,7 +44,7 @@ safe_gs4_auth()
 
 
 file_d <- "data/DreamLeague26-27.xlsx"
-refresh_remote_xlsx(file_d)
+source_d <- refresh_remote_xlsx(file_d)
 dl_d <- readxl::read_excel(
   file_d,
   na = c("SOLD"),
@@ -83,14 +61,14 @@ managers_d <- readxl::read_excel(file_d, na = c("SOLD"), sheet = "Stats") |>
   rename(manager = 1, team = 2) |>
   filter(team != "TEAM")
 
-mod_d <- file.info(file_d)$mtime
+mod_d <- source_d$modified_time
 cat("Didsbury\n")
 
 out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
 file_o <- "data/DL26-27.xlsx"
-refresh_remote_xlsx(file_o)
+source_o <- refresh_remote_xlsx(file_o)
 dl_o <- readxl::read_excel(
   file_o,
   na = c(""),
@@ -111,7 +89,7 @@ managers_o <- readxl::read_excel(
   rename(manager = 1, team = 2) |>
   filter(team != "TEAM")
 
-mod_o <- file.info(file_o)$mtime
+mod_o <- source_o$modified_time
 cat("Original\n")
 dl_o <- dl_o |>
   mutate(
@@ -126,7 +104,11 @@ dl_o <- dl_o |>
 out_o <- dl_process(dl_o, managers_o, "Original", season_id = 159)
 
 
-time <- list("update_time" = Sys.time(), "mod_d" = mod_d, "mod_o" = mod_o)
+time <- list(
+  "update_time" = max(c(mod_d, mod_o)),
+  "mod_d" = mod_d,
+  "mod_o" = mod_o
+)
 
 cupties <- read.csv("data/cupties.csv") |>
   mutate(date = as.Date(date, format = "%d/%m/%Y")) |>

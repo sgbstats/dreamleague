@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      DREAMLEAGUE_GOOGLE_CREDENTIALS_B64: ${{ secrets.DREAMLEAGUE_GOOGLE_CREDENTIALS_B64 }}
+      GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
       DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
       SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://uapfyikxspmcifgdergl.supabase.co' }}
       SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}

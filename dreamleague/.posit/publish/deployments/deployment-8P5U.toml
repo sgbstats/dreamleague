@@ -10,13 +10,15 @@ id = "019feb2a-a720-91ac-27ea-e00efc359cfd"
 dashboard_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd"
 direct_url = "https://019feb2a-a720-91ac-27ea-e00efc359cfd.share.connect.posit.cloud"
 logs_url = "https://connect.posit.cloud/sgbstats/content/019feb2a-a720-91ac-27ea-e00efc359cfd/history"
-deployed_at = "2026-09-23T14:36:55.054Z"
-bundle_id = "01a0ceb2-629a-4cde-6079-19d5dfddf063"
+deployed_at = "2026-09-25T10:35:58.346Z"
+bundle_id = "01a0d822-9a60-72d9-917e-52c3d7ed070c"
 files = [
     ".posit/publish/deployments/deployment-7TN9.toml",
     "app.R",
+    "credentials.json",
     "data.RDa",
     "github-actions.R",
+    "google-credentials.R",
     "img/ALTERNATIVEULSTERMEN.png",
     "img/ATLETICODEC.png",
     "img/CFCALAALCAUFAR.png",
@@ -67,12 +69,14 @@ files = [
     "/.posit/publish/deployments/deployment-7TN9.toml",
     "/img",
     "/github-actions.R",
+    "/google-credentials.R",
+    "/credentials.json",
 ]
 validate = true
 product_type = "connect_cloud"
 secrets = [
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
-    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
+    "GOOGLE_PRIVATE_KEY",
     "SUPABASE_API_KEY",
     "ACTION_TOKEN",
 ]

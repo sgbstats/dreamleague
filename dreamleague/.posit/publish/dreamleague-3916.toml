@@ -14,12 +14,14 @@ files = [
     "/.posit/publish/deployments/deployment-7TN9.toml",
     "/img",
     "/github-actions.R",
+    "/google-credentials.R",
+    "/credentials.json",
 ]
 validate = true
 product_type = "connect_cloud"
 secrets = [
     "DREAMLEAGUE_SHARED_DRIVE_TARGET",
-    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
+    "GOOGLE_PRIVATE_KEY",
     "SUPABASE_API_KEY",
     "ACTION_TOKEN",
 ]

@@ -38,8 +38,7 @@ vignettes/*.pdf
   
 dreamleague/data.RDa
 data.RDa
-credentials.json
-**/credentials.json
+
 data/diagnostics/*
 web/node_modules/
 web/dist/
@@ -56,4 +55,5 @@ agents.md
 
 # Posit deployment configuration
 *.json
+!dreamleague/credentials.json
 */settings.json

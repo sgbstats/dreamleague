@@ -66,7 +66,7 @@ make_daily <- function(dl) {
 
 make_time <- function() {
   list(
-    update_time = as.POSIXct("2026-08-24 12:00:00", tz = "UTC"),
+    update_time = as.POSIXct("2026-08-24 11:30:00", tz = "UTC"),
     mod_d = as.POSIXct("2026-08-24 11:00:00", tz = "UTC"),
     mod_o = as.POSIXct("2026-08-24 11:30:00", tz = "UTC")
   )

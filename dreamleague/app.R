@@ -27,32 +27,10 @@ app_env <- environment()
 
 load(resolve_app_path("managers.RDa"))
 
-initialize_google_credentials <- function() {
-  credentials_path <- Sys.getenv("DREAMLEAGUE_GOOGLE_CREDENTIALS", "")
-  encoded_credentials <- Sys.getenv(
-    "DREAMLEAGUE_GOOGLE_CREDENTIALS_B64",
-    ""
-  )
-
-  if (!nzchar(credentials_path) && nzchar(encoded_credentials)) {
-    credentials_path <- tempfile(
-      pattern = "dreamleague-google-",
-      fileext = ".json"
-    )
-    writeBin(
-      jsonlite::base64_dec(encoded_credentials),
-      credentials_path
-    )
-  }
-
-  if (!nzchar(credentials_path)) {
-    credentials_path <- resolve_app_path("credentials.json")
-  }
-
-  credentials_path
-}
-
-credentials_path <- initialize_google_credentials()
+source(resolve_app_path("google-credentials.R"))
+credentials_path <- initialize_google_credentials(
+  default_path = resolve_app_path("credentials.json")
+)
 shared_drive_target <- Sys.getenv(
   "DREAMLEAGUE_SHARED_DRIVE_TARGET",
   ""
@@ -1366,9 +1344,9 @@ server <- function(input, output, session) {
   output$update_time <- renderUI({
     refresh_counter()
     HTML(paste0(
-      "Last score update: ",
+      "Latest source file modification: ",
       format(time$update_time, format = "%Y-%m-%d %H:%M:%S"),
-      "<br>Last file upload<br>Didsbury: ",
+      "<br>Source file modifications<br>Didsbury: ",
       format(time$mod_d, format = "%Y-%m-%d %H:%M:%S"),
       "<br>Original: ",
       format(time$mod_o, format = "%Y-%m-%d %H:%M:%S")

@@ -60,7 +60,11 @@ test_that("remote xlsx refresh handles missing files and empty listings", {
     download_fn = function(...) downloaded <<- TRUE
   )
 
-  expect_identical(result, "downloaded")
+  expect_identical(result$status, "downloaded")
+  expect_equal(
+    result$modified_time,
+    as.POSIXct("2026-09-01 10:00:00", tz = "UTC")
+  )
   expect_true(downloaded)
 
   result <- pull_env$refresh_remote_xlsx(
@@ -74,7 +78,8 @@ test_that("remote xlsx refresh handles missing files and empty listings", {
     download_fn = function(...) downloaded <<- TRUE
   )
 
-  expect_identical(result, "not_found")
+  expect_identical(result$status, "not_found")
+  expect_true(is.na(result$modified_time))
   expect_false(file.exists(missing_path))
 })
 
@@ -98,7 +103,11 @@ test_that("remote xlsx refresh selects the newest matching file", {
     download_fn = function(file, path, overwrite) downloaded_file <<- file
   )
 
-  expect_identical(result, "downloaded")
+  expect_identical(result$status, "downloaded")
+  expect_equal(
+    result$modified_time,
+    as.POSIXct("2026-09-02 11:00:00", tz = "UTC")
+  )
   expect_identical(
     downloaded_file$modified_time[[1]],
     as.POSIXct(
