@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
   library(httr)
 })
 a <- Sys.time()
+force_pull <- any(commandArgs(trailingOnly = TRUE) %in% c("--force", "-f"))
 
 source("R/dl-file-pull.R")
 source("R/dl-preprocessing-fast.R")
@@ -44,7 +45,7 @@ safe_gs4_auth()
 
 
 file_d <- "data/DreamLeague26-27.xlsx"
-source_d <- refresh_remote_xlsx(file_d)
+source_d <- refresh_remote_xlsx(file_d, force = force_pull)
 dl_d <- readxl::read_excel(
   file_d,
   na = c("SOLD"),
@@ -68,7 +69,7 @@ out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
 file_o <- "data/DL26-27.xlsx"
-source_o <- refresh_remote_xlsx(file_o)
+source_o <- refresh_remote_xlsx(file_o, force = force_pull)
 dl_o <- readxl::read_excel(
   file_o,
   na = c(""),
@@ -109,6 +110,15 @@ time <- list(
   "mod_d" = mod_d,
   "mod_o" = mod_o
 )
+if (anyNA(unlist(time)) || identical(mod_d, mod_o)) {
+  warning(
+    "Source file times are missing or identical (Didsbury: ",
+    format(mod_d),
+    ", Original: ",
+    format(mod_o),
+    ")."
+  )
+}
 
 cupties <- read.csv("data/cupties.csv") |>
   mutate(date = as.Date(date, format = "%d/%m/%Y")) |>
