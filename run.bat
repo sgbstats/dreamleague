@@ -11,6 +11,6 @@ cd c:/Users/80010008/git/dreamleague
 
 set RSCRIPT_FILE="R\dl-preprocessing-run.R"
 
-Rscript %RSCRIPT_FILE%
+Rscript %RSCRIPT_FILE% %*
 
 pause

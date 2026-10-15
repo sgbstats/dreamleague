@@ -80,6 +80,21 @@ get_remote_listing <- function(file) {
   )
 }
 
+read_drive_time <- function(path) {
+  if (!file.exists(path)) {
+    return(as.POSIXct(NA))
+  }
+  value <- suppressWarnings(as.numeric(readLines(path, n = 1, warn = FALSE)))
+  if (length(value) == 0 || is.na(value)) {
+    return(as.POSIXct(NA))
+  }
+  as.POSIXct(value, origin = "1970-01-01", tz = "UTC")
+}
+
+write_drive_time <- function(path, time) {
+  writeLines(format(as.numeric(time), digits = 15), path)
+}
+
 refresh_remote_xlsx <- function(
   local_path,
   remote_name = basename(local_path),
@@ -89,11 +104,15 @@ refresh_remote_xlsx <- function(
 ) {
   remote_listing <- listing_fn(remote_name)
 
+  sidecar_path <- paste0(local_path, ".drivetime")
+  stored_time <- read_drive_time(sidecar_path)
   local_time <- if (file.exists(local_path)) {
     file.info(local_path)$mtime[[1]]
   } else {
     as.POSIXct(NA)
   }
+  # Prefer the last recorded Drive time over the local download mtime
+  known_time <- if (is.na(stored_time)) local_time else stored_time
   remote_time <- NULL
 
   if (inherits(remote_listing, "drive_listing_error")) {
@@ -107,7 +126,12 @@ refresh_remote_xlsx <- function(
       dplyr::slice_max(.data$modified_time, n = 1, with_ties = FALSE)
     remote_time <- remote$modified_time[[1]]
 
-    if (!force && !is.na(local_time) && remote_time <= local_time) {
+    if (
+      !force &&
+        file.exists(local_path) &&
+        !is.na(known_time) &&
+        remote_time <= known_time
+    ) {
       message("Local file is current; skipping download: ", local_path)
       status <- "current"
     } else {
@@ -116,14 +140,15 @@ refresh_remote_xlsx <- function(
       message("Downloaded newer remote file: ", local_path)
       status <- "downloaded"
     }
+    write_drive_time(sidecar_path, remote_time)
   }
 
   invisible(list(
     status = status,
-    modified_time = if (identical(status, "downloaded")) {
+    modified_time = if (!is.null(remote_time)) {
       remote_time
     } else {
-      local_time
+      known_time
     }
   ))
 }
