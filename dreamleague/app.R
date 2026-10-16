@@ -1344,7 +1344,7 @@ server <- function(input, output, session) {
   output$update_time <- renderUI({
     refresh_counter()
     HTML(paste0(
-      "Latest source file modification: ",
+      "Last score update: ",
       format(time$update_time, format = "%Y-%m-%d %H:%M:%S"),
       "<br>Source file modifications<br>Didsbury: ",
       format(time$mod_d, format = "%Y-%m-%d %H:%M:%S"),

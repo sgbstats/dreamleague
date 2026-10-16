@@ -106,7 +106,7 @@ out_o <- dl_process(dl_o, managers_o, "Original", season_id = 159)
 
 
 time <- list(
-  "update_time" = max(c(mod_d, mod_o)),
+  "update_time" = Sys.time(),
   "mod_d" = mod_d,
   "mod_o" = mod_o
 )
