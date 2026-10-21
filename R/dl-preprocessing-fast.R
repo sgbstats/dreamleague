@@ -358,7 +358,7 @@ dl_process <- function(
   weekly <- map_df(outfield_results, "weekly")
 
   outfield <- outfield |>
-    mutate(SBgoals = if_else(player == "NICOLAS JACKSON", 0, SBgoals))
+    mutate(SBgoals = if_else(player == "JULIAN ALVAREZ", 0, SBgoals))
 
   test <- outfield |>
     filter(goals != SBgoals, !is.na(player_id)) |>

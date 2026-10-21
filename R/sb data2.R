@@ -139,6 +139,7 @@ player_id <- player_id0 |>
     "VINICIOUS JNR"         ,    1 ,       114115 , "REAL MADRID"         ,        2165 ,
     "OLLIE PEARCE"          ,    1 ,       106633 , "YORK"                ,        2910 ,
     "JOSH STONES"           ,    1 ,       145869 , "YORK"                ,        2910 ,
+    "JULIAN ALVAREZ"        ,    1 ,       117782 , "ATLETICO MADRID"     ,         163 ,
   ))
 
 team_id <- team_id |> mutate(team = str_to_upper(team))

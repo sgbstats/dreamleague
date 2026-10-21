@@ -1,15 +1,16 @@
-input = list()
+input <- list()
 # input$team2="MICHU IN DE GEA BAR"
-input$week_player = as.Date("2024-08-05")
-input$relative_d = T
-input$week_league2_d = as.Date("2024-08-05")
-input$week_league2_o = as.Date("2024-08-05")
-input$league = "original"
-input$team = "WENGER BOYS"
-input$cup_start = as.Date("2025-09-12")
-input$team_cup = "ALTERNATIVE ULSTERMEN"
-input$comp_cup = "didsbury"
-input$round_cup = "SF"
-input$start = as.Date("2026-03-13")
-input$end = as.Date("2026-03-16")
-input$league_team_history = "didsbury"
+input$week_player <- as.Date("2024-08-05")
+input$relative_d <- T
+input$week_league2_d <- as.Date("2024-08-05")
+input$week_league2_o <- as.Date("2024-08-05")
+input$league <- "original"
+input$team <- "ROBS ROVERS"
+input$cup_start <- as.Date("2025-09-12")
+input$team_cup <- "ALTERNATIVE ULSTERMEN"
+input$comp_cup <- "didsbury"
+input$round_cup <- "SF"
+input$start <- as.Date("2026-03-13")
+input$end <- as.Date("2026-03-16")
+input$league_team_history <- "didsbury"
+input$league_teams <- "didsbury"
