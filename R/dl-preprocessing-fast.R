@@ -74,7 +74,8 @@ dl_process <- function(
   managers,
   league,
   cut_time = Sys.Date(),
-  season_id = 159
+  season_id = 159,
+  delete_ids = c(52657, 114115, 117782)
 ) {
   # tictoc::tic()
   comps <<- c(
@@ -328,7 +329,7 @@ dl_process <- function(
               Goals = sum(Goals, na.rm = TRUE)
             )
 
-          sb_goals <- if (outfield$player_id[i] %in% c(134733, 52657, 114115)) {
+          sb_goals <- if (outfield$player_id[i] %in% delete_ids) {
             0
           } else {
             appgoals2[[1, "Goals"]]

@@ -14,3 +14,4 @@ input$start <- as.Date("2026-03-13")
 input$end <- as.Date("2026-03-16")
 input$league_team_history <- "didsbury"
 input$league_teams <- "didsbury"
+input$current <- TRUE

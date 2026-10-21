@@ -131,7 +131,6 @@ player_id <- player_id0 |>
     "JOSH BROWNHILL"        ,    1 ,        73078 , "AL SHABAB"           , NA_integer_ ,
     "CHRISTOPHER NKUNKU"    ,    1 ,        85336 , "MILAN"               ,          41 ,
     "JAKE TABOR"            ,    1 ,       207149 , "EASTLEIGH"           ,        4252 ,
-    "NICOLAS JACKSON"       ,    1 ,       134733 , "BAYERN MUNICH"       ,         469 ,
     "RUEL SOTIRIOU"         ,    1 ,       108565 , "HAPOEL JERUSALEM"    ,        7276 ,
     "MALACHI FAGAN-WALCOTT" ,    1 ,       115840 , "HEART OF MIDLOTHIAN" ,        1289 ,
     "TROY PARROTT"          ,    1 ,       115837 , "AZ ALKMAAR"          ,         190 ,
