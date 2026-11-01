@@ -58,3 +58,27 @@ does not list exactly 92 clubs.
 - Local test: set `WENGERBOYS_BUNDLE_PATH` (local data bundle),
   `WENGERBOYS_DRY_RUN=true` and optionally `WENGERBOYS_SCOUT_LIMIT=40`, then run
   `Rscript R/wengerboys-weekly.R`.
+
+## CI/CD
+
+`.github/workflows/ci-cd.yml` runs `Rscript tests/testthat.R` on pushes and pull
+requests targeting `staging` or `main`. The live Wenger Boys test is skipped in
+CI. A successful push to `staging` deploys `dreamleague/` to the staging Posit
+Connect Cloud content; a successful push to `main` deploys the production
+content. Use `staging` as a protected pre-production branch: merge a tested
+change there to deploy and verify the staging app, then promote it to `main`.
+Pull requests from forks run tests but do not receive deployment credentials.
+
+Create `staging` and `production` GitHub Actions environments and configure
+these settings in each:
+
+- Secrets `CONNECT_CLOUD_CLIENT_ID` and `CONNECT_CLOUD_CLIENT_SECRET` from a
+  non-interactive Posit Connect Cloud credential.
+- Secret `CONNECT_CLOUD_APP_ID` set to the existing staging or production
+  content ID for that environment.
+- Optional variable `CONNECT_CLOUD_ACCOUNT` (defaults to `sgbstats`).
+
+The workflow uses these credentials only after tests pass, and targets the
+existing content IDs rather than creating new apps. Configure environment
+protection rules in GitHub if deployments should require approval, and protect
+the `staging` branch so only reviewed changes can trigger deployment.

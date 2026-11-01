@@ -603,10 +603,12 @@ run_drive_benchmark <- function(
   )
 }
 
-result <- run_drive_benchmark(
-  trials = as.integer(Sys.getenv("DREAMLEAGUE_BENCHMARK_TRIALS", "5")),
-  keep_artifacts = identical(
-    Sys.getenv("DREAMLEAGUE_BENCHMARK_KEEP", "false"),
-    "true"
+if (sys.nframe() == 0L) {
+  result <- run_drive_benchmark(
+    trials = as.integer(Sys.getenv("DREAMLEAGUE_BENCHMARK_TRIALS", "5")),
+    keep_artifacts = identical(
+      Sys.getenv("DREAMLEAGUE_BENCHMARK_KEEP", "false"),
+      "true"
+    )
   )
-)
+}

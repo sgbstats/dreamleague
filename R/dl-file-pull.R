@@ -112,7 +112,11 @@ refresh_remote_xlsx <- function(
     as.POSIXct(NA)
   }
   # Prefer the last recorded Drive time over the local download mtime
-  known_time <- if (is.na(stored_time)) local_time else stored_time
+  known_time <- if (file.exists(local_path) && !is.na(stored_time)) {
+    stored_time
+  } else {
+    local_time
+  }
   remote_time <- NULL
 
   if (inherits(remote_listing, "drive_listing_error")) {

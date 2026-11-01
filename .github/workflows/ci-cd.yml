@@ -1,0 +1,120 @@
+name: DreamLeague CI/CD
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run R tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WENGERBOYS_SKIP_LIVE: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install test dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::tidyverse
+            any::readxl
+            any::rvest
+            any::RCurl
+            any::XML
+            any::googlesheets4
+            any::googledrive
+            any::gargle
+            any::fuzzyjoin
+            any::crayon
+            any::httr
+            any::jsonlite
+            any::furrr
+            any::future
+            any::glue
+            any::openxlsx
+            any::xml2
+
+      - name: Run testthat suite
+        run: Rscript tests/testthat.R
+
+  deploy-staging:
+    name: Deploy staging app
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    concurrency:
+      group: dreamleague-staging-deployment
+      cancel-in-progress: false
+    env:
+      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
+      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
+      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
+      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install deployment dependency
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: any::rsconnect
+
+      - name: Deploy to Posit Connect Cloud
+        run: Rscript .github/scripts/deploy-connect-cloud.R
+
+  deploy-production:
+    name: Deploy production app
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: dreamleague-production-deployment
+      cancel-in-progress: false
+    env:
+      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
+      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
+      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
+      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install deployment dependency
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: any::rsconnect
+
+      - name: Deploy to Posit Connect Cloud
+        run: Rscript .github/scripts/deploy-connect-cloud.R
