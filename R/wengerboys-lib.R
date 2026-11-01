@@ -375,12 +375,29 @@ classify_player_games <- function(
   out[!is.na(out$status), , drop = FALSE]
 }
 
-club_flags <- function(player_page, stored_club_id, league92, window_start) {
+club_norm <- function(x) {
+  x <- tolower(iconv(as.character(x), to = "ASCII//TRANSLIT"))
+  x <- gsub("[^a-z0-9 ]", " ", x)
+  x <- gsub("\\b(fc|afc|a f c|f c|the)\\b", " ", x)
+  trimws(gsub("\\s+", " ", x))
+}
+
+club_names_match <- function(a, b, threshold = 0.8) {
+  a <- club_norm(a)
+  b <- club_norm(b)
+  if (is.na(a) || is.na(b) || !nzchar(a) || !nzchar(b)) return(NA)
+  if (a == b) return(TRUE)
+  ta <- strsplit(a, " ")[[1]]
+  tb <- strsplit(b, " ")[[1]]
+  if (all(ta %in% tb) || all(tb %in% ta)) return(TRUE)
+  sim <- 1 - drop(adist(a, b)) / max(nchar(a), nchar(b))
+  sim >= threshold
+}
+
+club_flags <- function(player_page, sheet_club, league92, window_start = NULL) {
   flags <- list(note = NULL, warning = NULL)
   in92 <- !is.na(player_page$club_id) && player_page$club_id %in% league92$team_id
-  moved_vs_stored <- !is.na(stored_club_id) &&
-    !is.na(player_page$club_id) &&
-    stored_club_id != player_page$club_id
+  moved_vs_stored <- isFALSE(club_names_match(sheet_club, player_page$club))
 
   if (is.na(player_page$club_id)) {
     flags$warning <- "Could not determine current club from Soccerbase."

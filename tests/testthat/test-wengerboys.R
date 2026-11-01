@@ -70,20 +70,21 @@ test_that("weekly games are classified per player", {
   expect_equal(out$goals, c(1, 0))
 })
 
-test_that("club flags note league moves and warn about leaving the 92", {
+test_that("club flags compare sheet club fuzzily and warn about leaving the 92", {
   league92 <- data.frame(team_id = c(1, 2))
-  page <- list(club_id = 2, club = "B", joined = as.Date("2026-01-01"))
+  page <- list(club_id = 2, club = "Tranmere Rovers", joined = as.Date("2026-01-01"))
 
-  expect_null(club_flags(page, 2, league92, as.Date("2026-10-01"))$note)
-  expect_null(club_flags(page, 2, league92, as.Date("2026-12-01"))$note)
-  both <- club_flags(list(club_id = 9, club = "Away FC", joined = as.Date(NA)), 1, league92, Sys.Date())
+  expect_null(club_flags(page, "TRANMERE", league92)$note)
+  expect_null(club_flags(page, "Tranmere Rovers FC", league92)$note)
+  expect_null(club_flags(page, NA, league92)$note)
+  expect_match(club_flags(page, "Wrexham", league92)$note, "new club")
+
+  away <- list(club_id = 9, club = "Away FC", joined = as.Date(NA))
+  both <- club_flags(away, "Wrexham", league92)
   expect_match(both$note, "new club")
-  expect_match(both$warning, "outside")
-  expect_match(club_flags(page, 1, league92, as.Date("2026-10-01"))$note, "new club")
-  expect_match(
-    club_flags(list(club_id = 9, club = "Away FC", joined = as.Date(NA)), 1, league92, Sys.Date())$warning,
-    "outside the Football League 92"
-  )
+  expect_match(both$warning, "outside the Football League 92")
+  expect_match(club_flags(away, "Away", league92)$warning, "outside")
+  expect_null(club_flags(away, "Away", league92)$note)
 })
 
 test_that("scouting picks the quota per position", {

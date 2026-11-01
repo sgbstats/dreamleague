@@ -18,7 +18,7 @@ Optionally set `DREAMLEAGUE_GITHUB_REPOSITORY` to override the default
 (and on demand via **Run workflow**). `R/wengerboys-weekly.R` reads the
 current Wenger Boys squad from the Supabase data bundle, scrapes Soccerbase for
 the previous 7 days (goals, games, minutes, unused substitute / not in squad),
-flags club moves, picks the best available 2 defenders, 3 midfielders and
+flags club moves (a note when the Soccerbase club does not fuzzy-match the club in the DreamLeague spreadsheet, and a red warning whenever the club is outside the 92), picks the best available 2 defenders, 3 midfielders and
 5 forwards, emails the report through Resend and saves a JSON snapshot to
 `wengerboys/<date>.json` in the Supabase bucket.
 

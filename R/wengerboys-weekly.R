@@ -72,13 +72,7 @@ wb_main <- function() {
       ))
     }
     page <- parse_player_page(html, pid)
-    stored_club <- stored$team_id[stored$player_id == pid]
-    flags <- club_flags(
-      page,
-      if (length(stored_club) > 0) stored_club[[1]] else NA_real_,
-      league92,
-      window$start
-    )
+    flags <- club_flags(page, as.character(roster$club[i]), league92)
 
     games <- data.frame()
     if (!is.na(page$club_id)) {
