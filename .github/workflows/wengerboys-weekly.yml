@@ -1,7 +1,7 @@
 name: Wenger Boys weekly report
 
 on:
-  # TEMPORARY: branch test trigger (always dry run). Remove before merging.
+  # TEMPORARY: branch test trigger (sends a real email, scouting capped). Remove before merging.
   push:
     branches: [sgbstats-wengerboys-weekly-report]
   workflow_dispatch:
@@ -32,7 +32,8 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       WENGERBOYS_EMAIL_TO: ${{ secrets.WENGERBOYS_EMAIL_TO }}
       WENGERBOYS_EMAIL_FROM: ${{ vars.WENGERBOYS_EMAIL_FROM || 'Wenger Boys <onboarding@resend.dev>' }}
-      WENGERBOYS_DRY_RUN: ${{ (inputs.dry_run || github.event_name == 'push') && 'true' || 'false' }}
+      WENGERBOYS_DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      WENGERBOYS_SCOUT_LIMIT: ${{ github.event_name == 'push' && '60' || '0' }}
 
     steps:
       - name: Check out repository
@@ -61,7 +62,7 @@ jobs:
         run: Rscript R/wengerboys-weekly.R
 
       - name: Upload dry-run output
-        if: ${{ inputs.dry_run || github.event_name == 'push' }}
+        if: ${{ inputs.dry_run }}
         uses: actions/upload-artifact@v4
         with:
           name: wengerboys-report
