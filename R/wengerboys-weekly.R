@@ -1,30 +1,7 @@
 source("R/wengerboys-lib.R")
 source("R/supabase-storage.R")
 
-wb_main <- function() {
-  today <- as.Date(Sys.getenv("WENGERBOYS_TODAY", as.character(Sys.Date())))
-  season_id <- Sys.getenv("WENGERBOYS_SEASON_ID", "159")
-  team_name <- toupper(Sys.getenv("WENGERBOYS_TEAM", "WENGER BOYS"))
-  dry_run <- identical(tolower(Sys.getenv("WENGERBOYS_DRY_RUN", "false")), "true")
-  window <- wb_window(today)
-  notices <- character()
-
-  league92 <- read_league92()
-  notice92 <- league92_warning(league92)
-  if (!is.null(notice92)) notices <- c(notices, notice92)
-
-  bundle_path <- Sys.getenv("WENGERBOYS_BUNDLE_PATH", "")
-  if (!nzchar(bundle_path)) {
-    bundle_path <- tempfile(fileext = ".RDa")
-    on.exit(unlink(bundle_path), add = TRUE)
-    supabase_download_object(destination = bundle_path)
-  }
-  bundle <- load_dreamleague_bundle(bundle_path)
-  dl <- bundle$dl
-  ids_env <- new.env()
-  load("data/ids.RDa", envir = ids_env)
-  stored <- as.data.frame(ids_env$player_id)
-
+wb_roster <- function(dl, team_name, today) {
   roster <- dl |>
     filter(league == "didsbury", toupper(team) == team_name) |>
     mutate(
@@ -35,7 +12,10 @@ wb_main <- function() {
   if (nrow(roster) == 0) {
     stop("No current players found for team ", team_name, call. = FALSE)
   }
+  roster
+}
 
+wb_player_reports <- function(roster, league92, window, season_id) {
   team_cache <- new.env()
   lineup_cache <- new.env()
   get_team_games <- function(club_id) {
@@ -92,7 +72,7 @@ wb_main <- function() {
     }
 
     played <- games$status %in% c("Started", "Substitute", "Played")
-    list(
+    report <- list(
       player = roster$player[i],
       position = if (nzchar(page$position)) page$position else as.character(roster$position[i]),
       club = if (is.na(page$club)) roster$club[i] else page$club,
@@ -104,7 +84,56 @@ wb_main <- function() {
       warning = flags$warning,
       note = flags$note
     )
+    wb_print_player(report, as.character(roster$club[i]))
+    report
   })
+  player_reports
+}
+
+wb_print_player <- function(report, sheet_club = NA_character_) {
+  cat(sprintf(
+    "  %s | sheet club: %s | Soccerbase club: %s\n",
+    report$player, sheet_club, report$club
+  ))
+  if (!is.null(report$note)) cat("  NOTE:", report$note, "\n")
+  if (!is.null(report$warning)) cat("  WARNING:", report$warning, "\n")
+  if (nrow(report$games) == 0) {
+    cat("  No matches in the window.\n")
+  } else {
+    print(report$games, row.names = FALSE)
+  }
+  cat(sprintf(
+    "  Totals: %d goals, %d games, %d mins, %d missed\n\n",
+    report$goals, report$games_played, report$minutes, report$missed
+  ))
+}
+
+wb_main <- function() {
+  today <- as.Date(Sys.getenv("WENGERBOYS_TODAY", as.character(Sys.Date())))
+  season_id <- Sys.getenv("WENGERBOYS_SEASON_ID", "159")
+  team_name <- toupper(Sys.getenv("WENGERBOYS_TEAM", "WENGER BOYS"))
+  dry_run <- identical(tolower(Sys.getenv("WENGERBOYS_DRY_RUN", "false")), "true")
+  window <- wb_window(today)
+  notices <- character()
+
+  league92 <- read_league92()
+  notice92 <- league92_warning(league92)
+  if (!is.null(notice92)) notices <- c(notices, notice92)
+
+  bundle_path <- Sys.getenv("WENGERBOYS_BUNDLE_PATH", "")
+  if (!nzchar(bundle_path)) {
+    bundle_path <- tempfile(fileext = ".RDa")
+    on.exit(unlink(bundle_path), add = TRUE)
+    supabase_download_object(destination = bundle_path)
+  }
+  bundle <- load_dreamleague_bundle(bundle_path)
+  dl <- bundle$dl
+  ids_env <- new.env()
+  load("data/ids.RDa", envir = ids_env)
+  stored <- as.data.frame(ids_env$player_id)
+
+  roster <- wb_roster(dl, team_name, today)
+  player_reports <- wb_player_reports(roster, league92, window, season_id)
 
   taken_ids <- wb_taken_ids(dl)
   taken_names <- toupper(dl$player)
