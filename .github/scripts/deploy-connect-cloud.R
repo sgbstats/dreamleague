@@ -20,7 +20,7 @@ rsconnect::connectCloudClientCredentials(
   quiet = TRUE
 )
 
-rsconnect::deployApp(
+deployed <- rsconnect::deployApp(
   appDir = "dreamleague",
   appId = Sys.getenv("CONNECT_CLOUD_APP_ID"),
   account = Sys.getenv("CONNECT_CLOUD_ACCOUNT"),
@@ -28,3 +28,6 @@ rsconnect::deployApp(
   launch.browser = FALSE,
   forceUpdate = TRUE
 )
+if (!isTRUE(deployed)) {
+  stop("Posit Connect Cloud deployment failed.", call. = FALSE)
+}

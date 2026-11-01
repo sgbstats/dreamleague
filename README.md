@@ -63,22 +63,87 @@ does not list exactly 92 clubs.
 
 `.github/workflows/ci-cd.yml` runs `Rscript tests/testthat.R` on pushes and pull
 requests targeting `staging` or `main`. The live Wenger Boys test is skipped in
-CI. A successful push to `staging` deploys `dreamleague/` to the staging Posit
-Connect Cloud content; a successful push to `main` deploys the production
-content. Use `staging` as a protected pre-production branch: merge a tested
-change there to deploy and verify the staging app, then promote it to `main`.
-Pull requests from forks run tests but do not receive deployment credentials.
+CI; Supabase integration and preprocessing-bundle tests skip when their inputs
+are absent. The existing suite checks app helpers and data contracts, not
+browser-level Shiny interaction.
 
-Create `staging` and `production` GitHub Actions environments and configure
-these settings in each:
+### Promotion and review
 
-- Secrets `CONNECT_CLOUD_CLIENT_ID` and `CONNECT_CLOUD_CLIENT_SECRET` from a
-  non-interactive Posit Connect Cloud credential.
-- Secret `CONNECT_CLOUD_APP_ID` set to the existing staging or production
-  content ID for that environment.
-- Optional variable `CONNECT_CLOUD_ACCOUNT` (defaults to `sgbstats`).
+1. Push a feature branch. After tests pass, the workflow opens or reuses a PR
+   into `staging` and enables auto-merge for the tested commit.
+2. GitHub runs the staging PR tests against its merge result. Branch protection
+   requires passing **Run R tests**, an up-to-date branch, and resolved review
+   conversations. Conflicts or failed checks stop promotion; no bypass is used.
+3. Once the PR merges, the `staging` push runs tests again and deploys the
+   existing staging Posit Connect Cloud app. A successful HTTP check publishes
+   **Open staging deployment** in the Actions run summary and the GitHub
+   environment. This checks HTTP availability, not Shiny session functionality.
+4. Open that link and review the app. **Stop here until explicitly instructed
+   to release.** CI never creates or auto-merges a PR into `main`. After approval,
+   open a PR from `staging` to `main`, wait for tests, and merge it manually.
+   The resulting `main` push deploys production after tests pass.
 
-The workflow uses these credentials only after tests pass, and targets the
-existing content IDs rather than creating new apps. Configure environment
-protection rules in GitHub if deployments should require approval, and protect
-the `staging` branch so only reviewed changes can trigger deployment.
+Actions cannot open a browser on your computer or this Copilot conversation.
+Use the staging link in the run summary; Copilot can open it when asked once
+the deployment is available. All feature-branch pushes in this repository are
+eligible for automatic staging promotion, so only trusted contributors should
+have repository write access. Fork PRs run tests without promotion credentials.
+Staging is shared: a later feature can replace the preview, so check the commit
+in the deployment summary before authorizing release.
+
+### Credentials and one-off setup
+
+In [repository Settings > Environments](https://github.com/sgbstats/dreamleague/settings/environments),
+open **staging** and the existing **Production** environment. Use **Add
+environment secret** or **Add environment variable** for the following:
+
+| Name | Kind | Value |
+|------|------|-------|
+| `CONNECT_CLOUD_CLIENT_ID` | Secret | Client ID from a Posit Connect Cloud credential |
+| `CONNECT_CLOUD_CLIENT_SECRET` | Secret | Matching client secret, shown only once when created |
+| `CONNECT_CLOUD_APP_ID` | Secret | Existing content ID for this environment, not the old shinyapps.io app ID |
+| `CONNECT_CLOUD_ACCOUNT` | Variable | Posit account name; defaults to `sgbstats` |
+| `CONNECT_CLOUD_APP_URL` | Variable | Existing app's HTTPS `share.connect.posit.cloud` URL; required for staging preview |
+
+Create the client credential at <https://login.posit.cloud/identity/credentials>.
+Confirm the account name at <https://connect.posit.cloud/whoami>. Find each
+content ID and app URL in its Connect Cloud content page. Use separate
+credentials where possible. The workflow updates existing content and does not
+create a replacement app.
+
+In [Settings > Secrets and variables > Actions](https://github.com/sgbstats/dreamleague/settings/secrets/actions),
+add repository secret **`STAGING_PROMOTION_TOKEN`**. Use a fine-grained GitHub
+personal access token limited to this repository with **Contents: read and
+write**, **Pull requests: read and write**, and **Workflows: read and write**
+(needed when promoting workflow changes). The token owner must have write
+access. A personal token is needed because merges and PRs created with the
+default Actions `GITHUB_TOKEN` do not trigger the follow-on test/deploy workflows.
+Do not reuse the app's runtime token for promotion.
+
+Enable **Allow auto-merge** in repository Settings > General (already enabled
+for this repository). Bootstrap by configuring the credentials and pushing the
+pipeline feature branch, which proposes the initial workflow to `staging`.
+If that initial promotion needs manual recovery, open a PR from the pipeline
+feature branch to `staging` and merge it after tests pass. **Do not merge the
+pipeline into `main` first**: preview staging and wait for release approval.
+Normal feature branches should start from `staging` so they inherit the
+workflow. Both branches require PRs and passing tests, block deletion and force
+pushes, and enforce rules for admins. There is no required approving review
+count, allowing a sole maintainer to promote changes. Environment policies
+allow only `staging` to deploy staging and only `main` to deploy Production.
+
+Disable **Automatically publish on push** for both apps in Connect Cloud so
+independent publishing cannot bypass this pipeline's test gate.
+
+### App runtime secrets
+
+Deployment credentials above authenticate CI; they are not app runtime
+credentials. In each app's **Connect Cloud content settings > Variables**,
+retain/configure `SUPABASE_API_KEY` for data access, `GOOGLE_PRIVATE_KEY` for
+Google credential initialization, and `ACTION_TOKEN` (or `GITHUB_TOKEN`) with
+**Actions: read and write** for the Diagnostics refresh button. Set
+`DREAMLEAGUE_SHARED_DRIVE_TARGET` if Drive refresh is used, and optionally
+`SUPABASE_URL` and `DREAMLEAGUE_SUPABASE_BUCKET` to override their defaults.
+These values belong on the app, not in source files. The deploy script leaves
+existing runtime variables configured on the content; it does not copy GitHub
+secrets into the deployed app.
