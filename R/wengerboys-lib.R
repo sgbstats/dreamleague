@@ -378,20 +378,22 @@ classify_player_games <- function(
 club_flags <- function(player_page, stored_club_id, league92, window_start) {
   flags <- list(note = NULL, warning = NULL)
   in92 <- !is.na(player_page$club_id) && player_page$club_id %in% league92$team_id
-  moved_recently <- !is.na(player_page$joined) && player_page$joined >= window_start
   moved_vs_stored <- !is.na(stored_club_id) &&
     !is.na(player_page$club_id) &&
     stored_club_id != player_page$club_id
 
   if (is.na(player_page$club_id)) {
     flags$warning <- "Could not determine current club from Soccerbase."
-  } else if (!in92) {
+    return(flags)
+  }
+  if (moved_vs_stored) {
+    flags$note <- sprintf("Now playing for %s (new club).", player_page$club)
+  }
+  if (!in92) {
     flags$warning <- sprintf(
       "Now at %s, which is outside the Football League 92.",
       player_page$club
     )
-  } else if (moved_recently || moved_vs_stored) {
-    flags$note <- sprintf("Now playing for %s (new club).", player_page$club)
   }
   flags
 }

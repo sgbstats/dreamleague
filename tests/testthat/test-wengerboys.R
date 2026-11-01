@@ -75,6 +75,10 @@ test_that("club flags note league moves and warn about leaving the 92", {
   page <- list(club_id = 2, club = "B", joined = as.Date("2026-01-01"))
 
   expect_null(club_flags(page, 2, league92, as.Date("2026-10-01"))$note)
+  expect_null(club_flags(page, 2, league92, as.Date("2026-12-01"))$note)
+  both <- club_flags(list(club_id = 9, club = "Away FC", joined = as.Date(NA)), 1, league92, Sys.Date())
+  expect_match(both$note, "new club")
+  expect_match(both$warning, "outside")
   expect_match(club_flags(page, 1, league92, as.Date("2026-10-01"))$note, "new club")
   expect_match(
     club_flags(list(club_id = 9, club = "Away FC", joined = as.Date(NA)), 1, league92, Sys.Date())$warning,
