@@ -4,13 +4,14 @@
 
 The Diagnostics tab can manually run `.github/workflows/dl-preprocessing.yml`
 and refresh the app from Supabase after a successful run. Configure the
-deployed Shiny runtime with `GITHUB_TOKEN`: a GitHub fine-grained access token
-that has **Actions: read and write** access to `sgbstats/dreamleague`. The
-token is only read from the runtime environment and must be stored as a
-deployment secret, not in the repository.
+deployed Shiny runtime with `ACTION_TOKEN` (the app also accepts
+`GITHUB_TOKEN`): a GitHub fine-grained access token that has **Actions: read and
+write** access to `sgbstats/dreamleague`. Store it as the `ACTION_TOKEN` GitHub
+secret; the CI/CD deploy passes it to the app (see **App runtime secrets**). It
+must never be stored in the repository.
 
-Optionally set `DREAMLEAGUE_GITHUB_REPOSITORY` to override the default
-`sgbstats/dreamleague` repository.
+The app uses the default `sgbstats/dreamleague` repository;
+`DREAMLEAGUE_GITHUB_REPOSITORY` can override it when running locally.
 
 ## Wenger Boys weekly report
 
@@ -169,16 +170,26 @@ independent publishing cannot bypass this pipeline's test gate.
 
 ### App runtime secrets
 
-Deployment credentials above authenticate CI; they are not app runtime
-credentials. In each app's **Connect Cloud content settings > Variables**,
-retain/configure `SUPABASE_API_KEY` for data access, `GOOGLE_PRIVATE_KEY` for
-Google credential initialization, and `ACTION_TOKEN` (or `GITHUB_TOKEN`) with
-**Actions: read and write** for the Diagnostics refresh button. Set
-`DREAMLEAGUE_SHARED_DRIVE_TARGET` if Drive refresh is used, and optionally
-`SUPABASE_URL` and `DREAMLEAGUE_SUPABASE_BUCKET` to override their defaults.
-These values belong on the app, not in source files. The deploy script leaves
-existing runtime variables configured on the content; it does not copy GitHub
-secrets into the deployed app.
+Deployment credentials above authenticate CI; the app also needs runtime
+variables. rsconnect replaces a Connect Cloud app's variables on every deploy,
+so values set only in the Connect Cloud UI are wiped. The deploy step sends
+them from GitHub on each deploy instead:
+
+| Variable | GitHub source | Required |
+|----------|---------------|----------|
+| `GOOGLE_PRIVATE_KEY` | secret | yes |
+| `SUPABASE_API_KEY` | secret | yes |
+| `ACTION_TOKEN` | secret (fine-grained token, **Actions: read and write**, for the Diagnostics refresh button) | no |
+| `DREAMLEAGUE_SHARED_DRIVE_TARGET` | secret | no |
+| `DREAMLEAGUE_SUPABASE_BUCKET` | secret | no |
+| `SUPABASE_URL` | variable | no |
+
+Repository-level secrets apply to both apps; add a secret with the same name to
+the `staging` or `Production` environment to override it for one app. Missing
+required secrets fail the deploy before contacting Connect Cloud. Optional
+values left unset are removed from the app, so add every runtime value the app
+needs to GitHub rather than to Connect Cloud. These values belong in GitHub
+secrets, never in source files.
 
 ### Supabase integration test
 

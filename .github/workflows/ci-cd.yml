@@ -245,6 +245,14 @@ jobs:
           cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
+        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
+        env:
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
         run: Rscript .github/scripts/deploy-connect-cloud.R
 
       - name: Check staging URL and publish preview
@@ -323,4 +331,12 @@ jobs:
           cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
+        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
+        env:
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
         run: Rscript .github/scripts/deploy-connect-cloud.R
