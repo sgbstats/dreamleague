@@ -54,9 +54,41 @@ jobs:
       - name: Run testthat suite
         run: Rscript tests/testthat.R
 
+  test-supabase:
+    name: Test Supabase round trip
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install integration test dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::httr
+            any::withr
+
+      - name: Upload, download, compare and clean up synthetic data
+        env:
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://uapfyikxspmcifgdergl.supabase.co' }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ vars.DREAMLEAGUE_SUPABASE_TEST_BUCKET || vars.DREAMLEAGUE_SUPABASE_BUCKET || 'dreamleague' }}
+          DREAMLEAGUE_REQUIRE_SUPABASE_TEST: "true"
+        run: Rscript -e 'testthat::test_file("tests/testthat/test-supabase-roundtrip.R", stop_on_failure = TRUE)'
+
   promote-staging:
     name: Promote tested feature to staging
-    needs: test
+    needs: [test, test-supabase]
     if: >-
       github.event_name == 'push' &&
       github.ref != 'refs/heads/main' &&
@@ -98,7 +130,7 @@ jobs:
 
   deploy-staging:
     name: Deploy staging app
-    needs: test
+    needs: [test, test-supabase]
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -169,7 +201,7 @@ jobs:
 
   deploy-production:
     name: Deploy production app
-    needs: test
+    needs: [test, test-supabase]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
