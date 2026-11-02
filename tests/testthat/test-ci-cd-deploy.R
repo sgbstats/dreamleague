@@ -18,6 +18,7 @@ test_that("deployment targets the existing content without opening a browser", {
     CONNECT_CLOUD_ACCOUNT = "test-account",
     CONNECT_CLOUD_APP_ID = "test-content"
   ))
+  withr::local_options(repos = getOption("repos"))
   testthat::local_mocked_bindings(
     connectCloudClientCredentials = function(clientId, clientSecret, accountName, quiet) {
       expect_identical(clientId, "test-client")
@@ -42,6 +43,29 @@ test_that("deployment targets the existing content without opening a browser", {
   )
 })
 
+test_that("deployment maps CI repository names to resolvable URLs for the manifest", {
+  withr::local_envvar(c(
+    CONNECT_CLOUD_CLIENT_ID = "test-client",
+    CONNECT_CLOUD_CLIENT_SECRET = "test-secret",
+    CONNECT_CLOUD_ACCOUNT = "test-account",
+    CONNECT_CLOUD_APP_ID = "test-content"
+  ))
+  withr::local_options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest"))
+  repos_at_deploy <- NULL
+  testthat::local_mocked_bindings(
+    connectCloudClientCredentials = function(...) invisible(NULL),
+    deployApp = function(...) {
+      repos_at_deploy <<- getOption("repos")
+      TRUE
+    },
+    .package = "rsconnect"
+  )
+  source(file.path("..", "..", ".github", "scripts", "deploy-connect-cloud.R"))
+  expect_true(all(c("CRAN", "RSPM") %in% names(repos_at_deploy)))
+  expect_match(repos_at_deploy[c("CRAN", "RSPM")], "^https://")
+  expect_false(any(grepl("__linux__", repos_at_deploy[c("CRAN", "RSPM")])))
+})
+
 test_that("an unsuccessful cloud deployment fails the job", {
   withr::local_envvar(c(
     CONNECT_CLOUD_CLIENT_ID = "test-client",
@@ -54,6 +78,7 @@ test_that("an unsuccessful cloud deployment fails the job", {
     deployApp = function(...) FALSE,
     .package = "rsconnect"
   )
+  withr::local_options(repos = getOption("repos"))
   expect_error(
     source(file.path("..", "..", ".github", "scripts", "deploy-connect-cloud.R")),
     "Posit Connect Cloud deployment failed"
