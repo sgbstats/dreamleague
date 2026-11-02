@@ -78,7 +78,10 @@ catches broken R startup before staging promotion.
 ### Promotion and review
 
 1. Push a feature branch. After R and Supabase tests pass, the workflow opens or reuses a PR
-   into `staging` and enables auto-merge for the tested commit.
+   into `staging` and enables auto-merge for the tested commit. If the branch is
+   behind `staging` (each promotion adds a merge commit there), the workflow
+   merges `staging` into the feature branch instead; that push is retested and
+   then promoted. Pull before pushing again locally.
 2. GitHub runs the staging PR tests against its merge result. Branch protection
    requires passing **Run R tests**, an up-to-date branch, and resolved review
    conversations. Conflicts or failed checks stop promotion; no bypass is used.

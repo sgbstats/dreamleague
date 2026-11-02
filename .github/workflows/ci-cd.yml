@@ -124,6 +124,15 @@ jobs:
               --body "Automatically proposed after feature-branch tests passed. Staging merge checks must also pass. Production promotion remains manual."
             pr=$(gh pr list --base staging --head "$FEATURE_BRANCH" --state open --json number --jq '.[0].number')
           fi
+          # Staging requires up-to-date branches, and each promotion adds a merge
+          # commit there. Bring the feature branch up to date; that push reruns
+          # the tests and the next run promotes the newly tested commit.
+          behind=$(gh api "repos/$GH_REPO/compare/staging...$TESTED_SHA" --jq '.behind_by')
+          if [[ "$behind" != 0 ]]; then
+            gh api -X PUT "repos/$GH_REPO/pulls/$pr/update-branch" -f expected_head_sha="$TESTED_SHA"
+            printf 'Feature branch was behind staging; merged staging into it. Promotion continues after the new commit passes tests.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           gh pr merge "$pr" --auto --merge --match-head-commit "$TESTED_SHA"
           url=$(gh pr view "$pr" --json url --jq '.url')
           printf 'Staging promotion: %s\n\nWaiting for protected-branch checks before auto-merge. No production promotion is performed.\n' "$url" >> "$GITHUB_STEP_SUMMARY"
