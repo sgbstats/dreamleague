@@ -66,9 +66,30 @@ requests targeting `staging` or `main`. The live Wenger Boys test is skipped in
 CI; preprocessing-bundle validation skips when no preprocessing bundle is
 supplied. The credential-free suite also skips the live Supabase test, which
 runs separately in **Test Supabase round trip** on repository pushes and manual
-runs. Both jobs must pass before automatic staging promotion or deployment.
+runs. Both jobs must pass (or be skipped as not needed) before automatic
+staging promotion or deployment.
 The existing suite checks app helpers and data contracts, not browser-level
 Shiny interaction.
+
+### Test sets
+
+Test files are tagged by filename prefix, and CI runs only the sets affected by
+the changed files (`.github/scripts/select-test-sets.R`):
+
+| Set | Test files | Runs when these change |
+|-----|------------|------------------------|
+| app | `test-app-*.R` | `dreamleague/` |
+| pipeline | `test-pipeline-*.R` | `R/`, `data/`, `.github/`, test fixtures |
+| both | `test-shared-*.R` | either set's paths |
+
+Changes to `tests/testthat.R`, test helpers or shared tests, manual runs, and
+pushes whose history cannot be diffed run everything. Documentation-only changes
+run no tests, but **Run R tests** still reports success for branch protection.
+The live Supabase job runs only for changes to the app, Supabase code or
+`ci-cd.yml`. New test files must use one of the three prefixes; a pipeline test
+enforces this. Run a set locally with
+`DREAMLEAGUE_TEST_SET=app Rscript tests/testthat.R` (`app`, `pipeline` or `all`,
+the default).
 
 CI installs R dependencies explicitly; the app does not use a repository-managed
 renv library. Do not add a startup hook for `renv/activate.R` without committing
