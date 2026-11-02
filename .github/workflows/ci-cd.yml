@@ -180,6 +180,8 @@ jobs:
             any::googledrive
             any::httr
             any::jsonlite
+            any::cpp11
+            any::progress
           working-directory: dreamleague
 
       - name: Deploy to Posit Connect Cloud
@@ -250,6 +252,8 @@ jobs:
             any::googledrive
             any::httr
             any::jsonlite
+            any::cpp11
+            any::progress
           working-directory: dreamleague
 
       - name: Deploy to Posit Connect Cloud
