@@ -63,9 +63,12 @@ does not list exactly 92 clubs.
 
 `.github/workflows/ci-cd.yml` runs `Rscript tests/testthat.R` on pushes and pull
 requests targeting `staging` or `main`. The live Wenger Boys test is skipped in
-CI; Supabase integration and preprocessing-bundle tests skip when their inputs
-are absent. The existing suite checks app helpers and data contracts, not
-browser-level Shiny interaction.
+CI; preprocessing-bundle validation skips when no preprocessing bundle is
+supplied. The credential-free suite also skips the live Supabase test, which
+runs separately in **Test Supabase round trip** on repository pushes and manual
+runs. Both jobs must pass before automatic staging promotion or deployment.
+The existing suite checks app helpers and data contracts, not browser-level
+Shiny interaction.
 
 CI installs R dependencies explicitly; the app does not use a repository-managed
 renv library. Do not add a startup hook for `renv/activate.R` without committing
@@ -74,7 +77,7 @@ catches broken R startup before staging promotion.
 
 ### Promotion and review
 
-1. Push a feature branch. After tests pass, the workflow opens or reuses a PR
+1. Push a feature branch. After R and Supabase tests pass, the workflow opens or reuses a PR
    into `staging` and enables auto-merge for the tested commit.
 2. GitHub runs the staging PR tests against its merge result. Branch protection
    requires passing **Run R tests**, an up-to-date branch, and resolved review
@@ -152,3 +155,26 @@ Google credential initialization, and `ACTION_TOKEN` (or `GITHUB_TOKEN`) with
 These values belong on the app, not in source files. The deploy script leaves
 existing runtime variables configured on the content; it does not copy GitHub
 secrets into the deployed app.
+
+### Supabase integration test
+
+The **Test Supabase round trip** job uses repository secret `SUPABASE_API_KEY`
+(the existing preprocessing credential) and repository variables `SUPABASE_URL`
+and `DREAMLEAGUE_SUPABASE_TEST_BUCKET`. The URL defaults to the current project;
+the test bucket defaults to `DREAMLEAGUE_SUPABASE_BUCKET`, then `dreamleague`.
+Configure these in **Settings > Secrets and variables > Actions**. The key must
+allow uploading, reading and deleting test objects. Missing credentials fail
+this job rather than silently skipping it.
+
+The test generates synthetic `dl`, `daily`, `time` and `cupties` objects in an R
+temporary file. It uploads only to a unique `tests/roundtrip-*.RDa` path,
+downloads using the app's storage helper, checks bytes and all object contents,
+and deletes that exact remote object using the Storage bulk-delete endpoint.
+Cleanup errors are reported, not ignored. It never uploads to the app's
+`dreamleague/data.RDa` object and never needs a local copy of production data.
+The app's data file stays gitignored and continues to be pulled from Supabase.
+
+Use a separate test bucket and a scoped test credential when available. This
+job runs only on repository pushes or manual workflow runs, not on PR events,
+so fork PRs never receive the credential. Repository write access is therefore
+a trust boundary: feature pushes execute code with this credential.
