@@ -224,7 +224,7 @@ run_data_shape_tests <- function(dl, daily, time, cupties, managers) {
   on.exit(options(dreamleague.test_bundle = NULL), add = TRUE)
 
   testthat::test_file(
-    "tests/testthat/test-validate-dreamleague-data.R",
+    "tests/testthat/test-pipeline-validate-dreamleague-data.R",
     reporter = "summary",
     stop_on_failure = TRUE
   )

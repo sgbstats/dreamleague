@@ -1,0 +1,342 @@
+name: DreamLeague CI/CD
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run R tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tests: ${{ steps.select.outputs.tests }}
+      supabase: ${{ steps.select.outputs.supabase }}
+    env:
+      WENGERBOYS_SKIP_LIVE: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Select test sets from changed files
+        id: select
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          changed="$RUNNER_TEMP/changed-files.txt"
+          base=""
+          head="$GITHUB_SHA"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            base="$PUSH_BEFORE"
+            # A new branch has no previous commit; compare with the default branch.
+            if [[ "$base" =~ ^0+$ ]]; then base="origin/$DEFAULT_BRANCH"; fi
+          fi
+          # Unknown history or a manual run falls back to every test set.
+          if [[ -n "$base" ]] && git diff --name-only "$base...$head" > "$changed" 2>/dev/null; then
+            echo "Changed files:"; cat "$changed"
+          else
+            echo '*' > "$changed"
+            echo "Running all test sets."
+          fi
+          Rscript .github/scripts/select-test-sets.R "$changed"
+
+      - name: Install test dependencies
+        if: steps.select.outputs.tests != 'none'
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::tidyverse
+            any::readxl
+            any::rvest
+            any::RCurl
+            any::XML
+            any::googlesheets4
+            any::googledrive
+            any::gargle
+            any::fuzzyjoin
+            any::crayon
+            any::httr
+            any::jsonlite
+            any::furrr
+            any::future
+            any::glue
+            any::openxlsx
+            any::xml2
+            any::rsconnect
+
+      - name: Run selected testthat sets
+        if: steps.select.outputs.tests != 'none'
+        env:
+          DREAMLEAGUE_TEST_SET: ${{ steps.select.outputs.tests }}
+        run: Rscript tests/testthat.R
+
+  test-supabase:
+    name: Test Supabase round trip
+    needs: test
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.test.outputs.supabase == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install integration test dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::httr
+            any::withr
+
+      - name: Upload, download, compare and clean up synthetic data
+        env:
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://uapfyikxspmcifgdergl.supabase.co' }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ vars.DREAMLEAGUE_SUPABASE_TEST_BUCKET || vars.DREAMLEAGUE_SUPABASE_BUCKET || 'dreamleague' }}
+          DREAMLEAGUE_REQUIRE_SUPABASE_TEST: "true"
+        run: Rscript -e 'testthat::test_file("tests/testthat/test-shared-supabase-roundtrip.R", stop_on_failure = TRUE)'
+
+  promote-staging:
+    name: Promote tested feature to staging
+    needs: [test, test-supabase]
+    if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      github.event_name == 'push' &&
+      github.ref != 'refs/heads/main' &&
+      github.ref != 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: dreamleague-staging-promotion
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.STAGING_PROMOTION_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      FEATURE_BRANCH: ${{ github.ref_name }}
+      TESTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Open staging PR and enable test-gated auto-merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Configure the STAGING_PROMOTION_TOKEN repository secret."
+            exit 1
+          fi
+          ahead=$(gh api "repos/$GH_REPO/compare/staging...$TESTED_SHA" --jq '.ahead_by')
+          if [[ "$ahead" == 0 ]]; then
+            echo "The tested commit is already included in staging." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pr=$(gh pr list --base staging --head "$FEATURE_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [[ -z "$pr" ]]; then
+            gh pr create --base staging --head "$FEATURE_BRANCH" \
+              --title "Stage $FEATURE_BRANCH" \
+              --body "Automatically proposed after feature-branch tests passed. Staging merge checks must also pass. Production promotion remains manual."
+            pr=$(gh pr list --base staging --head "$FEATURE_BRANCH" --state open --json number --jq '.[0].number')
+          fi
+          # Staging requires up-to-date branches, and each promotion adds a merge
+          # commit there. Bring the feature branch up to date; that push reruns
+          # the tests and the next run promotes the newly tested commit.
+          behind=$(gh api "repos/$GH_REPO/compare/staging...$TESTED_SHA" --jq '.behind_by')
+          if [[ "$behind" != 0 ]]; then
+            gh api -X PUT "repos/$GH_REPO/pulls/$pr/update-branch" -f expected_head_sha="$TESTED_SHA"
+            printf 'Feature branch was behind staging; merged staging into it. Promotion continues after the new commit passes tests.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh pr merge "$pr" --auto --merge --match-head-commit "$TESTED_SHA"
+          url=$(gh pr view "$pr" --json url --jq '.url')
+          printf 'Staging promotion: %s\n\nWaiting for protected-branch checks before auto-merge. No production promotion is performed.\n' "$url" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-staging:
+    name: Deploy staging app
+    needs: [test, test-supabase]
+    if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+      url: ${{ vars.CONNECT_CLOUD_APP_URL }}
+    concurrency:
+      group: dreamleague-staging-deployment
+      cancel-in-progress: false
+    env:
+      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
+      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
+      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
+      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
+      CONNECT_CLOUD_APP_URL: ${{ vars.CONNECT_CLOUD_APP_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install deployment dependency
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            rsconnect
+            shiny
+            tidyverse
+            shinyWidgets
+            lubridate
+            readxl
+            ggplot2
+            htmltools
+            flextable
+            htmlwidgets
+            shinydashboard
+            dplyr
+            DT
+            shinyjs
+            reactable
+            glue
+            magick
+            googledrive
+            httr
+            jsonlite
+            cpp11
+            progress
+          working-directory: dreamleague
+          # Fresh library: packages cached from "any" refs break manifest repository URLs.
+          cache-version: deploy-standard-refs-1
+
+      - name: Deploy to Posit Connect Cloud
+        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
+        env:
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
+        run: Rscript .github/scripts/deploy-connect-cloud.R
+
+      - name: Check staging URL and publish preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$CONNECT_CLOUD_APP_URL" =~ ^https://[a-zA-Z0-9-]+\.share\.connect\.posit\.cloud(/[^[:space:]]*)?$ ]]; then
+            echo "::error::Set CONNECT_CLOUD_APP_URL to the staging app's HTTPS share.connect.posit.cloud URL."
+            exit 1
+          fi
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 10 --retry-all-errors --max-time 60 \
+            --output /dev/null "$CONNECT_CLOUD_APP_URL"
+          printf '## Staging ready for review\n\n[Open staging deployment](%s)\n\nCommit: `%s`\n\nWaiting for your instructions: no automatic merge or push to main. After reviewing staging, explicitly open and merge a staging-to-main PR to release.\n' \
+            "$CONNECT_CLOUD_APP_URL" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-production:
+    name: Deploy production app
+    needs: [test, test-supabase]
+    if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: Production
+      url: ${{ vars.CONNECT_CLOUD_APP_URL }}
+    concurrency:
+      group: dreamleague-production-deployment
+      cancel-in-progress: false
+    env:
+      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
+      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
+      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
+      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install deployment dependency
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            rsconnect
+            shiny
+            tidyverse
+            shinyWidgets
+            lubridate
+            readxl
+            ggplot2
+            htmltools
+            flextable
+            htmlwidgets
+            shinydashboard
+            dplyr
+            DT
+            shinyjs
+            reactable
+            glue
+            magick
+            googledrive
+            httr
+            jsonlite
+            cpp11
+            progress
+          working-directory: dreamleague
+          # Fresh library: packages cached from "any" refs break manifest repository URLs.
+          cache-version: deploy-standard-refs-1
+
+      - name: Deploy to Posit Connect Cloud
+        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
+        env:
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
+        run: Rscript .github/scripts/deploy-connect-cloud.R

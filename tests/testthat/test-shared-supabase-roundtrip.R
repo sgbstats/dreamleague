@@ -54,11 +54,43 @@ test_that("pull functions in the app and pipeline copies are identical", {
 })
 
 test_that("data uploaded to Supabase matches data pulled by the app", {
+  if (identical(Sys.getenv("DREAMLEAGUE_REQUIRE_SUPABASE_TEST"), "true")) {
+    expect_true(
+      nzchar(Sys.getenv("SUPABASE_API_KEY")),
+      info = "SUPABASE_API_KEY is required for the integration job"
+    )
+    if (!nzchar(Sys.getenv("SUPABASE_API_KEY"))) {
+      stop("SUPABASE_API_KEY is required for the integration job", call. = FALSE)
+    }
+  }
   skip_if(!nzchar(Sys.getenv("SUPABASE_API_KEY")), "SUPABASE_API_KEY not set")
   skip_if_not_installed("httr")
 
-  local_bundle <- file.path(repo_root, "dreamleague", "data.RDa")
-  skip_if(!file.exists(local_bundle), "No local data.RDa to upload")
+  local_bundle <- withr::local_tempfile(fileext = ".RDa")
+  synthetic <- list(
+    dl = data.frame(
+      player = c("TEST PLAYER A", "TEST PLAYER B"),
+      team = c("TEST TEAM", "TEST TEAM"),
+      SBgoals = c(2L, NA_integer_),
+      bought2 = as.Date(c("2026-07-01", NA))
+    ),
+    daily = data.frame(
+      player = c("TEST PLAYER A", "TEST PLAYER B"),
+      Date = as.Date(c("2026-08-01", "2026-08-02")),
+      App = c(1L, 0L)
+    ),
+    time = list(update_time = as.POSIXct("2026-08-02 12:00:00", tz = "UTC")),
+    cupties = data.frame(
+      team1 = "TEST TEAM",
+      team2 = "TEST OPPONENT",
+      date = as.Date("2026-08-03")
+    )
+  )
+  save(
+    list = bundle_objects,
+    file = local_bundle,
+    envir = list2env(synthetic, parent = emptyenv())
+  )
 
   # Upload with the pipeline's function; pull with the app's function
   upload_env <- load_functions(upload_file)
@@ -75,17 +107,18 @@ test_that("data uploaded to Supabase matches data pulled by the app", {
     format(Sys.time(), "%Y%m%d%H%M%S"),
     sample.int(1e6, 1)
   )
-  withr::defer(
-    try(
-      httr::DELETE(
-        upload_env$supabase_object_url(config, test_object),
-        httr::add_headers(
-          .headers = upload_env$supabase_storage_headers(config)
-        )
+  withr::defer({
+    response <- httr::DELETE(
+      paste0(config$url, "/storage/v1/object/", config$bucket),
+      httr::add_headers(
+        .headers = upload_env$supabase_storage_headers(config)
       ),
-      silent = TRUE
+      body = list(prefixes = list(test_object)),
+      encode = "json",
+      httr::timeout(30)
     )
-  )
+    upload_env$supabase_require_success(response, "test object cleanup")
+  })
 
   up <- upload_env$supabase_upload_object(
     local_bundle,

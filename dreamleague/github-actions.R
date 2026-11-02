@@ -1,5 +1,5 @@
 dreamleague_github_actions_config <- function(
-  token = Sys.getenv("ACTION_TOKEN", ""),
+  token = Sys.getenv("ACTION_TOKEN", Sys.getenv("GITHUB_TOKEN", "")),
   repository = Sys.getenv(
     "DREAMLEAGUE_GITHUB_REPOSITORY",
     "sgbstats/dreamleague"
@@ -10,7 +10,7 @@ dreamleague_github_actions_config <- function(
     stop(
       paste(
         "GitHub Actions is not configured.",
-        "Set the ACTION_TOKEN environment variable to a token with Actions",
+        "Set the ACTION_TOKEN or GITHUB_TOKEN environment variable to a token with Actions",
         "workflow dispatch permission for ",
         repository,
         "."
