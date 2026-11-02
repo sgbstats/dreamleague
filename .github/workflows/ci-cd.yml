@@ -15,11 +15,16 @@ jobs:
     name: Run R tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      tests: ${{ steps.select.outputs.tests }}
+      supabase: ${{ steps.select.outputs.supabase }}
     env:
       WENGERBOYS_SKIP_LIVE: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
@@ -27,7 +32,39 @@ jobs:
           r-version: release
           use-public-rspm: true
 
+      - name: Select test sets from changed files
+        id: select
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          changed="$RUNNER_TEMP/changed-files.txt"
+          base=""
+          head="$GITHUB_SHA"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            base="$PUSH_BEFORE"
+            # A new branch has no previous commit; compare with the default branch.
+            if [[ "$base" =~ ^0+$ ]]; then base="origin/$DEFAULT_BRANCH"; fi
+          fi
+          # Unknown history or a manual run falls back to every test set.
+          if [[ -n "$base" ]] && git diff --name-only "$base...$head" > "$changed" 2>/dev/null; then
+            echo "Changed files:"; cat "$changed"
+          else
+            echo '*' > "$changed"
+            echo "Running all test sets."
+          fi
+          Rscript .github/scripts/select-test-sets.R "$changed"
+
       - name: Install test dependencies
+        if: steps.select.outputs.tests != 'none'
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
@@ -51,13 +88,18 @@ jobs:
             any::xml2
             any::rsconnect
 
-      - name: Run testthat suite
+      - name: Run selected testthat sets
+        if: steps.select.outputs.tests != 'none'
+        env:
+          DREAMLEAGUE_TEST_SET: ${{ steps.select.outputs.tests }}
         run: Rscript tests/testthat.R
 
   test-supabase:
     name: Test Supabase round trip
     needs: test
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.test.outputs.supabase == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -84,12 +126,15 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://uapfyikxspmcifgdergl.supabase.co' }}
           DREAMLEAGUE_SUPABASE_BUCKET: ${{ vars.DREAMLEAGUE_SUPABASE_TEST_BUCKET || vars.DREAMLEAGUE_SUPABASE_BUCKET || 'dreamleague' }}
           DREAMLEAGUE_REQUIRE_SUPABASE_TEST: "true"
-        run: Rscript -e 'testthat::test_file("tests/testthat/test-supabase-roundtrip.R", stop_on_failure = TRUE)'
+        run: Rscript -e 'testthat::test_file("tests/testthat/test-shared-supabase-roundtrip.R", stop_on_failure = TRUE)'
 
   promote-staging:
     name: Promote tested feature to staging
     needs: [test, test-supabase]
     if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
       github.event_name == 'push' &&
       github.ref != 'refs/heads/main' &&
       github.ref != 'refs/heads/staging'
@@ -140,7 +185,11 @@ jobs:
   deploy-staging:
     name: Deploy staging app
     needs: [test, test-supabase]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -192,7 +241,7 @@ jobs:
             cpp11
             progress
           working-directory: dreamleague
-          # Fresh library: packages cached from any:: refs break manifest repository URLs.
+          # Fresh library: packages cached from "any" refs break manifest repository URLs.
           cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
@@ -215,7 +264,11 @@ jobs:
   deploy-production:
     name: Deploy production app
     needs: [test, test-supabase]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -266,7 +319,7 @@ jobs:
             cpp11
             progress
           working-directory: dreamleague
-          # Fresh library: packages cached from any:: refs break manifest repository URLs.
+          # Fresh library: packages cached from "any" refs break manifest repository URLs.
           cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
