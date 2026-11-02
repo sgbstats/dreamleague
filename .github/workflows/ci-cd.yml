@@ -169,29 +169,31 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
-            any::rsconnect
-            any::shiny
-            any::tidyverse
-            any::shinyWidgets
-            any::lubridate
-            any::readxl
-            any::ggplot2
-            any::htmltools
-            any::flextable
-            any::htmlwidgets
-            any::shinydashboard
-            any::dplyr
-            any::DT
-            any::shinyjs
-            any::reactable
-            any::glue
-            any::magick
-            any::googledrive
-            any::httr
-            any::jsonlite
-            any::cpp11
-            any::progress
+            rsconnect
+            shiny
+            tidyverse
+            shinyWidgets
+            lubridate
+            readxl
+            ggplot2
+            htmltools
+            flextable
+            htmlwidgets
+            shinydashboard
+            dplyr
+            DT
+            shinyjs
+            reactable
+            glue
+            magick
+            googledrive
+            httr
+            jsonlite
+            cpp11
+            progress
           working-directory: dreamleague
+          # Fresh library: packages cached from any:: refs break manifest repository URLs.
+          cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
         run: Rscript .github/scripts/deploy-connect-cloud.R
@@ -241,29 +243,31 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
-            any::rsconnect
-            any::shiny
-            any::tidyverse
-            any::shinyWidgets
-            any::lubridate
-            any::readxl
-            any::ggplot2
-            any::htmltools
-            any::flextable
-            any::htmlwidgets
-            any::shinydashboard
-            any::dplyr
-            any::DT
-            any::shinyjs
-            any::reactable
-            any::glue
-            any::magick
-            any::googledrive
-            any::httr
-            any::jsonlite
-            any::cpp11
-            any::progress
+            rsconnect
+            shiny
+            tidyverse
+            shinyWidgets
+            lubridate
+            readxl
+            ggplot2
+            htmltools
+            flextable
+            htmlwidgets
+            shinydashboard
+            dplyr
+            DT
+            shinyjs
+            reactable
+            glue
+            magick
+            googledrive
+            httr
+            jsonlite
+            cpp11
+            progress
           working-directory: dreamleague
+          # Fresh library: packages cached from any:: refs break manifest repository URLs.
+          cache-version: deploy-standard-refs-1
 
       - name: Deploy to Posit Connect Cloud
         run: Rscript .github/scripts/deploy-connect-cloud.R

@@ -66,6 +66,14 @@ test_that("deployment maps CI repository names to resolvable URLs for the manife
   expect_false(any(grepl("__linux__", repos_at_deploy[c("CRAN", "RSPM")])))
 })
 
+test_that("deploy jobs install packages as standard refs so the manifest resolves repositories", {
+  # `any::pkg` is recorded by renv with Source "any", which rsconnect writes to
+  # manifest.json with the unresolvable repository name "RSPM".
+  workflow <- readLines(file.path("..", "..", ".github", "workflows", "ci-cd.yml"))
+  deploy_lines <- workflow[seq(grep("^  deploy-staging:", workflow), length(workflow))]
+  expect_false(any(grepl("any::", deploy_lines, fixed = TRUE)))
+})
+
 test_that("an unsuccessful cloud deployment fails the job", {
   withr::local_envvar(c(
     CONNECT_CLOUD_CLIENT_ID = "test-client",
