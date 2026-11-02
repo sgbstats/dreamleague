@@ -67,6 +67,11 @@ CI; Supabase integration and preprocessing-bundle tests skip when their inputs
 are absent. The existing suite checks app helpers and data contracts, not
 browser-level Shiny interaction.
 
+CI installs R dependencies explicitly; the app does not use a repository-managed
+renv library. Do not add a startup hook for `renv/activate.R` without committing
+and configuring the corresponding renv project. The app-directory startup test
+catches broken R startup before staging promotion.
+
 ### Promotion and review
 
 1. Push a feature branch. After tests pass, the workflow opens or reuses a PR
