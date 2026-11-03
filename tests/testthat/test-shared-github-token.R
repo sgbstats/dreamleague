@@ -5,8 +5,12 @@ test_that("API errors stay fatal unless the probe explicitly accepts 422", {
   for (status in c(401L, 403L, 404L, 422L)) {
     local({
       response <- structure(list(
+        url = "https://api.github.com/test",
         status_code = status,
-        headers = list(`content-type` = "application/json"),
+        headers = structure(
+          list(`content-type` = "application/json"),
+          class = c("insensitive", "list")
+        ),
         content = charToRaw('{"message":"Rejected"}')
       ), class = "response")
       testthat::local_mocked_bindings(
