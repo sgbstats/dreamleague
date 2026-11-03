@@ -87,7 +87,8 @@ the changed files (`.github/scripts/select-test-sets.R`):
 
 Changes to `tests/testthat.R`, test helpers or shared tests, manual runs, and
 pushes whose history cannot be diffed run everything. Documentation-only changes
-run no tests, but **Run R tests** still reports success for branch protection.
+run no R test sets, but **Run R tests** still reports success for branch protection.
+The deployment PAT check still runs on `staging` and `main`, even for documentation changes.
 The live Supabase job runs only for changes to the app, Supabase code or
 `ci-cd.yml`. New test files must use one of the three prefixes; a pipeline test
 enforces this. Run a set locally with
