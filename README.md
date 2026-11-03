@@ -67,7 +67,9 @@ requests targeting `staging` or `main`. The live Wenger Boys test is skipped in
 CI; preprocessing-bundle validation skips when no preprocessing bundle is
 supplied. The credential-free suite also skips the live Supabase test, which
 runs separately in **Test Supabase round trip** on repository pushes and manual
-runs. Both jobs must pass (or be skipped as not needed) before automatic
+runs. A separate **Test app GitHub PAT permissions** job verifies `ACTION_TOKEN`
+on `staging`/`main` pushes and manual runs on those branches. All jobs must pass
+(or be skipped as not needed) before automatic
 staging promotion or deployment.
 The existing suite checks app helpers and data contracts, not browser-level
 Shiny interaction.
@@ -85,7 +87,8 @@ the changed files (`.github/scripts/select-test-sets.R`):
 
 Changes to `tests/testthat.R`, test helpers or shared tests, manual runs, and
 pushes whose history cannot be diffed run everything. Documentation-only changes
-run no tests, but **Run R tests** still reports success for branch protection.
+run no R test sets, but **Run R tests** still reports success for branch protection.
+The deployment PAT check still runs on `staging` and `main`, even for documentation changes.
 The live Supabase job runs only for changes to the app, Supabase code or
 `ci-cd.yml`. New test files must use one of the three prefixes; a pipeline test
 enforces this. Run a set locally with
@@ -99,7 +102,7 @@ catches broken R startup before staging promotion.
 
 ### Promotion and review
 
-1. Push a feature branch. After R and Supabase tests pass, the workflow opens or reuses a PR
+1. Push a feature branch. After R, Supabase and GitHub PAT tests pass, the workflow opens or reuses a PR
    into `staging` and enables auto-merge for the tested commit. If the branch is
    behind `staging` (each promotion adds a merge commit there), the workflow
    merges `staging` into the feature branch instead; that push is retested and
@@ -179,7 +182,7 @@ them from GitHub on each deploy instead:
 |----------|---------------|----------|
 | `GOOGLE_PRIVATE_KEY` | secret | yes |
 | `SUPABASE_API_KEY` | secret | yes |
-| `ACTION_TOKEN` | secret (fine-grained token, **Actions: read and write**, for the Diagnostics refresh button) | no |
+| `ACTION_TOKEN` | secret (fine-grained token, **Actions: read and write**, for the Diagnostics refresh button) | yes, CI permission check |
 | `DREAMLEAGUE_SHARED_DRIVE_TARGET` | secret | no |
 | `DREAMLEAGUE_SUPABASE_BUCKET` | secret | no |
 | `SUPABASE_URL` | variable | no |
@@ -190,6 +193,27 @@ required secrets fail the deploy before contacting Connect Cloud. Optional
 values left unset are removed from the app, so add every runtime value the app
 needs to GitHub rather than to Connect Cloud. These values belong in GitHub
 secrets, never in source files.
+
+### GitHub PAT permission test
+
+Add `ACTION_TOKEN` under **Settings > Secrets and variables > Actions > Repository
+secrets**, or in each deployment environment (`staging` and `Production`).
+The live check uses the target environment, matching the credential sent to the
+app by deployment. Use a fine-grained PAT scoped to `sgbstats/dreamleague` with **Actions:
+read and write** (and the automatically included Metadata read permission).
+A classic PAT needs `repo` for a private repository or `public_repo` for a public
+repository. The token must be unexpired and approved/SSO-authorized where required.
+The token used to sign into Copilot or `gh` is not automatically available to
+the deployed app or Actions.
+
+The shared test checks workflow and run-list read access, then calls the same
+dispatch endpoint as the app using an impossible Git ref containing `~`.
+Only the specific HTTP 422 "No ref found" response passes: GitHub has authorized
+the request, but cannot start data collection. Missing tokens, HTTP 401/403/404,
+disabled workflows and other validation errors fail rather than skip. It does
+not infer write access from scope headers, which fine-grained PATs do not expose.
+The live probe only runs in its dedicated CI job, never in credential-free local
+tests, feature-branch runs or PR events. No collection run is started.
 
 ### Supabase integration test
 
