@@ -128,13 +128,48 @@ jobs:
           DREAMLEAGUE_REQUIRE_SUPABASE_TEST: "true"
         run: Rscript -e 'testthat::test_file("tests/testthat/test-shared-supabase-roundtrip.R", stop_on_failure = TRUE)'
 
+  test-github-token:
+    name: Test app GitHub PAT permissions
+    needs: test
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'Production' || 'staging' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install token test dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::httr
+            any::jsonlite
+
+      - name: Verify the app PAT can read and dispatch data collection
+        env:
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          DREAMLEAGUE_REQUIRE_GITHUB_TOKEN_TEST: "true"
+        run: Rscript -e 'testthat::test_file("tests/testthat/test-shared-github-token.R", stop_on_failure = TRUE)'
+
   promote-staging:
     name: Promote tested feature to staging
-    needs: [test, test-supabase]
+    needs: [test, test-supabase, test-github-token]
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' &&
       github.ref != 'refs/heads/main' &&
       github.ref != 'refs/heads/staging'
@@ -184,11 +219,12 @@ jobs:
 
   deploy-staging:
     name: Deploy staging app
-    needs: [test, test-supabase]
+    needs: [test, test-supabase, test-github-token]
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -271,11 +307,12 @@ jobs:
 
   deploy-production:
     name: Deploy production app
-    needs: [test, test-supabase]
+    needs: [test, test-supabase, test-github-token]
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
+      contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30

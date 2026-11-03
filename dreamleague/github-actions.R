@@ -34,7 +34,9 @@ dreamleague_github_actions_config <- function(
   list(token = token, repository = repository, workflow = workflow)
 }
 
-github_actions_api_request <- function(method, path, config, body = NULL) {
+github_actions_api_request <- function(
+  method, path, config, body = NULL, allowed_status = integer()
+) {
   url <- paste0("https://api.github.com", path)
   response <- tryCatch(
     httr::VERB(
@@ -62,7 +64,8 @@ github_actions_api_request <- function(method, path, config, body = NULL) {
   )
 
   status_code <- httr::status_code(response)
-  if (status_code < 200 || status_code >= 300) {
+  if ((status_code < 200 || status_code >= 300) &&
+      !status_code %in% allowed_status) {
     headers <- httr::headers(response)
     detail <- trimws(httr::content(response, as = "text", encoding = "UTF-8"))
     if (!nzchar(detail)) {
@@ -104,6 +107,41 @@ github_actions_api_request <- function(method, path, config, body = NULL) {
     status_code = status_code,
     content = httr::content(response, as = "text", encoding = "UTF-8")
   )
+}
+
+github_actions_check_token <- function(
+  config,
+  request = github_actions_api_request
+) {
+  path <- sprintf(
+    "/repos/%s/actions/workflows/%s",
+    config$repository,
+    config$workflow
+  )
+  workflow <- request("GET", path, config)
+  payload <- github_actions_parse_json(workflow$content, "checking workflow access")
+  if (!identical(payload$state, "active")) {
+    stop("Data collection workflow is not active", call. = FALSE)
+  }
+  github_actions_list_dispatched_runs(config, request = request)
+
+  # Git forbids '~' in refs: check dispatch authorization without running a job.
+  probe_ref <- "~dreamleague-token-permission-check"
+  response <- request(
+    "POST", paste0(path, "/dispatches"), config,
+    body = list(ref = probe_ref), allowed_status = 422L
+  )
+  payload <- github_actions_parse_json(
+    response$content, "checking workflow dispatch permission"
+  )
+  if (!identical(response$status_code, 422L) ||
+      !identical(payload$message, paste0("No ref found for: ", probe_ref))) {
+    stop(
+      "GitHub did not confirm dispatch permission with the expected invalid-ref response",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 github_actions_parse_json <- function(content, action) {
