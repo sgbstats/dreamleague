@@ -218,7 +218,7 @@ jobs:
           printf 'Staging promotion: %s\n\nWaiting for protected-branch checks before auto-merge. No production promotion is performed.\n' "$url" >> "$GITHUB_STEP_SUMMARY"
 
   deploy-staging:
-    name: Deploy staging app
+    name: Verify staging Render deployment
     needs: [test, test-supabase, test-github-token]
     if: >-
       !cancelled() &&
@@ -227,86 +227,65 @@ jobs:
       contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment:
       name: staging
-      url: ${{ vars.CONNECT_CLOUD_APP_URL }}
+      url: ${{ vars.RENDER_STAGING_URL }}
     concurrency:
       group: dreamleague-staging-deployment
       cancel-in-progress: false
     env:
-      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
-      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
-      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
-      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
-      CONNECT_CLOUD_APP_URL: ${{ vars.CONNECT_CLOUD_APP_URL }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_STAGING_SERVICE_ID: ${{ vars.RENDER_STAGING_SERVICE_ID }}
+      RENDER_STAGING_URL: ${{ vars.RENDER_STAGING_URL }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up R
-        uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: release
-          use-public-rspm: true
-
-      - name: Install deployment dependency
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          packages: |
-            rsconnect
-            shiny
-            tidyverse
-            shinyWidgets
-            lubridate
-            readxl
-            ggplot2
-            htmltools
-            flextable
-            htmlwidgets
-            shinydashboard
-            dplyr
-            DT
-            shinyjs
-            reactable
-            glue
-            magick
-            googledrive
-            httr
-            jsonlite
-            cpp11
-            progress
-          working-directory: dreamleague
-          # Fresh library: packages cached from "any" refs break manifest repository URLs.
-          cache-version: deploy-standard-refs-1
-
-      - name: Deploy to Posit Connect Cloud
-        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
-        env:
-          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
-          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
-        run: Rscript .github/scripts/deploy-connect-cloud.R
-
-      - name: Check staging URL and publish preview
+      - name: Wait for the current commit to deploy on Render
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$CONNECT_CLOUD_APP_URL" =~ ^https://[a-zA-Z0-9-]+\.share\.connect\.posit\.cloud(/[^[:space:]]*)?$ ]]; then
-            echo "::error::Set CONNECT_CLOUD_APP_URL to the staging app's HTTPS share.connect.posit.cloud URL."
+          if [[ -z "$RENDER_API_KEY" || -z "$RENDER_STAGING_SERVICE_ID" ]]; then
+            echo "::error::Set RENDER_API_KEY and RENDER_STAGING_SERVICE_ID in the staging GitHub environment."
             exit 1
           fi
-          curl --fail --silent --show-error --location \
-            --retry 5 --retry-delay 10 --retry-all-errors --max-time 60 \
-            --output /dev/null "$CONNECT_CLOUD_APP_URL"
-          printf '## Staging ready for review\n\n[Open staging deployment](%s)\n\nCommit: `%s`\n\nWaiting for your instructions: no automatic merge or push to main. After reviewing staging, explicitly open and merge a staging-to-main PR to release.\n' \
-            "$CONNECT_CLOUD_APP_URL" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          if [[ ! "$RENDER_STAGING_URL" =~ ^https://[A-Za-z0-9.-]+\.onrender\.com/?$ ]]; then
+            echo "::error::Set RENDER_STAGING_URL to the staging service's HTTPS onrender.com URL."
+            exit 1
+          fi
+          for attempt in {1..60}; do
+            deploys="$(curl --fail --silent --show-error --retry 2 --retry-delay 2 \
+              --connect-timeout 10 --max-time 30 \
+              --header "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_STAGING_SERVICE_ID/deploys?limit=100")"
+            deployment="$(jq -cer --arg sha "$GITHUB_SHA" \
+              '[.[] | .deploy | select(.commit.id == $sha)] | first // empty' \
+              <<< "$deploys" 2>/dev/null || true)"
+            if [[ -n "$deployment" ]]; then
+              status="$(jq -r '.status' <<< "$deployment")"
+              case "$status" in
+                live)
+                  printf '## Staging ready for review\n\n[Open staging deployment](%s)\n\nCommit: `%s`\n\nThe Render deployment for this commit is live. Review staging before opening and merging a staging-to-main PR.\n' \
+                    "$RENDER_STAGING_URL" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                  ;;
+                build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                  echo "::error::Render staging deployment for $GITHUB_SHA ended with status $status."
+                  exit 1
+                  ;;
+                created|queued|build_in_progress|update_in_progress|pre_deploy_in_progress)
+                  ;;
+                *)
+                  echo "::error::Unexpected Render staging deployment status: $status."
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for the Render staging deployment for $GITHUB_SHA to become live."
+          exit 1
 
   deploy-production:
-    name: Deploy production app
+    name: Deploy production to Render
     needs: [test, test-supabase, test-github-token]
     if: >-
       !cancelled() &&
@@ -315,65 +294,68 @@ jobs:
       contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment:
       name: Production
-      url: ${{ vars.CONNECT_CLOUD_APP_URL }}
+      url: https://dreamleague.uk
     concurrency:
       group: dreamleague-production-deployment
       cancel-in-progress: false
     env:
-      CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
-      CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
-      CONNECT_CLOUD_ACCOUNT: ${{ vars.CONNECT_CLOUD_ACCOUNT || 'sgbstats' }}
-      CONNECT_CLOUD_APP_ID: ${{ secrets.CONNECT_CLOUD_APP_ID }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_PRODUCTION_SERVICE_ID: ${{ vars.RENDER_PRODUCTION_SERVICE_ID }}
+      RENDER_PRODUCTION_DEPLOY_HOOK: ${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
+      - name: Trigger the approved Render deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$RENDER_PRODUCTION_DEPLOY_HOOK" ]]; then
+            echo "::error::Set RENDER_PRODUCTION_DEPLOY_HOOK in the Production GitHub environment."
+            exit 1
+          fi
+          if [[ -z "$RENDER_API_KEY" || -z "$RENDER_PRODUCTION_SERVICE_ID" ]]; then
+            echo "::error::Set RENDER_API_KEY and RENDER_PRODUCTION_SERVICE_ID in the Production GitHub environment."
+            exit 1
+          fi
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --get \
+            --data-urlencode "ref=$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/render-deploy-hook.json" \
+            "$RENDER_PRODUCTION_DEPLOY_HOOK"
 
-      - name: Set up R
-        uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: release
-          use-public-rspm: true
-
-      - name: Install deployment dependency
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          packages: |
-            rsconnect
-            shiny
-            tidyverse
-            shinyWidgets
-            lubridate
-            readxl
-            ggplot2
-            htmltools
-            flextable
-            htmlwidgets
-            shinydashboard
-            dplyr
-            DT
-            shinyjs
-            reactable
-            glue
-            magick
-            googledrive
-            httr
-            jsonlite
-            cpp11
-            progress
-          working-directory: dreamleague
-          # Fresh library: packages cached from "any" refs break manifest repository URLs.
-          cache-version: deploy-standard-refs-1
-
-      - name: Deploy to Posit Connect Cloud
-        # App runtime settings; Connect Cloud content variables are replaced on each deploy.
-        env:
-          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
-          DREAMLEAGUE_SHARED_DRIVE_TARGET: ${{ secrets.DREAMLEAGUE_SHARED_DRIVE_TARGET }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          DREAMLEAGUE_SUPABASE_BUCKET: ${{ secrets.DREAMLEAGUE_SUPABASE_BUCKET }}
-        run: Rscript .github/scripts/deploy-connect-cloud.R
+      - name: Wait for the production deployment to become live
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..60}; do
+            deploys="$(curl --fail --silent --show-error --retry 2 --retry-delay 2 \
+              --connect-timeout 10 --max-time 30 \
+              --header "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_PRODUCTION_SERVICE_ID/deploys?limit=100")"
+            deployment="$(jq -cer --arg sha "$GITHUB_SHA" \
+              '[.[] | .deploy | select(.commit.id == $sha)] | first // empty' \
+              <<< "$deploys" 2>/dev/null || true)"
+            if [[ -n "$deployment" ]]; then
+              status="$(jq -r '.status' <<< "$deployment")"
+              case "$status" in
+                live)
+                  printf '## Production deployment live\n\n[Open dreamleague.uk](https://dreamleague.uk)\n\nCommit: `%s`\n' \
+                    "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                  ;;
+                build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                  echo "::error::Render production deployment for $GITHUB_SHA ended with status $status."
+                  exit 1
+                  ;;
+                created|queued|build_in_progress|update_in_progress|pre_deploy_in_progress)
+                  ;;
+                *)
+                  echo "::error::Unexpected Render production deployment status: $status."
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for the Render production deployment for $GITHUB_SHA to become live."
+          exit 1
