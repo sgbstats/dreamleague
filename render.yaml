@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: dreamleague-staging
+    runtime: docker
+    region: oregon
+    branch: staging
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    envVars:
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: SUPABASE_API_KEY
+        sync: false
+      - key: ACTION_TOKEN
+        sync: false
+      - key: DREAMLEAGUE_SHARED_DRIVE_TARGET
+        sync: false
+      - key: DREAMLEAGUE_SUPABASE_BUCKET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+
+  - type: web
+    name: dreamleague
+    runtime: docker
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: off
+    healthCheckPath: /
+    domains:
+      - dreamleague.uk
+    renderSubdomainPolicy: enabled
+    envVars:
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: SUPABASE_API_KEY
+        sync: false
+      - key: ACTION_TOKEN
+        sync: false
+      - key: DREAMLEAGUE_SHARED_DRIVE_TARGET
+        sync: false
+      - key: DREAMLEAGUE_SUPABASE_BUCKET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false

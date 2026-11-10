@@ -110,14 +110,17 @@ catches broken R startup before staging promotion.
 2. GitHub runs the staging PR tests against its merge result. Branch protection
    requires passing **Run R tests**, an up-to-date branch, and resolved review
    conversations. Conflicts or failed checks stop promotion; no bypass is used.
-3. Once the PR merges, the `staging` push runs tests again and deploys the
-   existing staging Posit Connect Cloud app. A successful HTTP check publishes
-   **Open staging deployment** in the Actions run summary and the GitHub
-   environment. This checks HTTP availability, not Shiny session functionality.
+3. Once the PR merges, the `staging` push runs tests again. Render automatically
+   deploys the matching commit to `dreamleague-staging`; the workflow waits for
+   that exact commit to reach Render's `live` status before publishing
+   **Open staging deployment** in the Actions run summary and GitHub environment.
+   This checks deployment status, not browser-level Shiny functionality.
 4. Open that link and review the app. **Stop here until explicitly instructed
    to release.** CI never creates or auto-merges a PR into `main`. After approval,
    open a PR from `staging` to `main`, wait for tests, and merge it manually.
-   The resulting `main` push deploys production after tests pass.
+   The resulting `main` push waits for the GitHub **Production** environment
+   approval, triggers a Render deploy for that exact commit, and waits until
+   Render reports it live.
 
 Actions cannot open a browser on your computer or this Copilot conversation.
 Use the staging link in the run summary; Copilot can open it when asked once
@@ -133,19 +136,38 @@ In [repository Settings > Environments](https://github.com/sgbstats/dreamleague/
 open **staging** and the existing **Production** environment. Use **Add
 environment secret** or **Add environment variable** for the following:
 
-| Name | Kind | Value |
-|------|------|-------|
-| `CONNECT_CLOUD_CLIENT_ID` | Secret | Client ID from a Posit Connect Cloud credential |
-| `CONNECT_CLOUD_CLIENT_SECRET` | Secret | Matching client secret, shown only once when created |
-| `CONNECT_CLOUD_APP_ID` | Secret | Existing content ID for this environment, not the old shinyapps.io app ID |
-| `CONNECT_CLOUD_ACCOUNT` | Variable | Posit account name; defaults to `sgbstats` |
-| `CONNECT_CLOUD_APP_URL` | Variable | Existing app's HTTPS `share.connect.posit.cloud` URL; required for staging preview |
+| Environment | Name | Kind | Value |
+|-------------|------|------|-------|
+| `staging` | `RENDER_API_KEY` | Secret | Render API key with access to read service deployment status |
+| `staging` | `RENDER_STAGING_SERVICE_ID` | Variable | Service ID for `dreamleague-staging`, from its Render dashboard URL/settings |
+| `staging` | `RENDER_STAGING_URL` | Variable | The service's HTTPS `onrender.com` URL |
+| `Production` | `RENDER_API_KEY` | Secret | The same Render API key |
+| `Production` | `RENDER_PRODUCTION_SERVICE_ID` | Variable | Service ID for `dreamleague`, from its Render dashboard URL/settings |
+| `Production` | `RENDER_PRODUCTION_DEPLOY_HOOK` | Secret | Deploy Hook URL from the `dreamleague` service's Render Settings |
 
-Create the client credential at <https://login.posit.cloud/identity/credentials>.
-Confirm the account name at <https://connect.posit.cloud/whoami>. Find each
-content ID and app URL in its Connect Cloud content page. Use separate
-credentials where possible. The workflow updates existing content and does not
-create a replacement app.
+The workflow uses the API key only to poll deploy status. Keep the deploy hook
+secret scoped to the **Production** environment; it can trigger production
+deploys and must never be committed. The Production environment's existing
+required-reviewer approval remains the release gate.
+
+The root `render.yaml` adopts the existing Render Web Services by their exact
+names. It deliberately omits compute plans so existing tiers are preserved,
+declares runtime variable names with `sync: false`, and disables production
+auto-deploy. Create/connect one Render Blueprint for this repository and review
+the proposed changes carefully before syncing; it must show updates to the
+existing services, not new duplicate services. Disable Blueprint **Auto Sync**
+after the initial sync so configuration changes cannot bypass the production
+approval workflow. The app services' secret values remain in each service's
+Render environment configuration. Both current services are in Oregon, which
+is recorded in the Blueprint.
+
+For staging, set the three staging values above from the Render service
+dashboard. For production, set the service ID and create a Deploy Hook in the
+service's Settings. Complete these GitHub settings and sync the Blueprint
+before merging the first staging-to-main release PR; otherwise the production
+workflow cannot trigger and confirm the approved deploy. The GitHub Actions
+environment variables are separate from the app runtime variables stored in
+Render.
 
 In [Settings > Secrets and variables > Actions](https://github.com/sgbstats/dreamleague/settings/secrets/actions),
 add repository secret **`STAGING_PROMOTION_TOKEN`**. Use a fine-grained GitHub
@@ -168,39 +190,61 @@ pushes, and enforce rules for admins. There is no required approving review
 count, allowing a sole maintainer to promote changes. Environment policies
 allow only `staging` to deploy staging and only `main` to deploy Production.
 
-Disable **Automatically publish on push** for both apps in Connect Cloud so
-independent publishing cannot bypass this pipeline's test gate.
+The active workflow no longer deploys to Posit. The existing `.posit/publish`
+settings and deployment helper are retained only as rollback artifacts; leave
+them inactive unless intentionally rolling back.
 
 ### App runtime secrets
 
-Deployment credentials above authenticate CI; the app also needs runtime
-variables. rsconnect replaces a Connect Cloud app's variables on every deploy,
-so values set only in the Connect Cloud UI are wiped. The deploy step sends
-them from GitHub on each deploy instead:
+Configure these variables separately in the Render environment settings for
+**both** services. The Blueprint declares their names without values, so it
+does not overwrite the values already configured in Render:
 
-| Variable | GitHub source | Required |
-|----------|---------------|----------|
-| `GOOGLE_PRIVATE_KEY` | secret | yes |
-| `SUPABASE_API_KEY` | secret | yes |
-| `ACTION_TOKEN` | secret (fine-grained token, **Actions: read and write**, for the Diagnostics refresh button) | yes, CI permission check |
-| `DREAMLEAGUE_SHARED_DRIVE_TARGET` | secret | no |
-| `DREAMLEAGUE_SUPABASE_BUCKET` | secret | no |
-| `SUPABASE_URL` | variable | no |
+| Variable | Where to configure | Required |
+|----------|--------------------|----------|
+| `GOOGLE_PRIVATE_KEY` | Render secret | yes |
+| `SUPABASE_API_KEY` | Render secret | yes |
+| `ACTION_TOKEN` | Render secret; also a GitHub environment secret for CI permission checks | yes |
+| `DREAMLEAGUE_SHARED_DRIVE_TARGET` | Render environment variable | no |
+| `DREAMLEAGUE_SUPABASE_BUCKET` | Render environment variable | no |
+| `SUPABASE_URL` | Render environment variable | no |
 
-Repository-level secrets apply to both apps; add a secret with the same name to
-the `staging` or `Production` environment to override it for one app. Missing
-required secrets fail the deploy before contacting Connect Cloud. Optional
-values left unset are removed from the app, so add every runtime value the app
-needs to GitHub rather than to Connect Cloud. These values belong in GitHub
-secrets, never in source files.
+Keep the app's secret values in Render, never in source files. `ACTION_TOKEN`
+and any credentials used by live GitHub/Supabase CI tests must also remain in
+the relevant GitHub Actions environment because those tests use them directly.
+The old `CONNECT_CLOUD_*` deployment credentials are no longer used by the
+active workflow; they can be retained temporarily for rollback and removed
+after the migration is accepted.
+
+### Production domain: Cloudflare and Render
+
+The Blueprint registers `dreamleague.uk` on the production service. Render
+automatically adds `www.dreamleague.uk` and redirects it to the apex domain.
+The Render-generated production URL remains enabled as a fallback; staging
+continues to use its default `onrender.com` URL.
+
+After the Blueprint is synced:
+
+1. In the Render `dreamleague` service dashboard, confirm `dreamleague.uk` is
+   listed under **Custom Domains** and copy the service's `onrender.com`
+   hostname.
+2. In Cloudflare, open **SSL/TLS > Overview** and set encryption mode to
+   **Full**. Under **DNS > Records**, remove any `AAAA` records for
+   `dreamleague.uk`.
+3. Add CNAME records for both `@` and `www`, each targeting the production
+   service's `onrender.com` hostname. Keep both records **DNS only**.
+4. Wait for DNS propagation, then click **Verify** under the Render service's
+   **Custom Domains** settings. Render issues and renews the TLS certificate;
+   wait until it is reported valid before using the custom domain.
 
 ### GitHub PAT permission test
 
 Add `ACTION_TOKEN` under **Settings > Secrets and variables > Actions > Repository
 secrets**, or in each deployment environment (`staging` and `Production`).
-The live check uses the target environment, matching the credential sent to the
-app by deployment. Use a fine-grained PAT scoped to `sgbstats/dreamleague` with **Actions:
-read and write** (and the automatically included Metadata read permission).
+The live check uses the target environment's `ACTION_TOKEN`, which must match
+the token configured for that Render service. Use a fine-grained PAT scoped to
+`sgbstats/dreamleague` with **Actions: read and write** (and the automatically
+included Metadata read permission).
 A classic PAT needs `repo` for a private repository or `public_repo` for a public
 repository. The token must be unexpired and approved/SSO-authorized where required.
 The token used to sign into Copilot or `gh` is not automatically available to
