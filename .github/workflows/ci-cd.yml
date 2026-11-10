@@ -303,25 +303,34 @@ jobs:
       cancel-in-progress: false
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_PRODUCTION_SERVICE_ID: ${{ vars.RENDER_PRODUCTION_SERVICE_ID }}
-      RENDER_PRODUCTION_DEPLOY_HOOK: ${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}
     steps:
       - name: Trigger the approved Render deployment
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "$RENDER_PRODUCTION_DEPLOY_HOOK" ]]; then
-            echo "::error::Set RENDER_PRODUCTION_DEPLOY_HOOK in the Production GitHub environment."
+          if [[ -z "$RENDER_API_KEY" ]]; then
+            echo "::error::Set RENDER_API_KEY in the Production GitHub environment."
             exit 1
           fi
-          if [[ -z "$RENDER_API_KEY" || -z "$RENDER_PRODUCTION_SERVICE_ID" ]]; then
-            echo "::error::Set RENDER_API_KEY and RENDER_PRODUCTION_SERVICE_ID in the Production GitHub environment."
-            exit 1
-          fi
-          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --get \
-            --data-urlencode "ref=$GITHUB_SHA" \
-            --output "$RUNNER_TEMP/render-deploy-hook.json" \
-            "$RENDER_PRODUCTION_DEPLOY_HOOK"
+          render_auth_header="$(printf 'Authorization: %s %s' 'Bearer' "$RENDER_API_KEY")"
+          services="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --get \
+            --data-urlencode "name=dreamleague" \
+            --data-urlencode "limit=100" \
+            --header "$render_auth_header" \
+            "https://api.render.com/v1/services")"
+          RENDER_PRODUCTION_SERVICE_ID="$(jq -er \
+            '[.[] | (.service // .) | select(.name == "dreamleague") | .id] |
+              if length == 1 then .[0] else error("Expected exactly one Render service named dreamleague") end' \
+            <<< "$services")"
+          echo "RENDER_PRODUCTION_SERVICE_ID=$RENDER_PRODUCTION_SERVICE_ID" >> "$GITHUB_ENV"
+          payload="$(jq -cn --arg commitId "$GITHUB_SHA" '{commitId: $commitId}')"
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --request POST \
+            --header "$render_auth_header" \
+            --header "Content-Type: application/json" \
+            --data "$payload" \
+            --output "$RUNNER_TEMP/render-deploy.json" \
+            "https://api.render.com/v1/services/$RENDER_PRODUCTION_SERVICE_ID/deploys"
 
       - name: Wait for the production deployment to become live
         shell: bash
