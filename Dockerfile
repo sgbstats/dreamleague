@@ -17,12 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
   && rm -rf /var/lib/apt/lists/*
 
-RUN R -e 'install.packages(c(
-  "shiny", "tidyverse", "shinyWidgets", "lubridate", "readxl", "ggplot2",
-  "htmltools", "flextable", "htmlwidgets", "shinydashboard", "dplyr", "DT",
-  "shinyjs", "reactable", "glue", "magick", "googledrive", "httr",
-  "jsonlite", "cpp11", "progress"
-), repos = "https://cloud.r-project.org")'
+RUN R -e "install.packages(c('shiny', 'tidyverse', 'shinyWidgets', 'lubridate', 'readxl', 'ggplot2', 'htmltools', 'flextable', 'htmlwidgets', 'shinydashboard', 'dplyr', 'DT', 'shinyjs', 'reactable', 'glue', 'magick', 'googledrive', 'httr', 'jsonlite', 'cpp11', 'progress'), repos = 'https://cloud.r-project.org')"
 
 WORKDIR /app
 COPY dreamleague/ /app/
