@@ -158,6 +158,54 @@ test_that("Docker image runs Shiny on Render's configured port", {
   ))
 })
 
+test_that("Docker build includes the system libuv headers required by fs", {
+  dockerfile <- readLines(file.path("..", "..", "Dockerfile"))
+  expect_true(any(trimws(dockerfile) == "libuv1-dev \\"))
+})
+
+test_that("Docker package installation fails when a runtime dependency cannot load", {
+  dockerfile <- readLines(file.path("..", "..", "Dockerfile"))
+  install_line <- grep("^RUN R -e ", dockerfile, value = TRUE)
+  expect_length(install_line, 1L)
+  install_code <- sub('^RUN R -e "(.*)"$', "\\1", install_line)
+  for (missing_package in c("shiny", "magick", "googledrive")) {
+    checked <- character()
+    build_env <- new.env(parent = baseenv())
+    build_env$install.packages <- function(pkgs, repos) invisible(NULL)
+    build_env$requireNamespace <- function(package, quietly) {
+      checked <<- c(checked, package)
+      package != missing_package
+    }
+    expect_error(
+      eval(parse(text = install_code), envir = build_env),
+      paste0("Required R packages could not be loaded: ", missing_package),
+      fixed = TRUE
+    )
+    expect_contains(checked, missing_package)
+  }
+})
+
+test_that("Docker package installation accepts a complete loadable runtime", {
+  dockerfile <- readLines(file.path("..", "..", "Dockerfile"))
+  install_line <- grep("^RUN R -e ", dockerfile, value = TRUE)
+  install_code <- sub('^RUN R -e "(.*)"$', "\\1", install_line)
+  installed <- character()
+  checked <- character()
+  build_env <- new.env(parent = baseenv())
+  build_env$install.packages <- function(pkgs, repos) {
+    installed <<- pkgs
+    expect_identical(repos, "https://cloud.r-project.org")
+  }
+  build_env$requireNamespace <- function(package, quietly) {
+    checked <<- c(checked, package)
+    expect_true(quietly)
+    TRUE
+  }
+  expect_error(eval(parse(text = install_code), envir = build_env), NA)
+  expect_contains(installed, "shiny")
+  expect_setequal(checked, installed)
+})
+
 test_that("Render deploy workflow waits for the correct commit and keeps approval", {
   workflow <- readLines(file.path("..", "..", ".github", "workflows", "ci-cd.yml"))
   workflow <- paste(workflow, collapse = "\n")

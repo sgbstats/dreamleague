@@ -100,6 +100,11 @@ renv library. Do not add a startup hook for `renv/activate.R` without committing
 and configuring the corresponding renv project. The app-directory startup test
 catches broken R startup before staging promotion.
 
+The Docker build installs `libuv1-dev` for the `fs` package and verifies that
+every required R package can load after installation. Missing or unloadable
+packages fail the image build instead of producing an image that crashes at
+startup; `install.packages()` warnings alone do not fail an R process.
+
 ### Promotion and review
 
 1. Push a feature branch. After R, Supabase and GitHub PAT tests pass, the workflow opens or reuses a PR
