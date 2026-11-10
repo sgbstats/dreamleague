@@ -146,14 +146,12 @@ environment secret** or **Add environment variable** for the following:
 | `staging` | `RENDER_API_KEY` | Secret | Render API key with access to read service deployment status |
 | `staging` | `RENDER_STAGING_SERVICE_ID` | Variable | Service ID for `dreamleague-staging`, from its Render dashboard URL/settings |
 | `staging` | `RENDER_STAGING_URL` | Variable | The service's HTTPS `onrender.com` URL |
-| `Production` | `RENDER_API_KEY` | Secret | The same Render API key |
-| `Production` | `RENDER_PRODUCTION_SERVICE_ID` | Variable | Service ID for `dreamleague`, from its Render dashboard URL/settings |
-| `Production` | `RENDER_PRODUCTION_DEPLOY_HOOK` | Secret | Deploy Hook URL from the `dreamleague` service's Render Settings |
+| `Production` | `RENDER_API_KEY` | Secret | Render API key with access to list services, deploy `dreamleague`, and read deployment status |
 
-The workflow uses the API key only to poll deploy status. Keep the deploy hook
-secret scoped to the **Production** environment; it can trigger production
-deploys and must never be committed. The Production environment's existing
-required-reviewer approval remains the release gate.
+The production workflow locates the Render service named `dreamleague` through
+the API, triggers a deploy for the exact commit, and polls its status. The
+Production environment's existing required-reviewer approval remains the
+release gate.
 
 The root `render.yaml` adopts the existing Render Web Services by their exact
 names. It deliberately omits compute plans so existing tiers are preserved,
@@ -167,12 +165,11 @@ Render environment configuration. Both current services are in Oregon, which
 is recorded in the Blueprint.
 
 For staging, set the three staging values above from the Render service
-dashboard. For production, set the service ID and create a Deploy Hook in the
-service's Settings. Complete these GitHub settings and sync the Blueprint
-before merging the first staging-to-main release PR; otherwise the production
-workflow cannot trigger and confirm the approved deploy. The GitHub Actions
-environment variables are separate from the app runtime variables stored in
-Render.
+dashboard. Complete these GitHub settings and sync the Blueprint before merging
+the first staging-to-main release PR; otherwise the workflow cannot confirm the
+staging deployment or trigger and confirm the approved production deploy. The
+GitHub Actions environment variables are separate from the app runtime variables
+stored in Render.
 
 In [Settings > Secrets and variables > Actions](https://github.com/sgbstats/dreamleague/settings/secrets/actions),
 add repository secret **`STAGING_PROMOTION_TOKEN`**. Use a fine-grained GitHub
