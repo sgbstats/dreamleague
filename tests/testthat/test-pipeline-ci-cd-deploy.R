@@ -79,14 +79,6 @@ test_that("deployment maps CI repository names to resolvable URLs for the manife
   expect_false(any(grepl("__linux__", repos_at_deploy[c("CRAN", "RSPM")])))
 })
 
-test_that("deploy jobs install packages as standard refs so the manifest resolves repositories", {
-  # `any::pkg` is recorded by renv with Source "any", which rsconnect writes to
-  # manifest.json with the unresolvable repository name "RSPM".
-  workflow <- readLines(file.path("..", "..", ".github", "workflows", "ci-cd.yml"))
-  deploy_lines <- workflow[seq(grep("^  deploy-staging:", workflow), length(workflow))]
-  expect_false(any(grepl("any::", deploy_lines, fixed = TRUE)))
-})
-
 test_that("deployment requires the app's runtime secrets", {
   withr::local_envvar(c(
     CONNECT_CLOUD_CLIENT_ID = "test-client",
@@ -139,13 +131,43 @@ test_that("deployment sends every configured runtime variable to the app", {
   ))
 })
 
-test_that("deploy jobs pass the app runtime secrets to the deploy script", {
+test_that("Render Blueprint adopts both services without syncing app secrets", {
+  blueprint <- readLines(file.path("..", "..", "render.yaml"))
+  blueprint <- paste(blueprint, collapse = "\n")
+  expect_match(blueprint, "name: dreamleague-staging")
+  expect_match(blueprint, "name: dreamleague")
+  expect_match(blueprint, "branch: staging")
+  expect_match(blueprint, "branch: main")
+  expect_match(blueprint, "autoDeployTrigger: commit")
+  expect_match(blueprint, "autoDeployTrigger: off")
+  expect_match(blueprint, "dreamleague\\.uk")
+  expect_false(grepl("plan:", blueprint, fixed = TRUE))
+  expect_equal(lengths(gregexpr("sync: false", blueprint, fixed = TRUE)), 12L)
+})
+
+test_that("Docker image runs Shiny on Render's configured port", {
+  dockerfile <- paste(
+    readLines(file.path("..", "..", "Dockerfile")),
+    collapse = "\n"
+  )
+  expect_true(grepl("FROM rocker/r-ver:4.6.2", dockerfile, fixed = TRUE))
+  expect_true(grepl(
+    "shiny::runApp('.', host = '0.0.0.0', port = as.integer(Sys.getenv('PORT', '10000')))",
+    dockerfile,
+    fixed = TRUE
+  ))
+})
+
+test_that("Render deploy workflow waits for the correct commit and keeps approval", {
   workflow <- readLines(file.path("..", "..", ".github", "workflows", "ci-cd.yml"))
-  workflow <- paste(workflow[seq(grep("^  deploy-staging:", workflow), length(workflow))], collapse = "\n")
-  for (name in c("GOOGLE_PRIVATE_KEY", "SUPABASE_API_KEY")) {
-    hits <- gregexpr(paste0(name, ": \\$\\{\\{ secrets\\.", name, " \\}\\}"), workflow)[[1]]
-    expect_identical(sum(hits > 0), 2L, info = name)
-  }
+  workflow <- paste(workflow, collapse = "\n")
+  expect_match(workflow, "RENDER_STAGING_SERVICE_ID")
+  expect_match(workflow, "RENDER_PRODUCTION_SERVICE_ID")
+  expect_match(workflow, "RENDER_PRODUCTION_DEPLOY_HOOK")
+  expect_match(workflow, "select\\(.commit.id == \\$sha\\)")
+  expect_true(grepl("environment:\n      name: Production", workflow, fixed = TRUE))
+  expect_false(grepl("CONNECT_CLOUD_APP_URL", workflow, fixed = TRUE))
+  expect_false(grepl("deploy-connect-cloud.R", workflow, fixed = TRUE))
 })
 
 test_that("an unsuccessful cloud deployment fails the job", {
