@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
   && rm -rf /var/lib/apt/lists/*
 
-RUN R -e "packages <- c('shiny', 'tidyverse', 'shinyWidgets', 'lubridate', 'readxl', 'ggplot2', 'htmltools', 'flextable', 'htmlwidgets', 'shinydashboard', 'dplyr', 'DT', 'shinyjs', 'reactable', 'glue', 'magick', 'googledrive', 'httr', 'jsonlite', 'cpp11', 'progress'); install.packages(packages, repos = 'https://cloud.r-project.org'); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) stop('Required R packages could not be loaded: ', paste(missing, collapse = ', '))"
+RUN R -e "packages <- c('shiny', 'tidyverse', 'shinyWidgets', 'lubridate', 'readxl', 'ggplot2', 'htmltools', 'flextable', 'htmlwidgets', 'shinydashboard', 'dplyr', 'DT', 'shinyjs', 'reactable', 'glue', 'magick', 'googledrive', 'httr', 'jsonlite', 'cpp11', 'progress', 'zip'); install.packages(packages, repos = 'https://cloud.r-project.org'); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) stop('Required R packages could not be loaded: ', paste(missing, collapse = ', '))"
 
 WORKDIR /app
 COPY dreamleague/ /app/

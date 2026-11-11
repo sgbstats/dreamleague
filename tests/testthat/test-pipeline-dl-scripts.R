@@ -57,7 +57,10 @@ test_that("remote xlsx refresh handles missing files and empty listings", {
     listing_fn = function(name) {
       make_remote_listing(name, "2026-09-01 10:00:00")
     },
-    download_fn = function(...) downloaded <<- TRUE
+    download_fn = function(file, path, overwrite) {
+      downloaded <<- TRUE
+      writeLines("remote workbook", path)
+    }
   )
 
   expect_identical(result$status, "downloaded")
@@ -67,7 +70,7 @@ test_that("remote xlsx refresh handles missing files and empty listings", {
   )
   expect_true(downloaded)
 
-  result <- pull_env$refresh_remote_xlsx(
+  expect_error(pull_env$refresh_remote_xlsx(
     missing_path,
     listing_fn = function(name) {
       data.frame(
@@ -76,10 +79,8 @@ test_that("remote xlsx refresh handles missing files and empty listings", {
       )
     },
     download_fn = function(...) downloaded <<- TRUE
-  )
-
-  expect_identical(result$status, "not_found")
-  expect_true(is.na(result$modified_time))
+  ), "Google Drive XLSX not found")
+  unlink(missing_path)
   expect_false(file.exists(missing_path))
 })
 
@@ -100,7 +101,10 @@ test_that("remote xlsx refresh selects the newest matching file", {
         )
       )
     },
-    download_fn = function(file, path, overwrite) downloaded_file <<- file
+    download_fn = function(file, path, overwrite) {
+      downloaded_file <<- file
+      writeLines("remote workbook", path)
+    }
   )
 
   expect_identical(result$status, "downloaded")
@@ -115,6 +119,36 @@ test_that("remote xlsx refresh selects the newest matching file", {
       tz = "UTC"
     )
   )
+  unlink(local_path)
+})
+
+test_that("Drive discovery includes numbered copies in both search and shared-drive listings", {
+  env <- source_functions_only(file.path("..", "..", "R", "dl-file-pull.R"))
+  listing <- data.frame(name = c("DL26-27.xlsx", "DL26-27 (1).xlsx", "DL25-26.xlsx"))
+  search_pattern <- NULL
+  testthat::local_mocked_bindings(
+    drive_find = function(pattern) {
+      search_pattern <<- pattern
+      listing[grepl(pattern, listing$name), , drop = FALSE]
+    },
+    drive_ls = function(path) {
+      expect_identical(path, "test-shared-drive")
+      listing
+    },
+    drive_reveal = function(file, what) {
+      expect_identical(what, "modified_time")
+      file$modified_time <- Sys.time()
+      file
+    },
+    .package = "googledrive"
+  )
+  env$resolve_shared_drive_path <- function() NULL
+  result <- env$get_remote_listing("DL26-27.xlsx")
+  expect_setequal(result$name, c("DL26-27.xlsx", "DL26-27 (1).xlsx"))
+  expect_identical(search_pattern, env$remote_xlsx_pattern("DL26-27.xlsx"))
+  env$resolve_shared_drive_path <- function() "test-shared-drive"
+  result <- env$get_remote_listing("DL26-27.xlsx")
+  expect_setequal(result$name, c("DL26-27.xlsx", "DL26-27 (1).xlsx"))
 })
 
 test_that("authentication helpers do not error without credentials", {
@@ -168,6 +202,18 @@ test_that("file check exposes a callable checker without running it on source", 
   expect_true(is.function(file_check_env$run_file_check))
   expect_identical(
     names(formals(file_check_env$run_file_check)),
-    NULL
+    "local_test"
   )
+})
+
+test_that("both workbooks are acquired before any preprocessing and actions force remote input", {
+  script <- readLines(file.path("..", "..", "R", "dl-preprocessing-run.R"))
+  acquisitions <- grep("<- refresh_remote_xlsx", script, fixed = TRUE)
+  first_processing <- grep("readxl::read_excel", script, fixed = TRUE)[[1]]
+  expect_length(acquisitions, 2)
+  expect_true(all(acquisitions < first_processing))
+  expect_true(any(grepl("if (local_test)", script, fixed = TRUE)))
+  expect_true(any(grepl("remote publication is disabled", script, fixed = TRUE)))
+  workflow <- readLines(file.path("..", "..", ".github", "workflows", "dl-preprocessing.yml"))
+  expect_true(any(grepl("Rscript R/dl-preprocessing-run.R -f", workflow, fixed = TRUE)))
 })

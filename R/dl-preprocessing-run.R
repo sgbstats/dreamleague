@@ -11,6 +11,10 @@ suppressPackageStartupMessages({
 })
 a <- Sys.time()
 force_pull <- any(commandArgs(trailingOnly = TRUE) %in% c("--force", "-f"))
+local_test <- "--local-test" %in% commandArgs(trailingOnly = TRUE)
+if (local_test && (force_pull || identical(Sys.getenv("GITHUB_ACTIONS"), "true"))) {
+  stop("--local-test is for offline testing only, not --force or GitHub Actions.", call. = FALSE)
+}
 
 source("R/dl-file-pull.R")
 source("R/dl-preprocessing-fast.R")
@@ -18,10 +22,14 @@ source("R/validate-dreamleague-data.R")
 source("R/supabase-storage.R")
 
 source("dreamleague/google-credentials.R")
-credentials_path <- initialize_google_credentials(
-  default_path = "dreamleague/credentials.json"
-)
-try_drive_auth(credentials_path)
+credentials_path <- if (local_test) {
+  "dreamleague/credentials.json"
+} else {
+  initialize_google_credentials(default_path = "dreamleague/credentials.json")
+}
+if (!local_test) {
+  try_drive_auth(credentials_path)
+}
 shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
 safe_gs4_auth <- function(path = credentials_path) {
   if (!file.exists(path)) {
@@ -41,11 +49,15 @@ safe_gs4_auth <- function(path = credentials_path) {
   )
 }
 
-safe_gs4_auth()
+if (!local_test) {
+  safe_gs4_auth()
+}
 
 
 file_d <- "data/DreamLeague26-27.xlsx"
-source_d <- refresh_remote_xlsx(file_d, force = force_pull)
+file_o <- "data/DL26-27.xlsx"
+source_d <- refresh_remote_xlsx(file_d, force = force_pull, local_test = local_test)
+source_o <- refresh_remote_xlsx(file_o, force = force_pull, local_test = local_test)
 dl_d <- readxl::read_excel(
   file_d,
   na = c("SOLD"),
@@ -68,8 +80,6 @@ cat("Didsbury\n")
 out_d <- dl_process(dl_d, managers_d, "Didsbury", season_id = 159)
 
 
-file_o <- "data/DL26-27.xlsx"
-source_o <- refresh_remote_xlsx(file_o, force = force_pull)
 dl_o <- readxl::read_excel(
   file_o,
   na = c(""),
@@ -130,29 +140,31 @@ managers <- rbind.data.frame(
 )
 save(managers_d, managers_o, file = "dreamleague/managers.RDa")
 
-googledrive::drive_auth(
-  # email = TRUE,
-  path = credentials_path,
-  subject = NULL,
-  scopes = "drive",
-  cache = gargle::gargle_oauth_cache(),
-  use_oob = gargle::gargle_oob_default(),
-  token = NULL
-)
+if (!local_test) {
+  googledrive::drive_auth(
+    path = credentials_path,
+    subject = NULL,
+    scopes = "drive",
+    cache = gargle::gargle_oauth_cache(),
+    use_oob = gargle::gargle_oob_default(),
+    token = NULL
+  )
 
-
-shared_drive_path <- if (nzchar(shared_drive_target)) {
-  if (grepl("^[A-Za-z0-9_-]{20,}$", shared_drive_target)) {
-    googledrive::as_id(shared_drive_target)
+  shared_drive_path <- if (nzchar(shared_drive_target)) {
+    if (grepl("^[A-Za-z0-9_-]{20,}$", shared_drive_target)) {
+      googledrive::as_id(shared_drive_target)
+    } else {
+      googledrive::drive_get(shared_drive_target)
+    }
   } else {
-    googledrive::drive_get(shared_drive_target)
+    warning(
+      "DREAMLEAGUE_SHARED_DRIVE_TARGET is not set; skipping Drive upload.",
+      call. = FALSE
+    )
+    NULL
   }
 } else {
-  warning(
-    "DREAMLEAGUE_SHARED_DRIVE_TARGET is not set; skipping Drive upload.",
-    call. = FALSE
-  )
-  NULL
+  shared_drive_path <- NULL
 }
 
 upload_to_drive <- function(local_file, remote_name) {
@@ -265,55 +277,59 @@ if (out_d$cut_time == Sys.Date() & out_o$cut_time == Sys.Date()) {
     }
   }
 
-  drive_published <- tryCatch(
-    {
-      if (is.null(shared_drive_path)) {
+  if (local_test) {
+    message("Local XLSX testing completed; remote publication is disabled.")
+  } else {
+    drive_published <- tryCatch(
+      {
+        if (is.null(shared_drive_path)) {
+          warning(
+            "Google Drive publication was skipped: no shared drive is configured.",
+            call. = FALSE
+          )
+          FALSE
+        } else {
+          upload_to_drive(bundle_path, "data.RDa")
+          TRUE
+        }
+      },
+      error = function(e) {
         warning(
-          "Google Drive publication was skipped: no shared drive is configured.",
+          "Google Drive publication was not completed: ",
+          conditionMessage(e),
           call. = FALSE
         )
         FALSE
-      } else {
-        upload_to_drive(bundle_path, "data.RDa")
-        TRUE
       }
-    },
-    error = function(e) {
-      warning(
-        "Google Drive publication was not completed: ",
-        conditionMessage(e),
-        call. = FALSE
-      )
-      FALSE
-    }
-  )
-
-  publish_to_supabase <- tryCatch(
-    {
-      supabase_config <- supabase_storage_config()
-      supabase_upload_object(
-        bundle_path,
-        config = supabase_config
-      )
-      verify_supabase_bundle(config = supabase_config)
-      message("Supabase publication completed successfully.")
-      TRUE
-    },
-    error = function(e) {
-      warning(
-        "Supabase publication was not completed: ",
-        conditionMessage(e),
-        call. = FALSE
-      )
-      FALSE
-    }
-  )
-
-  if (!drive_published && !publish_to_supabase) {
-    stop(
-      "Neither Google Drive nor Supabase publication completed.",
-      call. = FALSE
     )
+
+    publish_to_supabase <- tryCatch(
+      {
+        supabase_config <- supabase_storage_config()
+        supabase_upload_object(
+          bundle_path,
+          config = supabase_config
+        )
+        verify_supabase_bundle(config = supabase_config)
+        message("Supabase publication completed successfully.")
+        TRUE
+      },
+      error = function(e) {
+        warning(
+          "Supabase publication was not completed: ",
+          conditionMessage(e),
+          call. = FALSE
+        )
+        FALSE
+      }
+    )
+
+    if (!drive_published && !publish_to_supabase) {
+      stop(
+        "Neither Google Drive nor Supabase publication completed.",
+        call. = FALSE
+      )
+    }
   }
 }
 b <- Sys.time()
