@@ -5,8 +5,18 @@ suppressPackageStartupMessages({
 
 source("R/dl-preprocessing-fast.R")
 source("R/dl-file-pull.R")
+source("dreamleague/google-credentials.R")
 
 run_file_check <- function(local_test = FALSE) {
+  if (!local_test) {
+    auth_path <- initialize_google_credentials(
+      default_path = "dreamleague/credentials.json"
+    )
+    on.exit(unlink(auth_path), add = TRUE)
+    if (!try_drive_auth(auth_path)) {
+      stop("Google Drive authentication failed; file checks cannot use local XLSX.", call. = FALSE)
+    }
+  }
   file_d <- "data/DreamLeague26-27.xlsx"
   file_o <- "data/DL26-27.xlsx"
   source_d <- refresh_remote_xlsx(file_d, local_test = local_test)

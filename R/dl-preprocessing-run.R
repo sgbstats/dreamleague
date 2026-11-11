@@ -28,7 +28,9 @@ credentials_path <- if (local_test) {
   initialize_google_credentials(default_path = "dreamleague/credentials.json")
 }
 if (!local_test) {
-  try_drive_auth(credentials_path)
+  if (!try_drive_auth(credentials_path)) {
+    stop("Google Drive authentication failed; preprocessing cannot use local XLSX.", call. = FALSE)
+  }
 }
 shared_drive_target <- Sys.getenv("DREAMLEAGUE_SHARED_DRIVE_TARGET", "")
 safe_gs4_auth <- function(path = credentials_path) {

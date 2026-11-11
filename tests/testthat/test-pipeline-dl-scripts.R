@@ -153,6 +153,7 @@ test_that("Drive discovery includes numbered copies in both search and shared-dr
 
 test_that("authentication helpers do not error without credentials", {
   expect_invisible(pull_env$try_drive_auth(tempfile()))
+  expect_false(pull_env$try_drive_auth(tempfile()))
   expect_null(pull_env$resolve_shared_drive_path(""))
   expect_invisible(run_env$safe_gs4_auth(tempfile()))
 })
@@ -204,6 +205,23 @@ test_that("file check exposes a callable checker without running it on source", 
     names(formals(file_check_env$run_file_check)),
     "local_test"
   )
+})
+
+test_that("file checking authenticates before attempting remote workbook reads", {
+  env <- source_functions_only(file.path("..", "..", "R", "dl-file-check.R"))
+  auth_path <- withr::local_tempfile(fileext = ".json")
+  writeLines("test metadata", auth_path)
+  env$initialize_google_credentials <- function(default_path) {
+    expect_identical(default_path, "dreamleague/credentials.json")
+    auth_path
+  }
+  env$try_drive_auth <- function(path) {
+    expect_identical(path, auth_path)
+    FALSE
+  }
+  env$refresh_remote_xlsx <- function(...) stop("must not read files")
+  expect_error(env$run_file_check(), "Google Drive authentication failed")
+  expect_false(file.exists(auth_path))
 })
 
 test_that("both workbooks are acquired before any preprocessing and actions force remote input", {

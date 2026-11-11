@@ -25,17 +25,20 @@ try_drive_auth <- function(path = credentials_path) {
     message(
       "Drive auth unavailable; credentials file not found."
     )
-    return(invisible(NULL))
+    return(invisible(FALSE))
   }
 
   tryCatch(
-    googledrive::drive_auth(path = path),
+    {
+      googledrive::drive_auth(path = path)
+      invisible(TRUE)
+    },
     error = function(e) {
       message(
         "Drive auth unavailable: ",
         conditionMessage(e)
       )
-      invisible(NULL)
+      invisible(FALSE)
     }
   )
 }

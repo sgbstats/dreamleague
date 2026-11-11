@@ -159,3 +159,19 @@ test_that("workbook name matching is anchored and escapes regex characters", {
   expect_true(grepl(remote_xlsx_pattern("DL[26].xlsx"), "DL[26] (1).xlsx"))
   expect_false(grepl(remote_xlsx_pattern("DL[26].xlsx"), "DL2.xlsx"))
 })
+
+test_that("Drive authentication reports success or failure explicitly", {
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines("test metadata", path)
+  fail <- FALSE
+  testthat::local_mocked_bindings(
+    drive_auth = function(path) {
+      if (fail) stop("authentication rejected")
+      invisible(NULL)
+    },
+    .package = "googledrive"
+  )
+  expect_true(try_drive_auth(path))
+  fail <- TRUE
+  expect_false(try_drive_auth(path))
+})
