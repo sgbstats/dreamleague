@@ -28,16 +28,14 @@ app_env <- environment()
 load(resolve_app_path("managers.RDa"))
 
 source(resolve_app_path("google-credentials.R"))
-credentials_path <- initialize_google_credentials(
-  default_path = resolve_app_path("credentials.json")
-)
+credentials_path <- resolve_app_path("credentials.json")
 shared_drive_target <- Sys.getenv(
   "DREAMLEAGUE_SHARED_DRIVE_TARGET",
   ""
 )
-file_data <- resolve_app_path("data.RDa")
 source(resolve_app_path("supabase-storage.R"))
 source(resolve_app_path("github-actions.R"))
+source(resolve_app_path("data-export.R"))
 
 normalize_daily_schema <- function(daily) {
   if ("App" %in% names(daily) && !"SBapp" %in% names(daily)) {
@@ -56,6 +54,15 @@ build_runtime_objects <- function(source_mtime = as.POSIXct(NA)) {
     inherits = FALSE
   ))
   assign("daily", daily, envir = app_env)
+  if (!inherits(cupties$date, "Date")) {
+    parsed_dates <- as.Date(as.character(cupties$date))
+    missing_dates <- is.na(parsed_dates)
+    parsed_dates[missing_dates] <- as.Date(
+      as.character(cupties$date[missing_dates]), format = "%d/%m/%Y"
+    )
+    cupties$date <- parsed_dates
+    assign("cupties", cupties, envir = app_env)
+  }
 
   managers <- rbind.data.frame(
     managers_d |> mutate(league = "didsbury"),
@@ -114,35 +121,31 @@ build_runtime_objects <- function(source_mtime = as.POSIXct(NA)) {
   invisible(TRUE)
 }
 
-load_local_bundle <- function(path = file_data) {
-  if (!file.exists(path)) {
-    stop(
-      "Local fallback data.RDa not found at ",
-      normalizePath(path, winslash = "/", mustWork = FALSE),
-      call. = FALSE
-    )
+clear_runtime_objects <- function() {
+  for (name in c("dl", "daily", "time", "cupties", "league", "managers", "rounds", "file_updates")) {
+    assign(name, NULL, envir = app_env)
   }
-
-  load(path, envir = .GlobalEnv)
-  build_runtime_objects(file.info(path)$mtime[[1]])
+  assign("teamslist", character(), envir = app_env)
 }
 
 try_drive_auth <- function(path = credentials_path) {
   if (!file.exists(path)) {
     message(
-      "Drive auth unavailable; credentials file not found. Using bundled data.RDa only."
+      "Drive auth unavailable; credentials file not found."
     )
     return(FALSE)
   }
 
   tryCatch(
     {
-      googledrive::drive_auth(path = path)
+      auth_path <- initialize_google_credentials(default_path = path)
+      on.exit(unlink(auth_path), add = TRUE)
+      googledrive::drive_auth(path = auth_path)
       TRUE
     },
     error = function(e) {
       message(
-        "Drive auth unavailable; using bundled data.RDa only. ",
+        "Drive auth unavailable: ",
         conditionMessage(e)
       )
       FALSE
@@ -155,20 +158,11 @@ resolve_shared_drive_path <- function(target = shared_drive_target) {
     return(NULL)
   }
 
-  tryCatch(
-    if (grepl("^[A-Za-z0-9_-]{20,}$", target)) {
-      googledrive::as_id(target)
-    } else {
-      googledrive::drive_get(target)
-    },
-    error = function(e) {
-      message(
-        "Shared Drive target could not be resolved; using bundled data.RDa only. ",
-        conditionMessage(e)
-      )
-      NULL
-    }
-  )
+  if (grepl("^[A-Za-z0-9_-]{20,}$", target)) {
+    googledrive::as_id(target)
+  } else {
+    googledrive::drive_get(target)
+  }
 }
 
 get_remote_listing <- function() {
@@ -203,26 +197,7 @@ pull_remote_bundle <- function(remote_listing, remote_name = "data.RDa") {
   on.exit(unlink(temp_path), add = TRUE)
   googledrive::drive_download(remote, path = temp_path, overwrite = TRUE)
 
-  remote_env <- new.env(parent = emptyenv())
-  load(temp_path, envir = remote_env)
-
-  required_objects <- c("dl", "daily", "time", "cupties")
-  missing_objects <- required_objects[
-    !vapply(
-      required_objects,
-      exists,
-      logical(1),
-      envir = remote_env,
-      inherits = FALSE
-    )
-  ]
-  if (length(missing_objects) > 0) {
-    stop(
-      "Remote data.RDa is missing objects: ",
-      paste(missing_objects, collapse = ", "),
-      call. = FALSE
-    )
-  }
+  remote_env <- load_dreamleague_bundle(temp_path)
 
   assign("dl", get("dl", envir = remote_env, inherits = FALSE), envir = app_env)
   assign(
@@ -263,8 +238,7 @@ load_drive_bundle <- function() {
     stop(
       paste(
         "Google Drive credentials are unavailable.",
-        "Set DREAMLEAGUE_GOOGLE_CREDENTIALS_B64 in Connect Cloud Secrets",
-        "or provide a local credentials.json file.",
+        "Set GOOGLE_PRIVATE_KEY and provide credentials.json metadata.",
         sep = " "
       ),
       call. = FALSE
@@ -289,51 +263,48 @@ load_drive_bundle <- function() {
   invisible(list(status = "updated", source = "Google Drive"))
 }
 
-initial_remote_load <- tryCatch(
-  load_supabase_bundle(),
-  error = function(supabase_error) {
-    tryCatch(
-      load_drive_bundle(),
-      error = function(drive_error) {
-        list(
-          status = "failed",
-          source = "Local bundled data.RDa",
-          error = paste(
-            "Supabase:",
-            conditionMessage(supabase_error),
-            "Google Drive:",
-            conditionMessage(drive_error),
-            sep = "<br>"
-          )
-        )
+retrieve_remote_data <- function(
+  loaders = list(Supabase = load_supabase_bundle, `Google Drive` = load_drive_bundle)
+) {
+  errors <- character()
+  for (name in names(loaders)) {
+    result <- tryCatch(
+      loaders[[name]](),
+      error = function(error) {
+        errors <<- c(errors, paste0(name, ": ", conditionMessage(error)))
+        NULL
       }
     )
+    if (!is.null(result)) {
+      result$retrieved_at <- Sys.time()
+      return(result)
+    }
   }
-)
-if (identical(initial_remote_load$status, "failed")) {
-  if (file.exists(file_data)) {
-    message(
-      "Supabase Storage and Google Drive unavailable; using bundled data.RDa. ",
-      gsub("<br>", " ", initial_remote_load$error, fixed = TRUE)
-    )
-    load_local_bundle()
-  } else {
-    stop(
-      "Unable to load DreamLeague data from Supabase Storage or Google Drive, and no local fallback data.RDa is available. ",
-      gsub("<br>", " ", initial_remote_load$error, fixed = TRUE),
-      call. = FALSE
-    )
-  }
+  clear_runtime_objects()
+  error_text <- paste(errors, collapse = "\n")
+  message("No data has been retrieved. ", error_text)
+  list(status = "failed", source = "No data retrieved", error = error_text)
 }
 
-if (!inherits(cupties$date, "Date")) {
-  parsed_dates <- as.Date(as.character(cupties$date))
-  missing_dates <- is.na(parsed_dates)
-  parsed_dates[missing_dates] <- as.Date(
-    as.character(cupties$date[missing_dates]),
-    format = "%d/%m/%Y"
-  )
-  cupties$date <- parsed_dates
+initial_remote_load <- retrieve_remote_data()
+remote_data_state <- reactiveVal(initial_remote_load)
+no_data_message <- "No data has been retrieved. Please try again later."
+data_available <- function() {
+  identical(remote_data_state()$status, "updated")
+}
+require_remote_data <- function() {
+  validate(need(data_available(), no_data_message))
+}
+
+initial_cup_rounds <- function() {
+  if (!identical(initial_remote_load$status, "updated")) {
+    return(character())
+  }
+  cupties |>
+    filter(comp == "bfl") |>
+    arrange(date) |>
+    pull(round) |>
+    unique()
 }
 
 weeks <- seq.Date(as.Date("2026-07-27"), by = 7, length.out = 52)
@@ -367,6 +338,7 @@ ui <- dashboardPage(
 
   dashboardBody(
     shinyjs::useShinyjs(),
+    uiOutput("no_data_status"),
     tabItems(
       tabItem(
         tabName = "league",
@@ -456,15 +428,8 @@ ui <- dashboardPage(
           pickerInput(
             "round_cup",
             "Round",
-            choices = cupties |>
-              filter(comp == "bfl") |>
-              arrange(date) |>
-              pull(round) |>
-              unique(),
-            selected = cupties |>
-              filter(comp == "bfl") |>
-              slice_max(date, n = 1, with_ties = FALSE) |>
-              pull(round),
+            choices = initial_cup_rounds(),
+            selected = tail(initial_cup_rounds(), 1),
             multiple = FALSE
           ),
           uiOutput("round_date2")
@@ -546,7 +511,10 @@ ui <- dashboardPage(
               "Run data collection",
               icon = icon("play"),
               class = "btn-warning"
-            )
+            ),
+            br(),
+            br(),
+            uiOutput("data_download")
           ),
           mainPanel(
             dataTableOutput("diagnostics")
@@ -575,12 +543,15 @@ server <- function(input, output, session) {
   league_master <- reactiveVal("didsbury")
   refresh_counter <- reactiveVal(0)
   refresh_counter_value <- 0
-  cache_status_text <- reactiveVal("Bundled data.RDa")
+  cache_status_text <- reactiveVal("No data retrieved")
   cache_warning_text <- reactiveVal(NULL)
   pull_status_text <- reactiveVal(NULL)
   workflow_state <- reactiveVal(NULL)
 
   team_choices_for_league <- function(league_name) {
+    if (!data_available()) {
+      return(character())
+    }
     managers |>
       filter(league == league_name) |>
       arrange(team) |>
@@ -589,18 +560,15 @@ server <- function(input, output, session) {
       })()
   }
 
-  observeEvent(
-    input$league_teams,
-    {
-      updatePickerInput(
-        session,
-        "team",
-        choices = team_choices_for_league(input$league_teams),
-        selected = NULL
-      )
-    },
-    ignoreInit = FALSE
-  )
+  observe({
+    req(input$league_teams)
+    updatePickerInput(
+      session,
+      "team",
+      choices = team_choices_for_league(input$league_teams),
+      selected = NULL
+    )
+  })
 
   bump_refresh_counter <- function() {
     refresh_counter_value <<- refresh_counter_value + 1
@@ -613,7 +581,7 @@ server <- function(input, output, session) {
     }
     if (!is.null(result) && identical(result$status, "failed")) {
       cache_warning_text(glue::glue(
-        "Last remote load failed: {result$error}"
+        "Last remote load failed: {htmltools::htmlEscape(result$error)}"
       ))
     } else if (!is.null(result)) {
       cache_warning_text(NULL)
@@ -621,12 +589,14 @@ server <- function(input, output, session) {
     bump_refresh_counter()
   }
 
-  update_cache_state(initial_remote_load)
+  observe({
+    update_cache_state(remote_data_state())
+  })
 
   set_pull_status <- function(result, source) {
     if (identical(result$status, "failed")) {
       pull_status_text(glue::glue(
-        "{source} pull failed: {result$error}"
+        "{source} pull failed: {htmltools::htmlEscape(result$error)}"
       ))
     } else {
       pull_status_text(glue::glue(
@@ -635,7 +605,50 @@ server <- function(input, output, session) {
     }
   }
 
-  set_pull_status(initial_remote_load, "Initial remote load")
+  set_pull_status(isolate(remote_data_state()), "Initial remote load")
+
+  output$no_data_status <- renderUI({
+    if (data_available()) {
+      return(NULL)
+    }
+    tags$div(
+      class = "alert alert-danger",
+      role = "alert",
+      strong(no_data_message),
+      br(),
+      actionButton("retry_remote", "Retry data retrieval", icon = icon("rotate")),
+      tags$p("Source details and individual retry controls are available in Diagnostics.")
+    )
+  })
+
+  output$data_download <- renderUI({
+    if (!data_available()) {
+      return(tags$button(
+        type = "button", class = "btn btn-default", disabled = "disabled",
+        "Download data ZIP"
+      ))
+    }
+    downloadButton("download_data", "Download data ZIP")
+  })
+
+  output$download_data <- downloadHandler(
+    filename = function() paste0("dreamleague-data-", format(Sys.Date(), "%Y-%m-%d"), ".zip"),
+    contentType = "application/zip",
+    content = function(file) {
+      require_remote_data()
+      state <- remote_data_state()
+      tryCatch(
+        write_data_zip(app_env, file, state$source, state$retrieved_at),
+        error = function(error) {
+          showNotification(
+            paste("Data download failed:", conditionMessage(error)),
+            type = "error", duration = NULL
+          )
+          stop(error)
+        }
+      )
+    }
+  )
 
   set_workflow_state <- function(
     phase,
@@ -672,16 +685,19 @@ server <- function(input, output, session) {
   }
 
   run_manual_remote_load <- function(loader) {
-    tryCatch(
-      loader(),
-      error = function(error) {
-        list(
-          status = "failed",
-          error = conditionMessage(error)
-        )
-      }
-    )
+    result <- retrieve_remote_data(list(Remote = loader))
+    remote_data_state(result)
+    result
   }
+
+  observeEvent(input$retry_remote, {
+    result <- retrieve_remote_data()
+    remote_data_state(result)
+    set_pull_status(result, "Remote")
+    if (identical(result$status, "failed")) {
+      showNotification(no_data_message, type = "error", duration = NULL)
+    }
+  })
 
   observeEvent(input$force_pull_supabase, {
     result <- run_manual_remote_load(load_supabase_bundle)
@@ -898,6 +914,7 @@ server <- function(input, output, session) {
   })
 
   output$table <- renderReactable({
+    require_remote_data()
     table_data <- league |>
       filter(league == input$league)
 
@@ -938,6 +955,7 @@ server <- function(input, output, session) {
   })
 
   output$team_out <- renderReactable({
+    require_remote_data()
     refresh_counter()
 
     req(input$league_teams, input$team)
@@ -1075,6 +1093,7 @@ server <- function(input, output, session) {
   })
 
   output$team_history_out <- renderReactable({
+    require_remote_data()
     period <- daily |>
       filter(Date <= as.Date(input$end), Date >= as.Date(input$start))
 
@@ -1142,6 +1161,7 @@ server <- function(input, output, session) {
   })
 
   output$teamtext <- renderUI({
+    require_remote_data()
     refresh_counter()
     req(input$league_teams, input$team)
 
@@ -1203,6 +1223,7 @@ server <- function(input, output, session) {
 
   output$img <- renderImage(
     {
+      req(data_available(), input$team)
       outfile <- paste(
         "img/",
         str_to_upper(str_replace_all(input$team, "[^[:alnum:]]", "")),
@@ -1225,6 +1246,7 @@ server <- function(input, output, session) {
   )
 
   output$playerstaken <- renderReactable({
+    require_remote_data()
     table_data_unformatted <- dl |>
       filter(is.na(sold), league == input$league_players) |>
       dplyr::select(team, player, club, position, any_of("url"))
@@ -1266,6 +1288,7 @@ server <- function(input, output, session) {
   })
 
   output$diagnostics <- DT::renderDT({
+    require_remote_data()
     refresh_counter()
     dl |>
       filter(is.na(sold)) |>
@@ -1342,6 +1365,7 @@ server <- function(input, output, session) {
   })
 
   output$update_time <- renderUI({
+    require_remote_data()
     refresh_counter()
     HTML(paste0(
       "Last score update: ",
@@ -1354,6 +1378,7 @@ server <- function(input, output, session) {
   })
 
   output$player_warning <- renderUI({
+    require_remote_data()
     refresh_counter()
     req(input$league_players)
     last_mod <- file_updates$daily
@@ -1381,6 +1406,7 @@ server <- function(input, output, session) {
   })
 
   output$cup <- renderReactable({
+    require_remote_data()
     tryCatch(
       {
         req(input$comp_cup)
@@ -1570,6 +1596,7 @@ server <- function(input, output, session) {
   })
 
   output$round_date2 <- renderUI({
+    require_remote_data()
     tryCatch(
       {
         req(input$comp_cup)
@@ -1643,23 +1670,9 @@ server <- function(input, output, session) {
       "league_team_history",
       selected = input$league_teams
     )
-    teamslist <- (managers |>
-      arrange(team) |>
-      filter(league == input$league_teams))$team
-
-    names(teamslist) <- paste(
-      (managers |>
-        arrange(team) |>
-        filter(league == input$league_teams))$team,
-      " (",
-      (managers |>
-        arrange(team) |>
-        filter(league == input$league_teams))$manager,
-      ")",
-      sep = ""
+    updatePickerInput(
+      session, "team", choices = team_choices_for_league(input$league_teams)
     )
-
-    updatePickerInput(session, "team", choices = teamslist)
   })
 
   observeEvent(input$league_players, {
@@ -1689,37 +1702,38 @@ server <- function(input, output, session) {
     # updateRadioButtons(session, "league_team_history", selected = input$league_team_history)
   })
 
-  observeEvent(
-    input$comp_cup,
-    {
-      rounds_for_comp <- cupties |>
+  observe({
+    req(input$comp_cup)
+    rounds_for_comp <- if (data_available()) {
+      cupties |>
         filter(comp == input$comp_cup) |>
         arrange(date) |>
         pull(round) |>
         unique()
+    } else {
+      character()
+    }
 
-      selected_round <- if (length(rounds_for_comp) > 0) {
-        tail(rounds_for_comp, 1)
-      } else {
-        character(0)
-      }
+    selected_round <- if (length(rounds_for_comp) > 0) {
+      tail(rounds_for_comp, 1)
+    } else {
+      character(0)
+    }
 
-      updatePickerInput(
-        session,
-        "round_cup",
-        choices = rounds_for_comp,
-        selected = selected_round
-      )
-    },
-    ignoreInit = FALSE
-  )
+    updatePickerInput(
+      session,
+      "round_cup",
+      choices = rounds_for_comp,
+      selected = selected_round
+    )
+  })
 
   observeEvent(input$goto_league, {
     updateTabItems(session, "sidebar", "league")
   })
 
   observeEvent(input$goto_team, {
-    req(input$goto_team)
+    req(data_available(), input$goto_team)
     updateTabItems(session, "sidebar", "teams")
     updatePickerInput(session, "team", selected = input$goto_team$team)
   })

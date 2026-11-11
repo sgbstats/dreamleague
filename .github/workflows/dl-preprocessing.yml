@@ -57,6 +57,4 @@ jobs:
             any::testthat
 
       - name: Run preprocessing and publish
-        shell: Rscript {0}
-        run: |
-          source("R/dl-preprocessing-run.R")
+        run: Rscript R/dl-preprocessing-run.R -f
