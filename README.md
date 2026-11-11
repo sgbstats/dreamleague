@@ -13,6 +13,37 @@ must never be stored in the repository.
 The app uses the default `sgbstats/dreamleague` repository;
 `DREAMLEAGUE_GITHUB_REPOSITORY` can override it when running locally.
 
+### Data retrieval and diagnostics
+
+The app retrieves `data.RDa` from Supabase first, then Google Drive if Supabase
+fails. It never loads a bundled/local data file. If both sources fail, the site
+stays available with **No data has been retrieved. Please try again later.**
+and a retry button. Failed manual refreshes also clear the displayed data;
+data-dependent views remain unavailable until a remote load succeeds.
+Successfully retrieved remote bundles are accepted without an age cutoff.
+
+Diagnostics provides **Download data ZIP** only while data is available.
+The archive contains the currently loaded `dl`, `daily`, `time` and `cupties`
+objects in `data.RDa`, CSVs for tabular objects, and `metadata.txt` with the
+source and retrieval time in UTC. No credentials, configuration, local
+workbooks or other files are included.
+
+Scheduled and manual preprocessing actions run
+`Rscript R/dl-preprocessing-run.R -f`. Normal preprocessing always downloads
+both XLSX inputs from Google Drive, regardless of local timestamps, and fails
+before processing or publication if either download fails. `-f`/`--force` is
+retained as an explicit remote-only flag; local files are never a fallback.
+For each workbook, discovery includes numbered copies such as
+`DreamLeague26-27 (1).xlsx` and `DL26-27 (2).xlsx`. The most recently modified
+matching file is selected across the original and all numbered copies, not
+just when the original filename is absent.
+For testing with checked-out workbooks, run
+`Rscript R/dl-preprocessing-run.R --local-test`. This explicit mode uses local
+XLSX inputs and does not publish to Supabase or Google Drive. It cannot be
+combined with `-f` or used in GitHub Actions. The file-check diagnostic script
+also requires remote XLSX by default and accepts `--local-test` for testing.
+Local testing still runs the Soccerbase processing steps.
+
 ## Wenger Boys weekly report
 
 `.github/workflows/wengerboys-weekly.yml` runs every Thursday at 01:00 UTC

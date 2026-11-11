@@ -87,6 +87,13 @@ jobs:
             any::openxlsx
             any::xml2
             any::rsconnect
+            any::zip
+            any::shiny
+            any::shinyWidgets
+            any::reactable
+            any::DT
+            any::shinyjs
+            any::shinydashboard
 
       - name: Run selected testthat sets
         if: steps.select.outputs.tests != 'none'

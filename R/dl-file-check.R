@@ -4,10 +4,24 @@ suppressPackageStartupMessages({
 })
 
 source("R/dl-preprocessing-fast.R")
+source("R/dl-file-pull.R")
+source("dreamleague/google-credentials.R")
 
-run_file_check <- function() {
+run_file_check <- function(local_test = FALSE) {
+  if (!local_test) {
+    auth_path <- initialize_google_credentials(
+      default_path = "dreamleague/credentials.json"
+    )
+    on.exit(unlink(auth_path), add = TRUE)
+    if (!try_drive_auth(auth_path)) {
+      stop("Google Drive authentication failed; file checks cannot use local XLSX.", call. = FALSE)
+    }
+  }
   file_d <- "data/DreamLeague26-27.xlsx"
-  didsbury_cut_time <- as.Date(file.info(file_d)$mtime) - 1
+  file_o <- "data/DL26-27.xlsx"
+  source_d <- refresh_remote_xlsx(file_d, local_test = local_test)
+  source_o <- refresh_remote_xlsx(file_o, local_test = local_test)
+  didsbury_cut_time <- as.Date(source_d$modified_time) - 1
 
   dl_d <- readxl::read_excel(
     file_d,
@@ -34,8 +48,7 @@ run_file_check <- function() {
     season_id = 159
   )
 
-  file_o <- "data/DL26-27.xlsx"
-  original_cut_time <- as.Date(file.info(file_o)$mtime) - 1
+  original_cut_time <- as.Date(source_o$modified_time) - 1
 
   dl_o <- readxl::read_excel(
     file_o,
@@ -83,7 +96,9 @@ run_file_check <- function() {
   )
 }
 
-check <- run_file_check()
+check <- run_file_check(
+  local_test = "--local-test" %in% commandArgs(trailingOnly = TRUE)
+)
 save(
   check,
   file = glue::glue("data/diagnostics/dl-file-check_{Sys.Date()}.RData")
