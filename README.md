@@ -84,6 +84,10 @@ does not list exactly 92 clubs.
 - Competitions counted are the same as the DreamLeague scoring list.
 - Minutes assume 90 for a full match and are derived from substitution times
   (stoppage time and extra time are not counted).
+- A Soccerbase player-page red-card marker adds a dismissal note, distinguishing
+  a second yellow from a direct red. Match minutes use the lineup's `(s/o N)`
+  sending-off minute minus the player's entry minute; otherwise they are blank
+  and excluded from the minutes total rather than estimated from substitutions.
 - Scouting ranks players not owned by any DreamLeague team by season goals,
   with fewer appearances as the tiebreak. The scouting scrape visits every
   candidate once, so the run takes a while.
