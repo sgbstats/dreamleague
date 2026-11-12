@@ -135,6 +135,8 @@ parse_player_page <- function(html, player_id) {
       away = character(),
       played = logical(),
       goals = numeric(),
+      dismissal = character(),
+      dismissal_minute = numeric(),
       stringsAsFactors = FALSE
     )
   } else {
@@ -179,6 +181,10 @@ parse_match_row <- function(row, prefix) {
   } else {
     NA_real_
   }
+  red <- prefix == "tpg" && length(tds) >= 9 &&
+    length(html_elements(tds[[9]], "img")) > 0
+  yellow <- prefix == "tpg" && length(tds) >= 8 &&
+    length(html_elements(tds[[8]], "img")) > 0
   data.frame(
     game_id = sub(paste0("^", prefix), "", html_attr(row, "id")),
     date = as.Date(str_extract(date_href[[1]], "\\d{4}-\\d{2}-\\d{2}")),
@@ -189,6 +195,10 @@ parse_match_row <- function(row, prefix) {
     away = team_names[[2]],
     played = length(score) == 2 && all(grepl("^\\d+$", score)),
     goals = goals,
+    dismissal = if (red) {
+      if (yellow) "second yellow" else "direct red"
+    } else NA_character_,
+    dismissal_minute = NA_real_,
     stringsAsFactors = FALSE
   )
 }
@@ -210,7 +220,7 @@ parse_team_results <- function(html) {
     ))
   }
   out <- dplyr::bind_rows(lapply(rows, parse_match_row, prefix = "tgc"))
-  out$goals <- NULL
+  out[c("goals", "dismissal", "dismissal_minute")] <- NULL
   out
 }
 
@@ -227,7 +237,7 @@ parse_lineup_side <- function(players_html, subs_html) {
     html <- gsub("<[^>]+>", "", html)
     stringr::str_match_all(
       html,
-      "@(\\d+)@|(\\()|(\\))|,\\s*(\\d+)(?:\\+\\d+)?"
+      "@(\\d+)@|(\\((?!\\s*s/o\\b))|(\\))|,\\s*(\\d+)(?:\\+\\d+)?|(\\(\\s*s/o(?:\\s+(\\d+)(?:\\+\\d+)?)?\\s*\\))"
     )[[1]]
   }
 
@@ -235,6 +245,7 @@ parse_lineup_side <- function(players_html, subs_html) {
   ids <- character()
   entry <- c()
   exit <- c()
+  sent_off <- numeric()
   last <- character()
   depth <- 0L
   for (i in seq_len(nrow(tokens))) {
@@ -250,17 +261,21 @@ parse_lineup_side <- function(players_html, subs_html) {
       minute <- as.numeric(tokens[i, 5])
       entry[last[depth + 1L]] <- minute
       if (depth >= 1L) exit[last[depth]] <- minute
+    } else if (!is.na(tokens[i, 7]) && length(last) >= depth + 1L) {
+      sent_off[last[depth + 1L]] <- as.numeric(tokens[i, 7])
     }
   }
 
   played <- data.frame(
     player_id = ids,
     status = ifelse(is.na(entry[ids]), "Started", "Substitute"),
+    entry_minute = unname(ifelse(is.na(entry[ids]), 0, entry[ids])),
     minutes = pmax(
       ifelse(is.na(exit[ids]), 90, exit[ids]) -
         ifelse(is.na(entry[ids]), 0, entry[ids]),
       0
     ),
+    dismissal_minute = unname(sent_off[ids]),
     stringsAsFactors = FALSE
   )
   rownames(played) <- NULL
@@ -274,6 +289,8 @@ parse_lineup_side <- function(players_html, subs_html) {
     player_id = unused_ids,
     status = rep("Unused substitute", length(unused_ids)),
     minutes = rep(0, length(unused_ids)),
+    entry_minute = rep(NA_real_, length(unused_ids)),
+    dismissal_minute = rep(NA_real_, length(unused_ids)),
     stringsAsFactors = FALSE
   )
 
@@ -335,6 +352,8 @@ classify_player_games <- function(
       status = character(),
       minutes = numeric(),
       goals = numeric(),
+      dismissal = character(),
+      dismissal_minute = numeric(),
       stringsAsFactors = FALSE
     ))
   }
@@ -350,6 +369,13 @@ classify_player_games <- function(
     }
     has_entry <- !is.null(entry) && nrow(entry) > 0
     appeared <- fx$game_id %in% own$game_id
+    own_game <- own[own$game_id == fx$game_id, , drop = FALSE]
+    dismissal <- if ("dismissal" %in% names(own_game) && nrow(own_game) > 0) {
+      own_game$dismissal[[1]]
+    } else NA_character_
+    dismissal_minute <- if (!is.na(dismissal) && has_entry && "dismissal_minute" %in% names(entry)) {
+      entry$dismissal_minute[[1]]
+    } else NA_real_
     status <- if (has_entry) {
       entry$status[[1]]
     } else if (appeared) {
@@ -359,6 +385,11 @@ classify_player_games <- function(
     } else {
       "Not in squad"
     }
+    entry_minute <- if (has_entry && "entry_minute" %in% names(entry)) {
+      entry$entry_minute[[1]]
+    } else if (identical(status, "Started")) {
+      0
+    } else NA_real_
     data.frame(
       game_id = fx$game_id,
       date = fx$date,
@@ -366,8 +397,12 @@ classify_player_games <- function(
       opponent = if (fx$home_id == club_id) fx$away else fx$home,
       venue = if (fx$home_id == club_id) "H" else "A",
       status = status,
-      minutes = if (has_entry) entry$minutes[[1]] else NA_real_,
+      minutes = if (!is.na(dismissal)) {
+        max(dismissal_minute - entry_minute, 0)
+      } else if (has_entry) entry$minutes[[1]] else NA_real_,
       goals = sum(own$goals[own$game_id == fx$game_id], na.rm = TRUE),
+      dismissal = dismissal,
+      dismissal_minute = dismissal_minute,
       stringsAsFactors = FALSE
     )
   })
@@ -444,6 +479,17 @@ html_escape <- function(x) {
   gsub(">", "&gt;", x, fixed = TRUE)
 }
 
+wb_dismissal_notes <- function(games) {
+  if (!"dismissal" %in% names(games) || nrow(games) == 0) return(character())
+  dismissed <- games[!is.na(games$dismissal), , drop = FALSE]
+  if (nrow(dismissed) == 0) return(character())
+  sprintf(
+    "Dismissed against %s (%s): %s%s.",
+    dismissed$opponent, format(dismissed$date, "%d %b %Y"), dismissed$dismissal,
+    ifelse(is.na(dismissed$dismissal_minute), "; minute unavailable", paste0(" at ", dismissed$dismissal_minute, " minutes"))
+  )
+}
+
 build_report_email <- function(player_reports, scouting, window, notices = character()) {
   th <- "style='text-align:left;padding:4px 8px;background:#eee'"
   td <- "style='padding:4px 8px;border-bottom:1px solid #ddd'"
@@ -460,9 +506,14 @@ build_report_email <- function(player_reports, scouting, window, notices = chara
         }
       )
       games <- p$games
+      notes <- wb_dismissal_notes(games)
       rows <- if (nrow(games) == 0) {
         sprintf("<tr><td %s colspan='6'>No games for the club in this period.</td></tr>", td)
       } else {
+        minutes <- ifelse(is.na(games$minutes), "-", as.character(games$minutes))
+        if ("dismissal" %in% names(games)) {
+          minutes[is.na(games$minutes) & !is.na(games$dismissal)] <- ""
+        }
         paste(
           sprintf(
             "<tr><td %s>%s</td><td %s>%s (%s)</td><td %s>%s</td><td %s>%s</td><td %s>%s</td><td %s>%s</td></tr>",
@@ -470,18 +521,19 @@ build_report_email <- function(player_reports, scouting, window, notices = chara
             td, html_escape(games$opponent), games$venue,
             td, html_escape(games$comp),
             td, html_escape(games$status),
-            td, ifelse(is.na(games$minutes), "-", games$minutes),
+            td, minutes,
             td, games$goals
           ),
           collapse = ""
         )
       }
       sprintf(
-        "<h3>%s <small>(%s, %s)</small></h3>%s<p>Goals: <b>%d</b> &middot; Games: <b>%d</b> &middot; Minutes: <b>%d</b> &middot; Missed with club playing: <b>%d</b></p><table cellspacing='0' style='border-collapse:collapse'><tr><th %s>Date</th><th %s>Opponent</th><th %s>Competition</th><th %s>Status</th><th %s>Mins</th><th %s>Goals</th></tr>%s</table>",
+        "<h3>%s <small>(%s, %s)</small></h3>%s<p>Goals: <b>%d</b> &middot; Games: <b>%d</b> &middot; Minutes: <b>%d</b> &middot; Missed with club playing: <b>%d</b></p><table cellspacing='0' style='border-collapse:collapse'><tr><th %s>Date</th><th %s>Opponent</th><th %s>Competition</th><th %s>Status</th><th %s>Mins</th><th %s>Goals</th></tr>%s</table>%s",
         html_escape(p$player), tolower(p$position), html_escape(p$club),
         paste(alerts, collapse = ""),
         p$goals, p$games_played, p$minutes, p$missed,
-        th, th, th, th, th, th, rows
+        th, th, th, th, th, th, rows,
+        if (length(notes)) paste0("<p>Note: ", html_escape(notes), "</p>", collapse = "") else ""
       )
     },
     character(1)
@@ -524,12 +576,33 @@ build_report_email <- function(player_reports, scouting, window, notices = chara
   text_players <- vapply(
     player_reports,
     function(p) {
+      games <- p$games
+      match_rows <- if (nrow(games) == 0) {
+        "  No games for the club in this period."
+      } else {
+        missing_minutes <- is.na(games$minutes)
+        minutes <- ifelse(missing_minutes, "-", as.character(games$minutes))
+        if ("dismissal" %in% names(games)) {
+          minutes[missing_minutes & !is.na(games$dismissal)] <- ""
+        }
+        c(
+          "  Date | Opponent | Competition | Status | Mins | Goals",
+          sprintf(
+            "  %s | %s (%s) | %s | %s | %s | %s",
+            format(games$date, "%a %d %b"), games$opponent, games$venue,
+            games$comp, games$status, minutes, games$goals
+          )
+        )
+      }
+      notes <- wb_dismissal_notes(games)
       sprintf(
-        "%s (%s, %s): %d goals, %d games, %d mins, %d missed%s%s",
+        "%s (%s, %s): %d goals, %d games, %d mins, %d missed%s%s\n%s%s",
         p$player, tolower(p$position), p$club, p$goals, p$games_played,
         p$minutes, p$missed,
         if (!is.null(p$warning)) paste0("\n  WARNING: ", p$warning) else "",
-        if (!is.null(p$note)) paste0("\n  NOTE: ", p$note) else ""
+        if (!is.null(p$note)) paste0("\n  NOTE: ", p$note) else "",
+        paste(match_rows, collapse = "\n"),
+        if (length(notes)) paste0("\n  NOTE: ", paste(notes, collapse = "\n  NOTE: ")) else ""
       )
     },
     character(1)
