@@ -116,19 +116,31 @@ the changed files (`.github/scripts/select-test-sets.R`):
 
 | Set | Test files | Runs when these change |
 |-----|------------|------------------------|
-| app | `test-app-*.R` | `dreamleague/` |
-| pipeline | `test-pipeline-*.R` | `R/`, `data/`, `.github/`, test fixtures |
-| both | `test-shared-*.R` | either set's paths |
+| app | `test-app-*.R`, shared contracts | `dreamleague/`, app container/configuration |
+| pipeline | `test-pipeline-dl-*.R`, validation | data-processing scripts and their workflow |
+| wengerboys | `test-pipeline-wengerboys*.R` | weekly report, club list, report fixtures/workflow |
+| storage | storage unit/round-trip tests | upload/download helpers and app bundle loading |
+| benchmarks | `test-pipeline-benchmark-*.R` | benchmarks and their shared storage/Drive helpers |
+| ci | selection and deployment tests | CI scripts/workflow, Docker and Render configuration |
 
-Changes to `tests/testthat.R`, test helpers or shared tests, manual runs, and
+Changes to `tests/testthat.R`, test helpers, manual runs, and
 pushes whose history cannot be diffed run everything. Documentation-only changes
 run no R test sets, but **Run R tests** still reports success for branch protection.
-The deployment PAT check still runs on `staging` and `main`, even for documentation changes.
-The live Supabase job runs only for changes to the app, Supabase code or
-`ci-cd.yml`. New test files must use one of the three prefixes; a pipeline test
-enforces this. Run a set locally with
-`DREAMLEAGUE_TEST_SET=app Rscript tests/testthat.R` (`app`, `pipeline` or `all`,
-the default).
+Within the filename prefixes, tests are registered with finer area tags in
+`test_area_filters`: `app`, `pipeline` (data processing), `wengerboys`, `storage`,
+`benchmarks`, and `ci`. CI combines only affected areas, including consumers of
+shared helpers; for example, `R/wengerboys-lib.R` runs `wengerboys`, not the
+rest of the pipeline suite. New test files must match a registered area.
+Run areas locally with `DREAMLEAGUE_TEST_SET=wengerboys Rscript tests/testthat.R`,
+or a comma-separated union such as `app,storage`; `all` remains the default.
+
+The live Supabase job runs for changes to the app's bundle-loading/storage code,
+the shared upload helper, or its tests. The app PAT check, staging promotion,
+staging deployment verification, and production deployment require changes to
+`dreamleague/`, `Dockerfile`, `.dockerignore`, or `render.yaml`. Report-only,
+pipeline-only, test-only, CI-only and documentation-only changes do not enter
+app staging or request production deployment. Manual runs and unknown diff
+history retain the conservative full-test/deployment path.
 
 CI installs R dependencies explicitly; the app does not use a repository-managed
 renv library. Do not add a startup hook for `renv/activate.R` without committing
@@ -142,7 +154,7 @@ startup; `install.packages()` warnings alone do not fail an R process.
 
 ### Promotion and review
 
-1. Push a feature branch. After R, Supabase and GitHub PAT tests pass, the workflow opens or reuses a PR
+1. Push a feature branch with app runtime or container changes. After relevant tests pass, the workflow opens or reuses a PR
    into `staging` and enables auto-merge for the tested commit. If the branch is
    behind `staging` (each promotion adds a merge commit there), the workflow
    merges `staging` into the feature branch instead; that push is retested and
@@ -164,11 +176,14 @@ startup; `install.packages()` warnings alone do not fail an R process.
 
 Actions cannot open a browser on your computer or this Copilot conversation.
 Use the staging link in the run summary; Copilot can open it when asked once
-the deployment is available. All feature-branch pushes in this repository are
+the deployment is available. Only app-affecting feature-branch pushes are
 eligible for automatic staging promotion, so only trusted contributors should
 have repository write access. Fork PRs run tests without promotion credentials.
 Staging is shared: a later feature can replace the preview, so check the commit
 in the deployment summary before authorizing release.
+Sync the Blueprint's staging build filter once to apply the matching path
+restriction to Render itself. After syncing, report-only and pipeline-only
+commits do not trigger automatic app rebuilds.
 
 ### Credentials and one-off setup
 
