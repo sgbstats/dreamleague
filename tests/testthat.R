@@ -1,14 +1,16 @@
 library(testthat)
 
-# DREAMLEAGUE_TEST_SET selects test files by prefix: app (test-app-*),
-# pipeline (test-pipeline-*), or all (default). test-shared-* runs in both.
+source(".github/scripts/select-test-sets.R")
+
+# Accept one area or a comma-separated union; run shared tests only once.
 test_set <- Sys.getenv("DREAMLEAGUE_TEST_SET", "all")
-filter <- switch(
-  test_set,
-  all = NULL,
-  app = "^(app|shared)-",
-  pipeline = "^(pipeline|shared)-",
-  stop("DREAMLEAGUE_TEST_SET must be one of: all, app, pipeline", call. = FALSE)
-)
+areas <- strsplit(test_set, ",", fixed = TRUE)[[1]]
+if (identical(test_set, "none")) quit(status = 0)
+if (!identical(test_set, "all") && any(!areas %in% names(test_area_filters))) {
+  stop("Unknown DREAMLEAGUE_TEST_SET area: ", test_set, call. = FALSE)
+}
+filter <- if (identical(test_set, "all")) NULL else {
+  paste(test_area_filters[areas], collapse = "|")
+}
 
 test_dir("tests/testthat", filter = filter)
