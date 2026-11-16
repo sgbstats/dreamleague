@@ -18,6 +18,7 @@ jobs:
     outputs:
       tests: ${{ steps.select.outputs.tests }}
       supabase: ${{ steps.select.outputs.supabase }}
+      app: ${{ steps.select.outputs.app }}
     env:
       WENGERBOYS_SKIP_LIVE: "true"
     steps:
@@ -69,6 +70,7 @@ jobs:
         with:
           packages: |
             any::testthat
+            any::yaml
             any::tidyverse
             any::readxl
             any::rvest
@@ -140,6 +142,7 @@ jobs:
     needs: test
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.test.outputs.app == 'true' &&
       (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -175,6 +178,7 @@ jobs:
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
+      needs.test.outputs.app == 'true' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
       contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' &&
@@ -230,6 +234,7 @@ jobs:
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
+      needs.test.outputs.app == 'true' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
       contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/staging'
@@ -297,6 +302,7 @@ jobs:
     if: >-
       !cancelled() &&
       needs.test.result == 'success' &&
+      needs.test.outputs.app == 'true' &&
       contains(fromJSON('["success","skipped"]'), needs.test-supabase.result) &&
       contains(fromJSON('["success","skipped"]'), needs.test-github-token.result) &&
       github.event_name == 'push' && github.ref == 'refs/heads/main'
