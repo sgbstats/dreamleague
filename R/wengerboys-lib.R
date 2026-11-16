@@ -176,6 +176,7 @@ parse_match_row <- function(row, prefix) {
     html_elements("td.dateTime a") |>
     html_attr("href")
   score <- row |> html_elements("td.score em") |> html_text2()
+  score_goals <- suppressWarnings(as.numeric(score))
   goals <- if (length(tds) >= 7) {
     suppressWarnings(as.numeric(str_trim(html_text2(tds[[7]]))))
   } else {
@@ -194,6 +195,8 @@ parse_match_row <- function(row, prefix) {
     home = team_names[[1]],
     away = team_names[[2]],
     played = length(score) == 2 && all(grepl("^\\d+$", score)),
+    home_goals = if (length(score_goals) == 2) score_goals[[1]] else NA_real_,
+    away_goals = if (length(score_goals) == 2) score_goals[[2]] else NA_real_,
     goals = goals,
     dismissal = if (red) {
       if (yellow) "second yellow" else "direct red"
@@ -216,6 +219,8 @@ parse_team_results <- function(html) {
       home = character(),
       away = character(),
       played = logical(),
+      home_goals = numeric(),
+      away_goals = numeric(),
       stringsAsFactors = FALSE
     ))
   }
