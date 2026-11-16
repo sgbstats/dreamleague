@@ -95,6 +95,24 @@ does not list exactly 92 clubs.
   `WENGERBOYS_DRY_RUN=true` and optionally `WENGERBOYS_SCOUT_LIMIT=40`, then run
   `Rscript R/wengerboys-weekly.R`.
 
+## Didsbury auction team report
+
+Run `Rscript R/didsbury-auction-report.R` to create `auction-report/report.html`
+and `auction-report/team.csv` for the highest-scoring team that fits the £100
+budget: 1 goalkeeper, 2 defenders, 3 midfielders and 5 forwards. Only Didsbury
+players with a numeric auction cost are eligible; transfer rows are excluded.
+Outfield Soccerbase goals use the DreamLeague ownership window through the sale
+date, or through the latest data update for unsold players. Goalkeepers are
+ranked by their club's full-season goals conceded to date, including matches
+after the goalkeeper was sold.
+
+The script uses `dreamleague/data.RDa` when present, otherwise downloads the
+current bundle from Supabase. Set `DIDSBURY_AUCTION_BUNDLE_PATH` to use a
+specific bundle, `DIDSBURY_AUCTION_OUTPUT_DIR` to change the output directory,
+or `DIDSBURY_AUCTION_SEASON_ID` to select a Soccerbase season (default `159`).
+When downloading from Supabase, configure the usual `SUPABASE_API_KEY` and
+optional `SUPABASE_URL` / `DREAMLEAGUE_SUPABASE_BUCKET` variables.
+
 ## CI/CD
 
 `.github/workflows/ci-cd.yml` runs `Rscript tests/testthat.R` on pushes and pull
