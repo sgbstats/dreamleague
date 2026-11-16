@@ -38,7 +38,7 @@ auction_players <- function() {
   )
 }
 
-test_that("auction report maximizes goals within budget and ignores transfers", {
+test_that("Didsbury selector maximizes goals within budget and ignores transfers", {
   result <- auction_env$didsbury_auction_best_team(
     auction_players(),
     data.frame(team_id = c(10, 11), conceded = c(5, 0)),
