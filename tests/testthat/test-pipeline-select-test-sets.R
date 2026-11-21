@@ -22,7 +22,7 @@ test_that("app changes run only app tests", {
 test_that("pipeline changes run only pipeline tests", {
   expect_identical(select_test_sets("R/wengerboys-lib.R")$tests, "wengerboys")
   expect_identical(select_test_sets(".github/workflows/dl-preprocessing.yml")$tests, "pipeline")
-  expect_identical(select_test_sets("data/league92_clubs.csv")$tests, "wengerboys")
+  expect_identical(select_test_sets("data/league92_clubs.csv")$tests, "pipeline,wengerboys")
   expect_identical(select_test_sets("tests/testthat/fixtures/player_page.html")$tests, "wengerboys")
   expect_false(select_test_sets("R/wengerboys-lib.R")$supabase)
   expect_false(select_test_sets("R/wengerboys-lib.R")$app)
