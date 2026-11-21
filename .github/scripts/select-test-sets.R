@@ -1,7 +1,7 @@
 # The same area tags select changed paths and test files in the local runner.
 test_area_filters <- c(
   app = "^(app-|shared-)",
-  pipeline = "^pipeline-(dl-|validate-dreamleague-data)",
+  pipeline = "^pipeline-(dl-|data-encoding|validate-dreamleague-data)",
   wengerboys = "^pipeline-wengerboys",
   storage = "^(pipeline-supabase-storage|shared-supabase-roundtrip)",
   benchmarks = "^pipeline-benchmark-",
@@ -18,6 +18,7 @@ test_set_patterns <- list(
   pipeline = c(
     "^R/(dl-|validate-dreamleague-data|scoutingreport)",
     "^dreamleague/google-credentials\\.R$",
+    "^data/[^/]+\\.csv$",
     "^\\.github/workflows/dl-preprocessing\\.yml$"
   ),
   wengerboys = c(
